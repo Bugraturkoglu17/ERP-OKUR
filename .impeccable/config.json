@@ -1,0 +1,54 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "apps/frontend/app/projects/page.tsx"
+        ],
+        "createdAt": "2026-08-09T14:21:52.231Z",
+        "reason": "Conditional classes: slate-700/white and red-700/red-50 never coexist; both pass WCAG AA"
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "apps/frontend/app/manager/layout.tsx",
+          "apps/frontend/components/layout/corporate-shell.tsx"
+        ],
+        "createdAt": "2026-08-09T20:41:13.266Z",
+        "reason": "slate-900 on amber-400 is ~12:1 contrast — correct dark-on-light pattern, not washed-out gray"
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "apps/frontend/app/projects/import/page.tsx"
+        ],
+        "createdAt": "2026-08-14T00:00:00.000Z",
+        "reason": "Conditional step-badge/radio classes: white-on-blue/slate-900 and blue-700-on-blue-50 never coexist with the disabled slate-400/slate-100 branch; both pass WCAG AA"
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "apps/frontend/app/manager/is-emirleri/page.tsx"
+        ],
+        "createdAt": "2026-08-15T00:00:00.000Z",
+        "reason": "Conditional tab-count badge: blue-700/blue-100 (active) and slate-500/slate-200 (inactive) never coexist; both pass WCAG AA. Pre-existing code, not touched by this change."
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "apps/frontend/components/dashboard/document-quick-search.tsx"
+        ],
+        "createdAt": "2026-09-09T00:00:00.000Z",
+        "reason": "Quick-filter chip (slate-600/slate-100 base, hover:blue-700/blue-50) and delete button (slate-400 base, hover:red-600/red-50) are hover-paired: the gray tone and the colored background never render together, only the colored hover pair does. Both states pass WCAG AA."
+      }
+    ]
+  }
+}

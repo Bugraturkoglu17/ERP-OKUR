@@ -1,0 +1,369 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  /* pan-x YOK: yatay tek-parmak sürükleme tamamen kapalı — sayfa sağa/sola
+     kaymasın. pan-y dikey scroll'a izin verir. Pinch-zoom/double-tap-zoom
+     zaten viewport meta'daki user-scalable=no ile ayrıca kapalı. */
+  touch-action: pan-y;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  scroll-behavior: smooth;
+}
+
+body {
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
+body > div {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* iOS Safari, odaklanılan input'un font-size'ı 16px altındaysa otomatik
+   zoom yapar ve zoom-out'u kullanıcıya bırakır — user-scalable=no bunu
+   engellemez. Mobilde tüm form alanlarını 16px'e sabitleyerek önlüyoruz. */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  .overflow-hidden:has(> table) {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .overflow-hidden > table {
+    min-width: 44rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .fixed.inset-0.z-50 {
+    max-height: 100dvh;
+    overflow-y: auto;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .fixed.inset-0.z-50 > [class*="bg-white"] {
+    max-height: calc(100dvh - max(1.5rem, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+    overflow-y: auto;
+    margin-block: auto;
+  }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@keyframes brand-fill-in {
+  0% { opacity: 0; transform: scale(0.85); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes brand-sheen-sweep {
+  /* Tek geçiş: ışık hüzmesi logonun solundan girer, tüm yüzeyi tarayıp
+     sağ kenarı geçtikten sonra söner. Süre boyunca yayılır (5 sn'lik
+     eski döngüde sweep ilk ~%40'ta bitip geri kalanı boş geçiyordu). */
+  0% { transform: translateX(-320px) rotate(20deg); opacity: 0; }
+  14% { opacity: 0.95; }
+  72% { opacity: 0.95; }
+  100% { transform: translateX(2500px) rotate(20deg); opacity: 0; }
+}
+
+@keyframes launch-wordmark-in {
+  0%, 42% { opacity: 0; transform: translateY(8px); }
+  60%, 100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes launch-progress-slide {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(320%); }
+}
+
+:root {
+  /* Navy + Warm Gray — Kurumsal ERP Paleti */
+  --background: 210 20% 98%;
+  --foreground: 215 28% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 215 28% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 215 28% 10%;
+  --primary: 213 72% 28%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 16% 93%;
+  --secondary-foreground: 215 28% 18%;
+  --muted: 210 16% 93%;
+  --muted-foreground: 215 14% 48%;
+  --accent: 38 92% 50%;
+  --accent-foreground: 215 28% 10%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 20% 88%;
+  --input: 214 20% 88%;
+  --ring: 213 72% 28%;
+  --radius: 0.5rem;
+  --sidebar: 213 45% 16%;
+  --sidebar-foreground: 210 30% 90%;
+  --sidebar-primary: 38 92% 50%;
+  --sidebar-primary-foreground: 215 28% 10%;
+  --sidebar-border: 213 40% 22%;
+  --sidebar-ring: 38 92% 50%;
+}
+
+.dark {
+  --background: 215 28% 8%;
+  --foreground: 210 30% 94%;
+  --card: 215 28% 11%;
+  --card-foreground: 210 30% 94%;
+  --popover: 215 28% 11%;
+  --popover-foreground: 210 30% 94%;
+  --primary: 213 65% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 22% 18%;
+  --secondary-foreground: 210 30% 90%;
+  --muted: 215 22% 18%;
+  --muted-foreground: 215 18% 58%;
+  --accent: 38 92% 50%;
+  --accent-foreground: 215 28% 10%;
+  --destructive: 0 60% 42%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 215 22% 20%;
+  --input: 215 22% 20%;
+  --ring: 213 65% 48%;
+  --sidebar: 215 35% 7%;
+  --sidebar-foreground: 210 25% 85%;
+  --sidebar-primary: 38 92% 50%;
+  --sidebar-primary-foreground: 215 28% 10%;
+  --sidebar-border: 215 30% 13%;
+  --sidebar-ring: 38 92% 50%;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased selection:bg-blue-500/10 selection:text-blue-950;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    min-width: 0;
+    overflow-x: hidden;
+  }
+}
+
+@layer components {
+  /* Unified Corporate Tok (Solid & Matte Premium) Components */
+  
+  /* Solid Card Layout */
+  .corp-card {
+    @apply bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.05),0_1px_2px_0_rgba(0,0,0,0.02)] rounded-2xl overflow-hidden transition-all duration-150;
+  }
+
+  /* Solid Matte Header Banner */
+  .corp-header {
+    @apply bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-6 border border-slate-800 shadow-md relative overflow-hidden;
+  }
+
+  /* Professional Table Structure */
+  .corp-table {
+    @apply min-w-[44rem] w-full text-left border-collapse bg-white;
+  }
+
+  .corp-card:has(> .corp-table) {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .corp-th {
+    @apply px-5 py-3.5 bg-slate-50 border-b border-slate-200/80 text-slate-500 text-[11px] font-black uppercase tracking-wider select-none;
+  }
+
+  .corp-td {
+    @apply px-5 py-4 border-b border-slate-100 text-sm text-slate-800 font-medium;
+  }
+
+  /* Premium Solid Inputs & Selections */
+  .corp-input {
+    @apply w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all duration-150;
+  }
+
+  .corp-select {
+    @apply w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all duration-150 cursor-pointer;
+  }
+
+  /* Solid Clean Badges */
+  .corp-badge-success {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/50 rounded-md text-[10px] font-black uppercase tracking-wide;
+  }
+
+  .corp-badge-danger {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-rose-50 text-rose-800 border border-rose-200/50 rounded-md text-[10px] font-black uppercase tracking-wide;
+  }
+
+  .corp-badge-warning {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200/50 rounded-md text-[10px] font-black uppercase tracking-wide;
+  }
+
+  .corp-badge-info {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200/50 rounded-md text-[10px] font-black uppercase tracking-wide;
+  }
+
+  .corp-badge-secondary {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-wide;
+  }
+
+  /* Solid Matte Buttons */
+  .corp-btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl border border-indigo-700/80 shadow-sm transition-colors duration-150;
+  }
+
+  .corp-btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm transition-colors duration-150;
+  }
+
+  .corp-btn-danger {
+    @apply inline-flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl border border-rose-700/80 shadow-sm transition-colors duration-150;
+  }
+
+  .erp-spotlight-card {
+    --spot-x: 50%;
+    --spot-y: 50%;
+    --tilt-x: 0deg;
+    --tilt-y: 0deg;
+    @apply relative isolate overflow-hidden bg-white transition-[transform,background-color] duration-200;
+    transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+    transform-style: preserve-3d;
+  }
+
+  .erp-workspace {
+    background-color: rgb(248 250 252);
+    background-image:
+      radial-gradient(circle at 9% 2%, rgb(37 99 235 / 0.045), transparent 25rem),
+      linear-gradient(rgb(226 232 240 / 0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(226 232 240 / 0.3) 1px, transparent 1px);
+    background-size: auto, 32px 32px, 32px 32px;
+    background-attachment: local;
+  }
+
+  .erp-section-card {
+    @apply overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_35px_rgba(15,23,42,0.035)];
+  }
+
+  .erp-launch-screen {
+    @apply fixed inset-0 z-[60] flex items-center justify-center overflow-hidden bg-[#09111b];
+    /* Açılış animasyonu (logo dolumu + ışık hüzmesi) tamamlandıktan sonra
+       RoleGuard data-leaving ekler; ekran sert kesilmeden içeriğe fade olur.
+       React, geçiş bitince elemanı ağaçtan kaldırır. */
+    opacity: 1;
+    transition: opacity 380ms ease;
+  }
+
+  .erp-launch-screen[data-leaving="true"] {
+    opacity: 0;
+  }
+
+  .erp-launch-ambient {
+    @apply pointer-events-none absolute h-80 w-80 rounded-full opacity-40 blur-3xl;
+    background: radial-gradient(circle, rgb(255 255 255 / 0.08), transparent 68%);
+  }
+
+  .erp-brand-mark--animated {
+    filter: none;
+  }
+
+  .erp-brand-mark--animated .erp-brand-fill {
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+    animation: brand-fill-in 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  }
+
+  .erp-brand-sheen {
+    mix-blend-mode: screen;
+    /* Tek geçiş, sonda durur (infinite değil) — açılış ekranı bu geçiş
+       bitmeden içeriğe geçmez. */
+    animation: brand-sheen-sweep 1.9s cubic-bezier(0.4, 0, 0.2, 1) 0.35s forwards;
+  }
+
+  .erp-launch-wordmark {
+    opacity: 0;
+    animation: launch-wordmark-in 2.1s ease-out forwards;
+  }
+
+  /* "Oturum kontrol ediliyor" ilerleme çizgisi — belirsiz (indeterminate):
+     sabit bir süre olmadığından, ekran ne kadar görünürse görünsün "çalışıyor"
+     hissi veren, sürekli soldan sağa kayan bir parça (masraf ile aynı yaklaşım). */
+  .erp-launch-progress {
+    position: relative;
+  }
+
+  .erp-launch-progress::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 45%;
+    border-radius: inherit;
+    background: rgb(255 255 255 / 0.65);
+    animation: launch-progress-slide 1.15s ease-in-out infinite;
+  }
+
+  .erp-spotlight-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background: radial-gradient(circle at var(--spot-x) var(--spot-y), rgb(37 99 235 / 0.12), transparent 52%);
+    transition: opacity 220ms ease;
+  }
+
+  .erp-spotlight-card:hover::before,
+  .erp-spotlight-card:focus-visible::before {
+    opacity: 1;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .erp-spotlight-card {
+    transform: none !important;
+    transition: none;
+  }
+
+  .erp-brand-mark--animated .erp-brand-fill {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .erp-brand-sheen {
+    display: none;
+  }
+
+  .erp-launch-wordmark {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .erp-launch-progress::after {
+    animation: none;
+    width: 100%;
+  }
+
+}

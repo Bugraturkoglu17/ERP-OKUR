@@ -1,0 +1,44 @@
+{
+  "name": "okur-erp-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "npm run api:generate || echo API offline, using cached types.",
+    "dev": "next dev",
+    "prebuild": "npm run api:generate || echo API offline, using cached types.",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "api:generate": "openapi-typescript http://localhost:8001/api/v1/openapi.json --output types/api.ts"
+  },
+  "dependencies": {
+    "axios": "^1.20.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.378.0",
+    "next": "^15.5.25",
+    "react": "^18",
+    "react-dom": "^18",
+    "tailwind-merge": "^2.3.0",
+    "tailwind-variants": "^0.2.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.4.19",
+    "eslint": "^9",
+    "eslint-config-next": "^15.5.25",
+    "openapi-typescript": "^7.13.0",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "$postcss",
+    "sharp": "0.35.5",
+    "postcss-selector-parser": "7.1.6",
+    "browserslist": "4.28.9",
+    "brace-expansion": "5.0.12"
+  }
+}

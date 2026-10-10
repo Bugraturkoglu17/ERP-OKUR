@@ -1,0 +1,55 @@
+# Node.js / Next.js
+node_modules/
+.kilo/node_modules/
+.next/
+.next-*/
+out/
+build/
+.npm
+*.log
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# TypeScript Build Cache
+*.tsbuildinfo
+
+# Uploaded files (binary, not version controlled)
+apps/backend/app/static/uploads/
+local-data/
+*.dump
+*.backup
+# Source-environment sample payloads can contain contact details; do not publish.
+/payload.json
+/partner_payload.json
+/test_payload.json

@@ -1,0 +1,3 @@
+# Legacy Sismik compose is intentionally disabled in the Okur local copy.
+# Use the isolated docker-compose.yml at the repository root instead.
+services: {}

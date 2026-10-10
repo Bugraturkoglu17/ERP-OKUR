@@ -1,0 +1,89 @@
+name: okur-erp-local
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: okur-erp-local-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-okur_local}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-okur_local_only}
+      POSTGRES_DB: okur_erp_local
+    volumes:
+      - okur_postgres_data:/var/lib/postgresql/data
+    networks:
+      - okur-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: okur-erp-local-redis
+    restart: always
+    networks:
+      - okur-network
+
+  backend:
+    build: 
+      context: ./apps/backend
+    container_name: okur-erp-local-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-okur_local}:${POSTGRES_PASSWORD:-okur_local_only}@db:5432/okur_erp_local
+      - REDIS_URL=redis://redis:6379/0
+      - ENV=development
+      - SECRET_KEY=${SECRET_KEY:-okur-local-development-only-secret-key}
+      - AUTO_MIGRATE=true
+      - AUTO_MIGRATE_WAIT_SECONDS=90
+      - AUTO_BOOTSTRAP_PLATFORM_ADMIN=false
+      - EMAIL_ASYNC_ENABLED=false
+      - FRONTEND_URL=http://localhost:3001
+      - OKUR_LOCAL_UPLOAD_DIR=/data/uploads
+    volumes:
+      - okur_upload_data:/data/uploads
+    ports:
+      - "127.0.0.1:8001:8000"
+    depends_on:
+      - db
+      - redis
+    networks:
+      - okur-network
+
+  worker:
+    build:
+      context: ./apps/backend
+    container_name: okur-erp-local-worker
+    restart: always
+    command: celery -A app.core.workers.tasks worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-okur_local}:${POSTGRES_PASSWORD:-okur_local_only}@db:5432/okur_erp_local
+      - REDIS_URL=redis://redis:6379/0
+      - ENV=development
+      - SECRET_KEY=${SECRET_KEY:-okur-local-development-only-secret-key}
+      - AUTO_MIGRATE=false
+      - EMAIL_ASYNC_ENABLED=false
+    depends_on:
+      - db
+      - redis
+    networks:
+      - okur-network
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8001/api/v1
+    container_name: okur-erp-local-frontend
+    restart: always
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      - backend
+    networks:
+      - okur-network
+
+networks:
+  okur-network:
+    driver: bridge
+
+volumes:
+  okur_postgres_data:
+  okur_upload_data:
