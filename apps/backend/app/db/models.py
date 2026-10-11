@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -1527,3 +1528,73 @@ class SystemSetting(SQLModel, table=True):
     key:        str      = Field(primary_key=True, max_length=100)
     value:      str      = Field(sa_column=Column(Text(), nullable=False))
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+# ── OKUR perakende depo stoğu ────────────────────────────────────────────────
+# Legacy inventory tabloları proje/şantiye kullanımına aittir. Araç stokları
+# onlardan ayrı tutulur; böylece eski endpoint'ler yeni depo bakiyelerini
+# değiştiremez ve her tüketim mağaza bazında denetlenebilir.
+
+class RetailDepot(SQLModel, table=True):
+    __tablename__ = "retail_depots"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "plate", name="uq_retail_depot_tenant_plate"),
+        CheckConstraint("kind IN ('main', 'vehicle')", name="ck_retail_depot_kind"),
+        CheckConstraint("(kind = 'main' AND plate IS NULL) OR (kind = 'vehicle' AND plate IS NOT NULL)", name="ck_retail_depot_plate"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(foreign_key="tenants.id", index=True)
+    kind: str = Field(max_length=16, index=True)
+    name: str = Field(max_length=120)
+    plate: Optional[str] = Field(default=None, max_length=20)
+    assigned_user_id: Optional[UUID] = Field(foreign_key="users.id", default=None, index=True)
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+class RetailMaterial(SQLModel, table=True):
+    __tablename__ = "retail_materials"
+    __table_args__ = (UniqueConstraint("tenant_id", "sku", name="uq_retail_material_tenant_sku"),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(foreign_key="tenants.id", index=True)
+    sku: str = Field(max_length=80)
+    name: str = Field(max_length=255, index=True)
+    category: Optional[str] = Field(default=None, max_length=100)
+    unit: str = Field(default="adet", max_length=20)
+    min_stock: Decimal = Field(default=Decimal("0"), sa_column=Column(Numeric(14, 3), nullable=False))
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+class RetailBalance(SQLModel, table=True):
+    __tablename__ = "retail_balances"
+    __table_args__ = (CheckConstraint("quantity >= 0", name="ck_retail_balance_nonnegative"),)
+
+    depot_id: UUID = Field(foreign_key="retail_depots.id", primary_key=True)
+    material_id: UUID = Field(foreign_key="retail_materials.id", primary_key=True)
+    quantity: Decimal = Field(default=Decimal("0"), sa_column=Column(Numeric(14, 3), nullable=False))
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+class RetailMovement(SQLModel, table=True):
+    __tablename__ = "retail_movements"
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_retail_movement_positive"),
+        CheckConstraint("kind IN ('opening', 'load', 'use', 'return', 'count')", name="ck_retail_movement_kind"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(foreign_key="tenants.id", index=True)
+    material_id: UUID = Field(foreign_key="retail_materials.id", index=True)
+    source_depot_id: Optional[UUID] = Field(foreign_key="retail_depots.id", default=None, index=True)
+    target_depot_id: Optional[UUID] = Field(foreign_key="retail_depots.id", default=None, index=True)
+    branch_id: Optional[UUID] = Field(foreign_key="branches.id", default=None, index=True)
+    work_order_id: Optional[UUID] = Field(foreign_key="work_orders.id", default=None)
+    kind: str = Field(max_length=16, index=True)
+    quantity: Decimal = Field(sa_column=Column(Numeric(14, 3), nullable=False))
+    reference_no: Optional[str] = Field(default=None, max_length=80)
+    note: Optional[str] = Field(default=None, max_length=500)
+    performed_by: UUID = Field(foreign_key="users.id")
+    performed_at: datetime = Field(default_factory=utc_now, nullable=False, index=True)

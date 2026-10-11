@@ -42,11 +42,11 @@ const APPLE_STARTUP_IMAGES: { url: string; media: string }[] = [
 ];
 
 export const metadata: Metadata = {
-  title: "SİSMİK · Kurumsal Operasyon Sistemi",
+  title: "OKUR · Kurumsal Operasyon Sistemi",
   description: "İş emirleri, mağaza projeleri ve saha raporları için kurumsal operasyon sistemi.",
-  applicationName: "SİSMİK",
+  applicationName: "OKUR",
   appleWebApp: {
-    title: "SİSMİK",
+    title: "OKUR",
     capable: true,
     statusBarStyle: "black-translucent",
     startupImage: APPLE_STARTUP_IMAGES,

@@ -1,7 +1,7 @@
 'use client';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  SİSMİK — API Yönetim & Sistem Entegrasyon Kontrol Paneli
+//  OKUR — API Yönetim & Sistem Entegrasyon Kontrol Paneli
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect } from 'react';
@@ -223,7 +223,7 @@ export default function ApiControlPanel() {
               <iframe 
                 src="http://localhost:8001/api/docs" 
                 className="w-full h-full min-h-[600px] border-0"
-                title="SİSMİK API Swagger"
+                title="OKUR API Swagger"
               />
             </div>
           </div>

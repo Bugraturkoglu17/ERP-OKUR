@@ -19,6 +19,11 @@ const buildVersion = readBuildVersion();
 
 const nextConfig = {
   output: "standalone",
+  // OKUR yerel kopyası: tarayıcı yalnızca 3001'e bağlanır; API istekleri
+  // Next sunucusu tarafından aynı makinedeki 8001 portuna yönlendirilir.
+  async rewrites() {
+    return [{ source: "/api/v1/:path*", destination: "http://127.0.0.1:8001/api/v1/:path*" }];
+  },
   // Yerel geliştirme süreci açıkken bağımsız doğrulama build'inin aynı
   // lock/cache dizinine çarpmasını önlemek için testlerde değiştirilebilir.
   distDir: process.env.NEXT_DIST_DIR || ".next",

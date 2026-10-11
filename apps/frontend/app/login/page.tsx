@@ -23,7 +23,7 @@ import {
   demoLogin,
   type LoginTarget,
 } from "@/lib/demo-auth";
-import { BrandMark } from "@/components/brand/brand-mark";
+import { OkurWordmark } from "@/components/brand/okur-wordmark";
 import { resetLaunchIntro } from "@/lib/client-session";
 
 const QUICK_LOGIN: Array<{
@@ -106,19 +106,13 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-dvh bg-[#f4f6f8] lg:grid-cols-[minmax(26rem,0.9fr)_minmax(34rem,1.1fr)]">
       <section className="relative hidden overflow-hidden bg-[#09121c] p-12 text-white lg:flex lg:flex-col lg:justify-between xl:p-16">
-        <div className="pointer-events-none absolute -left-32 top-24 h-96 w-96 rounded-full bg-red-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute -left-32 top-24 h-96 w-96 rounded-full bg-fuchsia-500/10 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.3)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.3)_1px,transparent_1px)] [background-size:40px_40px]" />
 
-        <div className="relative flex items-center gap-3">
-          <BrandMark tone="red" className="h-10 w-10" />
-          <div>
-            <p className="text-sm font-bold tracking-[-0.02em]">Sismik Mekanik</p>
-            <p className="text-[10px] font-semibold tracking-[0.22em] text-white/40">ERP SİSTEMİ</p>
-          </div>
-        </div>
+        <OkurWordmark dark animated priority className="w-52" />
 
         <div className="relative max-w-xl pb-8">
-          <p className="mb-4 text-xs font-semibold tracking-[0.24em] text-red-400">OPERASYON MERKEZİ</p>
+          <p className="mb-4 text-xs font-semibold tracking-[0.24em] text-fuchsia-400">OPERASYON MERKEZİ</p>
           <h1 className="max-w-lg text-balance text-4xl font-bold leading-[1.08] tracking-[-0.045em] xl:text-5xl">
             Saha operasyonunuz tek, güvenli bir merkezde.
           </h1>
@@ -129,28 +123,24 @@ export default function LoginPage() {
           <div className="mt-10 grid max-w-lg grid-cols-2 gap-x-8 gap-y-4 border-t border-white/10 pt-6 text-xs text-slate-300">
             {["Rol bazlı güvenli erişim", "Merkezi dosya yönetimi", "Anlık iş takibi", "Saha raporlama"].map((item) => (
               <div key={item} className="flex items-center gap-2.5">
-                <CheckCircle2 className="h-4 w-4 text-red-400" strokeWidth={1.8} />
+                <CheckCircle2 className="h-4 w-4 text-fuchsia-400" strokeWidth={1.8} />
                 <span>{item}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="relative text-[10px] tracking-[0.16em] text-white/25">SİSMİK MEKANİK · KURUMSAL ERİŞİM</p>
+        <p className="relative text-[10px] tracking-[0.16em] text-white/25">OKUR TEKNİK SOĞUTMA · KURUMSAL ERİŞİM</p>
       </section>
 
       <section className="flex min-h-dvh items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
         <div className={`w-full ${DEMO_MODE ? "max-w-xl" : "max-w-md"}`}>
-          <div className="mb-8 flex items-center gap-4 lg:hidden">
-            <BrandMark tone="red" animated className="h-14 w-14" />
-            <div>
-              <p className="text-sm font-bold tracking-[-0.02em] text-slate-950">Sismik Mekanik</p>
-              <p className="text-[10px] font-semibold tracking-[0.18em] text-slate-400">ERP SİSTEMİ</p>
-            </div>
+          <div className="mb-7 lg:hidden">
+            <OkurWordmark animated priority className="w-60 max-w-full sm:w-64" />
           </div>
 
           <header className="mb-7">
-            <p className="mb-2 text-xs font-semibold tracking-[0.16em] text-red-600">GÜVENLİ GİRİŞ</p>
+            <p className="mb-2 text-xs font-semibold tracking-[0.16em] text-fuchsia-700">GÜVENLİ GİRİŞ</p>
             <h2 className="text-3xl font-bold tracking-[-0.04em] text-slate-950">Tekrar hoş geldiniz</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">Çalışma alanınıza devam etmek için hesap bilgilerinizi girin.</p>
           </header>
@@ -168,7 +158,7 @@ export default function LoginPage() {
               </label>
               <div className="relative">
                 <AtSign className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input id="login-identity" type="text" required autoComplete="username" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} placeholder="kullanici@firma.com" className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-3 pl-10 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-500/10" />
+                <input id="login-identity" type="text" required autoComplete="username" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} placeholder="kullanici@firma.com" className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-3 pl-10 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-fuchsia-500 focus:bg-white focus:ring-4 focus:ring-fuchsia-500/10" />
               </div>
             </div>
             <div>
@@ -180,8 +170,8 @@ export default function LoginPage() {
               </div>
               <div className="relative">
                 <LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input id="login-password" type={showPassword ? "text" : "password"} required autoComplete="current-password" value={companyPassword} onChange={(e) => setCompanyPassword(e.target.value)} placeholder="••••••••" className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-3 pl-10 pr-11 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-500/10" />
-                <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"} className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
+                <input id="login-password" type={showPassword ? "text" : "password"} required autoComplete="current-password" value={companyPassword} onChange={(e) => setCompanyPassword(e.target.value)} placeholder="••••••••" className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-3 pl-10 pr-11 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-fuchsia-500 focus:bg-white focus:ring-4 focus:ring-fuchsia-500/10" />
+                <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"} className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500">
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -189,7 +179,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={companyLoading}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ff3131] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(255,49,49,0.22)] transition hover:-translate-y-0.5 hover:bg-red-600 hover:shadow-[0_16px_34px_rgba(255,49,49,0.28)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#d90070] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(217,0,112,0.2)] transition hover:-translate-y-0.5 hover:bg-[#bd0063] hover:shadow-[0_16px_34px_rgba(217,0,112,0.27)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {companyLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

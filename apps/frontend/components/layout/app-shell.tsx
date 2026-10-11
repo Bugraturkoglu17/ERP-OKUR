@@ -8,7 +8,7 @@ import { fetchTenantContext } from "@/lib/tenant-context";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [title, setTitle] = useState("Sismik Mağaza Kartı");
+  const [title, setTitle] = useState("OKUR Mağaza Kartı");
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 

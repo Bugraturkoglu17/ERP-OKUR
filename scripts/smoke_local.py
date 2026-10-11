@@ -30,9 +30,11 @@ def main() -> None:
         with db.cursor() as cursor:
             cursor.execute("SELECT current_database()")
             assert cursor.fetchone()[0] == "okur_erp_local"
+            counts: dict[str, int] = {}
             for table in ("users", "projects", "work_orders", "documents", "notifications"):
                 cursor.execute(f'SELECT count(*) FROM "{table}"')
-                print(f"{table}: {cursor.fetchone()[0]}")
+                counts[table] = cursor.fetchone()[0]
+                print(f"{table}: {counts[table]}")
 
     credentials = dict(
         line.split(": ", 1)
@@ -54,11 +56,13 @@ def main() -> None:
         unauthorized = client.get("http://127.0.0.1:8001/api/v1/projects")
         assert unauthorized.status_code in {401, 403}
         headers = {"Authorization": f"Bearer {token}"}
-        for route in ("projects", "work-orders"):
-            result = client.get(f"http://127.0.0.1:8001/api/v1/{route}", headers=headers)
-            result.raise_for_status()
-            assert result.json() == [], f"Expected empty {route} in a fresh Okur instance"
-        print("Authorization and empty business lists: OK")
+        projects = client.get("http://127.0.0.1:8001/api/v1/projects?limit=1", headers=headers)
+        projects.raise_for_status()
+        assert int(projects.headers["X-Total-Count"]) == counts["projects"]
+        orders = client.get("http://127.0.0.1:8001/api/v1/work-orders", headers=headers)
+        orders.raise_for_status()
+        assert len(orders.json()) == counts["work_orders"]
+        print("Authorization and business list counts: OK")
         response = client.get("http://127.0.0.1:3001/login")
         response.raise_for_status()
         assert "html" in response.headers.get("content-type", "")

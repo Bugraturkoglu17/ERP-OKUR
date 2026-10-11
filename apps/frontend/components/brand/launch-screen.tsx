@@ -1,16 +1,17 @@
 "use client";
 
-import { BrandMark, type BrandTone } from "@/components/brand/brand-mark";
+import type { BrandTone } from "@/components/brand/brand-mark";
+import { OkurWordmark } from "@/components/brand/okur-wordmark";
 
 /**
  * Uygulamanın SOĞUK açılışında (PWA cold boot / sekme yenileme) gösterilen
- * TEK açılış ekranı: koyu zemin, logo dolum animasyonu + logonun üzerinden
- * geçen ışık hüzmesi, marka yazısı ve altında ince kayan bir çizgi.
+ * TEK açılış ekranı: koyu zemin, OKUR yazı logosu + harflerin üzerinden
+ * geçen tek ışık hüzmesi ve altında ince kayan bir çizgi.
  *
  * Akış (RoleGuard yönetir):
  *  - İçerik (children) bu ekran görünürken ARKA PLANDA mount olur, güncel
  *    verisini çeker.
- *  - Açılış animasyonu (logo dolumu + ışık hüzmesi, ~2,3 sn) TAMAMLANMADAN
+ *  - Açılış animasyonu (logo girişi + ışık hüzmesi, ~3,1 sn) TAMAMLANMADAN
  *    içeriğe geçilmez.
  *  - Animasyon bitince RoleGuard `leaving` verir → ekran 380 ms'de fade olur
  *    ve ardından ağaçtan kaldırılır (sert kesme yok).
@@ -20,7 +21,6 @@ import { BrandMark, type BrandTone } from "@/components/brand/brand-mark";
  * kapanıyor" hatası).
  */
 export function LaunchScreen({
-  tone = "red",
   status = "Oturum kontrol ediliyor",
   leaving = false,
 }: {
@@ -34,16 +34,15 @@ export function LaunchScreen({
     <div
       className="erp-launch-screen"
       data-leaving={leaving ? "true" : undefined}
-      aria-label="SİSMİK Kurumsal Operasyon Sistemi açılıyor"
+      aria-label="OKUR ERP açılıyor"
       aria-live="polite"
     >
       <div className="erp-launch-ambient" />
       <div className="relative flex flex-col items-center">
-        <BrandMark tone={tone} animated className="h-28 w-28 sm:h-32 sm:w-32" />
-        <div className="erp-launch-wordmark mt-5 text-center">
-          <p className="text-[1.65rem] font-black tracking-[0.3em] text-white">SİSMİK</p>
-          <p className="mt-2 text-[10px] font-semibold tracking-[0.22em] text-white/50">KURUMSAL OPERASYON SİSTEMİ</p>
-        </div>
+        <OkurWordmark dark animated priority className="w-[min(82vw,27rem)]" />
+        <p className="erp-launch-wordmark mt-1 text-center text-[10px] font-semibold tracking-[0.22em] text-white/50">
+          KURUMSAL OPERASYON SİSTEMİ
+        </p>
         {status && (
           <div className="erp-launch-wordmark mt-8 flex flex-col items-center gap-2.5">
             <div className="erp-launch-progress h-0.5 w-40 overflow-hidden rounded-full bg-white/10" />

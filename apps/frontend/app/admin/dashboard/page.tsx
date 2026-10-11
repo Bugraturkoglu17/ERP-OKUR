@@ -36,7 +36,7 @@ export default function AdminDashboardPage() {
     { label: "Toplam kullanıcı", value: loading ? "…" : users.length, description: "Sistemde kayıtlı hesap", icon: Users, tone: "blue" as const, href: "/admin/users" },
     { label: "Aktif kullanıcı", value: loading ? "…" : activeUsers, description: "Giriş yapabilen hesap", icon: Activity, tone: "emerald" as const, href: "/admin/users" },
     { label: "Rol yapısı", value: "3", description: "Admin, yönetici, kullanıcı", icon: Shield, tone: "amber" as const, href: "/admin/roles" },
-    { label: "Operasyon", value: "Canlı", description: "Sistem servis durumu", icon: ClipboardList, tone: "slate" as const, href: "/admin/settings" },
+    { label: "Operasyon", value: "Yerel", description: "Yerel geliştirme ortamı", icon: ClipboardList, tone: "slate" as const, href: "/admin/settings" },
   ];
 
   const shortcuts = [

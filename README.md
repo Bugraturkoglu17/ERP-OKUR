@@ -3,8 +3,9 @@
 Bu depo, Sismik ERP'nin kodundan alınmış **ayrı, yalnız yerel geliştirme**
 kopyasıdır. Marka ve iş akışları henüz Okur için özelleştirilmedi; aşağıdaki
 eski Sismik açıklamaları bu geçiş döneminde kaynak referansıdır.
-Yerel veritabanında yalnız yeni yönetici hesabı vardır; canlı Sismik verileri
-aktarılmamıştır.
+Yerel veritabanında yeni yönetici hesabı ve Sismik'in **yerel** veritabanından
+aktarılmış 4.004 mağaza vardır. Canlı Sismik verileri, iş emirleri, kullanıcılar
+ve dosyalar aktarılmamıştır.
 
 Okur arayüzü `localhost:3001`, API'si `localhost:8001` ve veritabanı
 `okur_erp_local` kullanır. Canlı Sismik veritabanına ve dosya deposuna bu

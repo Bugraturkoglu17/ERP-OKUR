@@ -721,6 +721,195 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/retail-stock/depots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Depots */
+        get: operations["list_depots_api_v1_retail_stock_depots_get"];
+        put?: never;
+        /** Create Depot */
+        post: operations["create_depot_api_v1_retail_stock_depots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/retail-stock/depots/{depot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Depot */
+        patch: operations["update_depot_api_v1_retail_stock_depots__depot_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/retail-stock/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Staff */
+        get: operations["list_staff_api_v1_retail_stock_staff_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/retail-stock/materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Materials */
+        get: operations["list_materials_api_v1_retail_stock_materials_get"];
+        put?: never;
+        /** Create Material */
+        post: operations["create_material_api_v1_retail_stock_materials_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/retail-stock/stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Stock */
+        get: operations["list_stock_api_v1_retail_stock_stock_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/retail-stock/stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Stores */
+        get: operations["search_stores_api_v1_retail_stock_stores_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/retail-stock/opening": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Opening Stock */
+        post: operations["opening_stock_api_v1_retail_stock_opening_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/retail-stock/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Load Vehicle */
+        post: operations["load_vehicle_api_v1_retail_stock_load_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/retail-stock/use": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Use At Store */
+        post: operations["use_at_store_api_v1_retail_stock_use_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/retail-stock/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Return To Main */
+        post: operations["return_to_main_api_v1_retail_stock_return_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/retail-stock/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Movements */
+        get: operations["list_movements_api_v1_retail_stock_movements_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/finance/dashboard/profitability/{project_id}": {
         parameters: {
             query?: never;
@@ -3018,6 +3207,27 @@ export interface components {
              */
             created_at: string;
         };
+        /** DepotCreate */
+        DepotCreate: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "main" | "vehicle";
+            /** Name */
+            name: string;
+            /** Plate */
+            plate?: string | null;
+            /** Assigned User Id */
+            assigned_user_id?: string | null;
+        };
+        /** DepotUpdate */
+        DepotUpdate: {
+            /** Assigned User Id */
+            assigned_user_id?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
         /**
          * Document
          * @description Bulut depolamadaki (OCI Object Storage) tüm dosya kayıtları.
@@ -3687,6 +3897,25 @@ export interface components {
              * Format: date-time
              */
             created_at?: string;
+        };
+        /** MaterialCreate */
+        MaterialCreate: {
+            /** Sku */
+            sku: string;
+            /** Name */
+            name: string;
+            /** Category */
+            category?: string | null;
+            /**
+             * Unit
+             * @default adet
+             */
+            unit: string;
+            /**
+             * Min Stock
+             * @default 0
+             */
+            min_stock: number | string;
         };
         /** MaterialCreateWithStock */
         MaterialCreateWithStock: {
@@ -4608,6 +4837,25 @@ export interface components {
              */
             created_at: string;
         };
+        /** StockEntry */
+        StockEntry: {
+            /**
+             * Depot Id
+             * Format: uuid
+             */
+            depot_id: string;
+            /**
+             * Material Id
+             * Format: uuid
+             */
+            material_id: string;
+            /** Quantity */
+            quantity: number | string;
+            /** Reference No */
+            reference_no?: string | null;
+            /** Note */
+            note?: string | null;
+        };
         /** StockRead */
         StockRead: {
             /**
@@ -4629,6 +4877,30 @@ export interface components {
             updated_at: string;
             /** Updated By */
             updated_by: string | null;
+        };
+        /** StockTransfer */
+        StockTransfer: {
+            /**
+             * Source Depot Id
+             * Format: uuid
+             */
+            source_depot_id: string;
+            /**
+             * Target Depot Id
+             * Format: uuid
+             */
+            target_depot_id: string;
+            /**
+             * Material Id
+             * Format: uuid
+             */
+            material_id: string;
+            /** Quantity */
+            quantity: number | string;
+            /** Reference No */
+            reference_no?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** StoreActivityRead */
         StoreActivityRead: {
@@ -4869,6 +5141,30 @@ export interface components {
             progress_percent?: number | null;
             /** Completed At */
             completed_at?: string | null;
+        };
+        /** StoreUsage */
+        StoreUsage: {
+            /**
+             * Vehicle Depot Id
+             * Format: uuid
+             */
+            vehicle_depot_id: string;
+            /**
+             * Material Id
+             * Format: uuid
+             */
+            material_id: string;
+            /**
+             * Branch Id
+             * Format: uuid
+             */
+            branch_id: string;
+            /** Quantity */
+            quantity: number | string;
+            /** Work Order Id */
+            work_order_id?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** SupplierCreate */
         SupplierCreate: {
@@ -7483,6 +7779,405 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LowStockAlertRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_depots_api_v1_retail_stock_depots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+        };
+    };
+    create_depot_api_v1_retail_stock_depots_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DepotCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_depot_api_v1_retail_stock_depots__depot_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                depot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DepotUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_staff_api_v1_retail_stock_staff_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+        };
+    };
+    list_materials_api_v1_retail_stock_materials_get: {
+        parameters: {
+            query?: {
+                search?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_material_api_v1_retail_stock_materials_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterialCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_stock_api_v1_retail_stock_stock_get: {
+        parameters: {
+            query: {
+                depot_id: string;
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_stores_api_v1_retail_stock_stores_get: {
+        parameters: {
+            query: {
+                search: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    opening_stock_api_v1_retail_stock_opening_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockEntry"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    load_vehicle_api_v1_retail_stock_load_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockTransfer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    use_at_store_api_v1_retail_stock_use_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreUsage"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    return_to_main_api_v1_retail_stock_return_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StockTransfer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_movements_api_v1_retail_stock_movements_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
                 };
             };
             /** @description Validation Error */

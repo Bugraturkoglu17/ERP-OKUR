@@ -8,7 +8,7 @@ const stripTrailingSlashes = (value: string) => value.replace(/\/+$/, '');
 const createDefaultBaseUrl = () => {
   if (typeof window !== 'undefined') {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return `http://localhost:8001${API_PREFIX}`;
+      return API_PREFIX;
     }
     throw new Error('Okur yerel kopyası yalnızca localhost üzerinde açılabilir.');
   }
@@ -19,6 +19,7 @@ const createDefaultBaseUrl = () => {
 const createBaseUrl = () => {
   const rawBaseUrl = stripTrailingSlashes(process.env.NEXT_PUBLIC_API_URL || '');
   if (!rawBaseUrl) return createDefaultBaseUrl();
+  if (rawBaseUrl === API_PREFIX) return API_PREFIX;
   const parsed = new URL(rawBaseUrl);
   if (!['localhost', '127.0.0.1'].includes(parsed.hostname) || parsed.port !== '8001') {
     throw new Error('Okur yerel kopyası yalnızca localhost:8001 API adresine bağlanabilir.');

@@ -3,7 +3,8 @@
 Bu dal henüz canlıya alınmaz. Sismik'in çalışan GitHub deposu, Northflank
 servisleri, Neon veritabanı ve bulut dosyaları değiştirilmez. Okur kodu ayrı
 bir GitHub deposundadır; gerçek veri ve `.env` dosyaları yalnız yerel makinede
-kalır. Okur markası, logo ve iş akışları sonraki aşamada düzenlenecektir.
+kalır. OKUR markası yerel arayüze uygulanmıştır; diğer özelleştirmeler
+yalnız bu ayrı kopyada yapılır.
 
 ## Ayrı kaynaklar
 
@@ -15,8 +16,9 @@ kalır. Okur markası, logo ve iş akışları sonraki aşamada düzenlenecektir
 | Dosyalar | `%LOCALAPPDATA%\OkurERP\uploads` |
 
 Backend, `ENV=development` dışında veya `okur_erp_local` dışındaki bir
-veritabanına bağlanmayı reddeder. Frontend de yalnız `localhost:8001` API'sini
-kabul eder. Bu korumalar canlıya geçiş öncesi Okur'a ait ayrı sunucu ve
+veritabanına bağlanmayı reddeder. Frontend `/api/v1` isteklerini yalnız kendi
+`127.0.0.1:3001` adresinden alır ve yerel `127.0.0.1:8001` API'sine yönlendirir.
+Bu korumalar canlıya geçiş öncesi Okur'a ait ayrı sunucu ve
 bağlantılar hazırlandığında bilinçli olarak güncellenmelidir.
 
 ## Geliştirme ortamı
@@ -43,10 +45,20 @@ bağlantılar hazırlandığında bilinçli olarak güncellenmelidir.
 - Salt okunur kontrol: kök dizinden
   `apps/backend/.venv/Scripts/python scripts/smoke_local.py`.
 
-Şu an yalnız yerel yönetici hesabı vardır; mağaza, iş emri, dosya ve diğer
-iş verileri **boştur**. Canlı Sismik verileri aktarılmadı. İleride aktarım
-istenirse ayrı, salt okunur dışa aktarma planlanmalıdır; hiçbir dump, dosya
-veya kimlik bilgisi GitHub'a eklenmez.
+Bu makinede Sismik'in **yerel** veritabanındaki 4.004 mağaza, 1 müşteri,
+8 bölge ve 8 şube Okur'un ayrı veritabanına aktarıldı. Kaynak bağlantı
+salt okunurdu; tüm mağaza alanları (firma kimliği hariç) karşılaştırılarak
+doğrulandı. Okur'da yeni `Okur Yerel` firma kaydı kullanılır. İş emirleri,
+dosyalar, kullanıcılar (yerel başlangıç yöneticisi hariç) ve finans verileri
+aktarılmadı. Canlı Sismik verileri aktarılmadı.
+
+Yeni ve boş bir Okur kurulumunda aynı yerel mağaza aktarımı için kök dizinden
+`apps/backend/.venv/Scripts/python scripts/import_local_stores.py` komutuyla
+ön kontrol, ardından aynı komuta `--apply` ekleyerek aktarım yapılabilir.
+Bu betik yalnız boş Okur mağaza tablolarına yazar; ikinci kez çalıştırılınca
+kopyalamayı reddeder. `scripts/verify_local_stores.py` iki yerel veritabanını
+salt okunur karşılaştırır. Veritabanı verisi, dump, dosya ve şifreler
+GitHub'a eklenmez.
 
 Bu repodaki kök `docker-compose.yml` de ayrı konteyner adları, ağ ve volume
 kullanır. `infrastructure/docker-compose.yml` içindeki eski Sismik stack'i

@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  Sismik Mekanik ERP — FastAPI Main Entry Point
+#  OKUR ERP — FastAPI Main Entry Point
 # ─────────────────────────────────────────────────────────────────────────────
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ from app.core.exceptions import AppException
 
 # ── App ────────────────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="SİSMİK Kurumsal Operasyon Sistemi API",
-    description="Mekanik Tesisat / Yangın Söndürme Şantiye ERP",
+    title="OKUR Kurumsal Operasyon Sistemi API",
+    description="Teknik Soğutma / Saha Operasyon ve Stok ERP",
     version="0.1.0",
     docs_url=None if settings.is_production else "/api/docs",
     openapi_url=None if settings.is_production else "/api/v1/openapi.json",

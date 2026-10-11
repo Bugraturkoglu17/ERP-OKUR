@@ -16,7 +16,7 @@ export default function AdminSettingsPage() {
   }, []);
 
   const rows = [
-    { label: "Uygulama", value: "SİSMİK Kurumsal Operasyon Sistemi" },
+    { label: "Uygulama", value: "OKUR Kurumsal Operasyon Sistemi" },
     { label: "Firma sayısı", value: tenants === null ? null : String(tenants.length) },
     { label: "Aktif firma", value: tenants === null ? null : String(tenants.filter((item) => item.is_active).length) },
   ];

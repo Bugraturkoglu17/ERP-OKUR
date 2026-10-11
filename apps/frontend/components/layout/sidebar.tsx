@@ -9,7 +9,7 @@ import { getVisibleNavEntries, isNavGroup, type NavGroup } from "@/lib/navigatio
 import { getRoles, getTokenPayloadFromStorage } from "@/lib/auth";
 import { apiGet } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import { BrandMark } from "@/components/brand/brand-mark";
+import { OkurWordmark } from "@/components/brand/okur-wordmark";
 
 type SidebarProps = {
   mobileOpen?: boolean;
@@ -103,9 +103,9 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           }}
         >
           <div className="flex items-center gap-2.5">
-            <BrandMark animated className="h-7 w-7 shrink-0" />
+            <OkurWordmark animated className="w-20 shrink-0" />
             <div>
-              <p className="text-sm font-bold text-slate-900 leading-none">Sismik ERP</p>
+              <p className="text-sm font-bold text-slate-900 leading-none">OKUR ERP</p>
               <p className="text-[10px] text-slate-400 mt-0.5">Mağaza Takip</p>
             </div>
           </div>

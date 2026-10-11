@@ -7,7 +7,8 @@ import { Menu, X, type LucideIcon } from "lucide-react";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { QuickSwitch } from "@/components/layout/quick-switch";
 import type { UserRole } from "@/lib/permissions";
-import { BrandMark, type BrandTone } from "@/components/brand/brand-mark";
+import type { BrandTone } from "@/components/brand/brand-mark";
+import { OkurWordmark } from "@/components/brand/okur-wordmark";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { useMobileDrawer } from "@/hooks/use-mobile-drawer";
 
@@ -43,15 +44,15 @@ function CorporateSidebar({
         }}
       >
         <div className="flex items-center gap-2.5">
-          <BrandMark
+          <OkurWordmark
             key={`sidebar-brand-${mobileOpen ? "open" : "closed"}`}
-            tone={brandTone}
+            dark
             animated
-            className="h-9 w-9 shrink-0"
+            className="w-[5.5rem] shrink-0"
           />
           <div>
             <span className="text-sm font-semibold tracking-[-0.02em] text-white leading-none">{title}</span>
-            <span className="block text-[10px] text-white/40 mt-0.5 uppercase tracking-widest">ERP Sistemi</span>
+            <span className="block text-[10px] text-white/40 mt-0.5 uppercase tracking-widest">OKUR ERP</span>
           </div>
         </div>
         <button type="button" aria-label="Yan paneli kapat" onClick={onClose} className="lg:hidden rounded-lg p-2 text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white">
@@ -159,7 +160,7 @@ export function CorporateShell({
               <Menu className="h-4 w-4" />
             </button>
             <div className="hidden lg:block">
-              <p className="text-xs font-semibold tracking-[-0.01em] text-slate-700">Sismik ERP</p>
+              <p className="text-xs font-semibold tracking-[-0.01em] text-slate-700">OKUR ERP</p>
               <p className="mt-0.5 text-[10px] text-slate-400">Güvenli operasyon çalışma alanı</p>
             </div>
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
