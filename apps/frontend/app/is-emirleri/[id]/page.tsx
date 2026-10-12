@@ -4,16 +4,18 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AlertCircle, AlertTriangle, ArrowLeft, Camera, CheckCircle2,
+  AlertCircle, AlertTriangle, ArrowLeft, Boxes, Camera, CheckCircle2,
   ChevronDown, ChevronLeft, ChevronRight, ClipboardList,
   FileText, Image as ImageIcon, Loader2, Plus, Store,
   Trash2, User, X, Zap,
 } from "lucide-react";
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost, getRequestErrorMessage } from "@/lib/api";
 import { uploadFormData } from "@/lib/upload";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { CountBadge } from "@/components/ui/CountBadge";
 import { ZoomableImage } from "@/components/ui/zoomable-image";
+import { CompletionPanel, formatDateTime as formatCompletionTime, useWorkOrderCompletion } from "@/components/work-order/completion-panel";
+import { MaterialTitle } from "@/components/retail-stock/material-picker";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -26,7 +28,7 @@ type WorkOrder = {
   completion_notes?: string;
   sent_at?: string; started_at?: string; completed_at?: string;
   created_by_name?: string; created_at: string; due_date?: string;
-  updated_at?: string; photo_count: number;
+  updated_at?: string; photo_count: number; stock_depot_id?: string | null;
 };
 
 type WOPhoto = {
@@ -136,7 +138,9 @@ function fmtDate(s?: string | null) {
 
 function fmtDateTime(s?: string | null) {
   if (!s) return "—";
-  return new Date(s).toLocaleString("tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  // Sunucu UTC'dir ama saat dilimi eki olmadan gelir; ek yoksa yerel saat sanılıp 3 saat kayıyordu.
+  const utc = /(Z|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}Z`;
+  return new Date(utc).toLocaleString("tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 function computedStatus(stages: Stage[]): { label: string; cls: string } {
@@ -420,8 +424,9 @@ function CreateReportModal({ woId, onClose, onDone }: {
 
 // ── Aşama Güncelle Modal ───────────────────────────────────────────────────────
 
-function StageUpdateModal({ stage, woId, hasCompletionPhoto, onClose, onDone }: {
-  stage: Stage; woId: string; hasCompletionPhoto: boolean;
+function StageUpdateModal({ stage, woId, hasCompletionPhoto, hasServiceForm, onBeforeComplete, onClose, onDone }: {
+  stage: Stage; woId: string; hasCompletionPhoto: boolean; hasServiceForm: boolean;
+  onBeforeComplete: () => Promise<void>;
   onClose: () => void; onDone: (s: Stage) => void;
 }) {
   const [status,      setStatus]      = useState(stage.status);
@@ -443,8 +448,15 @@ function StageUpdateModal({ stage, woId, hasCompletionPhoto, onClose, onDone }: 
       setErr("Tamamlandı aşaması için en az bir saha fotoğrafı eklemelisiniz.");
       return;
     }
+    const completing = stage.stage_order === 4 && status === "completed";
+    if (completing && !hasServiceForm) {
+      setErr("Tamamlamadan önce Servis Formu bölümünden servis formunu yükleyin.");
+      return;
+    }
     setBusy(true); setErr("");
     try {
+      // Malzeme listesi tamamlanmadan hemen önce kaydedilir; stok bu liste ile düşer.
+      if (completing) await onBeforeComplete();
       const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
       let uploadedBytes = 0;
       for (const file of files) {
@@ -462,8 +474,8 @@ function StageUpdateModal({ stage, woId, hasCompletionPhoto, onClose, onDone }: 
         { status, description: description.trim() || null },
       );
       onDone(updated);
-    } catch {
-      setErr("Aşama güncellenemedi.");
+    } catch (reason) {
+      setErr(getRequestErrorMessage(reason, "Aşama güncellenemedi."));
     } finally {
       setBusy(false);
     }
@@ -698,6 +710,13 @@ export default function WorkOrderDetailPage() {
     setWo(data);
   }, [id]);
 
+  // Servis formu + kullanılan malzemeler (stok iş tamamlanınca cep depodan düşer).
+  const completion = useWorkOrderCompletion(id, wo?.stock_depot_id);
+  const { reload: reloadCompletion } = completion;
+  useEffect(() => {
+    if (wo) void reloadCompletion();
+  }, [wo?.id, wo?.status, wo?.stock_depot_id, reloadCompletion]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -755,6 +774,8 @@ export default function WorkOrderDetailPage() {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const handleStart = async () => {
     if (!wo || starting) return;
@@ -772,14 +793,29 @@ export default function WorkOrderDetailPage() {
     }
   };
 
+  const handleCancel = async () => {
+    if (!wo || cancelling) return;
+    setCancelling(true);
+    try {
+      await apiPatch(`/work-orders/${wo.id}`, { status: "cancelled" });
+      await loadWorkOrder();
+      showSuccess("İş emri iptal edildi. Stoktan malzeme düşülmedi.");
+    } catch (reason) {
+      showError(getRequestErrorMessage(reason, "İş emri iptal edilemedi."));
+    } finally {
+      setCancelling(false);
+      setCancelConfirmOpen(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!wo || deleting) return;
     setDeleting(true);
     try {
       await apiDelete(`/work-orders/${wo.id}`);
       router.push(backHref);
-    } catch {
-      showError("İş emri silinemedi.");
+    } catch (reason) {
+      showError(getRequestErrorMessage(reason, "İş emri silinemedi."));
       setDeleting(false);
       setDeleteConfirmOpen(false);
     }
@@ -1039,7 +1075,15 @@ export default function WorkOrderDetailPage() {
             const isActive    = stage.status === "in_progress";
 
             return (
-              <div key={stage.id} className={`rounded-2xl border-2 p-4 transition-colors ${
+              <div key={stage.id} className="space-y-3">
+              {stage.stage_order === 4 && (
+                <CompletionPanel
+                  c={completion}
+                  closed={["completed", "approved", "cancelled", "failed"].includes(wo!.status)}
+                  depotLabel={completion.lines[0]?.depot_plate ?? undefined}
+                />
+              )}
+              <div className={`rounded-2xl border-2 p-4 transition-colors ${
                 isActive    ? "border-amber-200 bg-amber-50/30"
                 : isCompleted ? "border-emerald-200 bg-emerald-50/20"
                 : "border-slate-200 bg-white"
@@ -1086,6 +1130,7 @@ export default function WorkOrderDetailPage() {
                     </button>
                   )}
                 </div>
+              </div>
               </div>
             );
           })}
@@ -1363,6 +1408,14 @@ export default function WorkOrderDetailPage() {
                 <Zap className="h-3.5 w-3.5" /> Süreci Başlat
               </button>
             )}
+            {isManager && !["completed", "approved", "cancelled", "failed"].includes(wo.status) && (
+              <button
+                onClick={() => setCancelConfirmOpen(true)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-200 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50"
+              >
+                <X className="h-3.5 w-3.5" /> İş Emrini İptal Et
+              </button>
+            )}
             {isManager && (
               <button
                 onClick={() => setDeleteConfirmOpen(true)}
@@ -1415,6 +1468,34 @@ export default function WorkOrderDetailPage() {
         </div>
       </div>
 
+      {/* Stoktan düşülen malzemeler (yönetici özeti) */}
+      {completion.lines.some(line => line.status === "issued") && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Boxes className="h-4 w-4 text-emerald-700" />
+              <h2 className="text-sm font-bold text-slate-900">Stoktan Düşülen Malzemeler</h2>
+            </div>
+            <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+              {completion.lines[0]?.depot_plate} · {completion.lines[0]?.depot_name}
+            </span>
+          </div>
+          <ul className="mt-3 divide-y divide-emerald-100">
+            {completion.lines.filter(line => line.status === "issued").map(line => (
+              <li key={line.id} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-900"><MaterialTitle sku={line.sku} name={line.name} spec={line.spec} /></p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-semibold text-slate-900">{Number(line.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} {line.unit}</p>
+                  <p className="text-[11px] font-medium text-emerald-700">Düşüldü · {formatCompletionTime(line.issued_at)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {startConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
@@ -1437,6 +1518,36 @@ export default function WorkOrderDetailPage() {
               >
                 {starting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Süreci Başlat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cancelConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+            <p className="text-sm font-semibold text-slate-900">Bu iş emrini iptal etmek istediğinize emin misiniz?</p>
+            <p className="mt-1.5 text-xs text-slate-500">
+              İş emri iptal edilir ve kaydı korunur. Malzemeler yalnızca iş tamamlanınca stoktan düşüldüğü için stok etkilenmez.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCancelConfirmOpen(false)}
+                disabled={cancelling}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+              >
+                {cancelling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                İptal Et
               </button>
             </div>
           </div>
@@ -1500,6 +1611,8 @@ export default function WorkOrderDetailPage() {
           stage={stageModal}
           woId={wo.id}
           hasCompletionPhoto={photos.some(photo => photo.photo_type === "completion")}
+          hasServiceForm={completion.hasForm}
+          onBeforeComplete={completion.saveMaterials}
           onClose={() => setStageModal(null)}
           onDone={handleStageUpdate}
         />

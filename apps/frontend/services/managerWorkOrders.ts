@@ -102,10 +102,21 @@ export async function getTeamUsers(): Promise<TeamUser[]> {
   });
 }
 
+export type CepDepot = {
+  id: string; kind: "main" | "vehicle"; name: string; plate: string | null;
+  assigned_user_id: string | null; is_active: boolean;
+};
+
+/** Çalışanlara zimmetli araç/cep depoları (yalnızca aktif olanlar). */
+export async function getCepDepots(): Promise<CepDepot[]> {
+  const depots = await apiGet<CepDepot[]>("/retail-stock/depots");
+  return (Array.isArray(depots) ? depots : []).filter((depot) => depot.kind === "vehicle" && depot.is_active);
+}
+
 export type CreateWorkOrderPayload = {
   title: string; description: string; category: WorkOrderCategory;
   priority: WorkOrderPriority; store_id: string; assigned_to: string;
-  due_date: string | null;
+  due_date: string | null; stock_depot_id: string;
 };
 
 export async function createWorkOrder(payload: CreateWorkOrderPayload): Promise<WorkOrder> {
@@ -115,6 +126,7 @@ export async function createWorkOrder(payload: CreateWorkOrderPayload): Promise<
     title: payload.title,
     description: payload.description,
     assigned_to_user_id: payload.assigned_to,
+    stock_depot_id: payload.stock_depot_id,
     priority: PRIORITY_TO_API[payload.priority],
     due_date: payload.due_date,
   });

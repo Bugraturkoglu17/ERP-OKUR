@@ -51,6 +51,7 @@ def main() -> None:
         return response.json()
 
     main_id = vehicle_id = material_id = None
+    extra_material_ids: list[str] = []
     created_main = False
     try:
         depots = request("GET", "/depots")
@@ -65,33 +66,45 @@ def main() -> None:
         material = request("POST", "/materials", {"sku": f"SMOKE-{suffix}", "name": "SMOKE test malzemesi", "unit": "metre", "min_stock": "1"}, 201)
         material_id = material["id"]
 
-        with psycopg2.connect(db_url, options="-c default_transaction_read_only=on") as connection:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT id FROM branches WHERE tenant_id = (SELECT id FROM tenants WHERE name = %s) LIMIT 1", ("Okur Yerel",))
-                branch_id = cursor.fetchone()[0]
+        material2 = request("POST", "/materials", {"sku": f"SMOKE2-{suffix}", "name": "SMOKE test malzemesi 2", "unit": "adet"}, 201)
+        material2_id = material2["id"]
+        extra_material_ids.append(material2_id)
+
+        def transfer(source: str, target: str, lines: list[tuple[str, str]], expected: int = 201):
+            return request("POST", "/transfer", {"source_depot_id": source, "target_depot_id": target,
+                                                 "lines": [{"material_id": m, "quantity": q} for m, q in lines]}, expected)
+
+        def qty(depot: str, material: str) -> Decimal:
+            return Decimal(next(row["quantity"] for row in request("GET", f"/stock?depot_id={depot}") if row["material_id"] == material))
 
         request("POST", "/opening", {"depot_id": main_id, "material_id": material_id, "quantity": "10.5"}, 201)
-        request("POST", "/load", {"source_depot_id": main_id, "target_depot_id": vehicle_id, "material_id": material_id, "quantity": "4"}, 201)
-        request("POST", "/use", {"vehicle_depot_id": vehicle_id, "material_id": material_id, "branch_id": str(branch_id), "quantity": "1.5"}, 201)
-        request("POST", "/return", {"source_depot_id": vehicle_id, "target_depot_id": main_id, "material_id": material_id, "quantity": "1"}, 201)
-        request("POST", "/use", {"vehicle_depot_id": vehicle_id, "material_id": material_id, "branch_id": str(branch_id), "quantity": "99"}, 409)
-
-        main_stock = request("GET", f"/stock?depot_id={main_id}")
-        vehicle_stock = request("GET", f"/stock?depot_id={vehicle_id}")
-        main_quantity = Decimal(next(row["quantity"] for row in main_stock if row["material_id"] == material_id))
-        vehicle_quantity = Decimal(next(row["quantity"] for row in vehicle_stock if row["material_id"] == material_id))
-        assert main_quantity == Decimal("7.5")
-        assert vehicle_quantity == Decimal("1.5")
+        request("POST", "/opening", {"depot_id": main_id, "material_id": material2_id, "quantity": "6"}, 201)
+        # Multi-line load main -> vehicle in one go.
+        transfer(main_id, vehicle_id, [(material_id, "4"), (material2_id, "5")])
+        # Return part of it back (vehicle -> main).
+        transfer(vehicle_id, main_id, [(material_id, "1.5")])
+        # All-or-nothing: the second line overdraws, so the first must not move either.
+        transfer(main_id, vehicle_id, [(material_id, "1"), (material2_id, "99")], 409)
+        assert qty(main_id, material_id) == Decimal("8"), qty(main_id, material_id)
+        assert qty(vehicle_id, material_id) == Decimal("2.5")
+        assert qty(main_id, material2_id) == Decimal("1") and qty(vehicle_id, material2_id) == Decimal("5")
+        # Direction rules: no vehicle->vehicle, no main->main; fractions beyond one decimal are refused.
+        transfer(vehicle_id, vehicle_id, [(material_id, "1")], 400)
+        transfer(main_id, main_id, [(material_id, "1")], 400)
+        transfer(main_id, vehicle_id, [(material_id, "0.25")], 422)
+        # The direct "use at store" path no longer exists: stock only leaves via work-order completion.
+        assert session.post(f"{API}/retail-stock/use", json={}, timeout=15).status_code in (404, 405)
         movements = request("GET", "/movements")
-        assert len([row for row in movements if row["material_name"] == "SMOKE test malzemesi"]) == 4
-        print("PASS: opening -> vehicle load -> store use -> return; overdraft rejected; balances and audit correct")
+        assert len([row for row in movements if row["material_name"].startswith("SMOKE test malzemesi")]) == 5, [m["kind"] for m in movements]
+        print("PASS: opening -> atomic multi-line transfer both ways; all-or-nothing on overdraft; direction/decimal rules; no direct use endpoint")
     finally:
         with psycopg2.connect(db_url) as connection:
             with connection.cursor() as cursor:
-                if material_id:
-                    cursor.execute("DELETE FROM retail_movements WHERE material_id = %s", (material_id,))
-                    cursor.execute("DELETE FROM retail_balances WHERE material_id = %s", (material_id,))
-                    cursor.execute("DELETE FROM retail_materials WHERE id = %s AND sku LIKE 'SMOKE-%%'", (material_id,))
+                mats = [m for m in [material_id, *extra_material_ids] if m]
+                if mats:
+                    cursor.execute("DELETE FROM retail_movements WHERE material_id = ANY(%s::uuid[])", (mats,))
+                    cursor.execute("DELETE FROM retail_balances WHERE material_id = ANY(%s::uuid[])", (mats,))
+                    cursor.execute("DELETE FROM retail_materials WHERE id = ANY(%s::uuid[]) AND sku LIKE 'SMOKE%%'", (mats,))
                 if vehicle_id:
                     cursor.execute("DELETE FROM retail_depots WHERE id = %s AND name = 'SMOKE Araç'", (vehicle_id,))
                 if created_main and main_id:

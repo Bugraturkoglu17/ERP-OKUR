@@ -21,7 +21,14 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ENV = ROOT.parent / "mekanik-erp" / "apps" / "backend" / ".env"
 TARGET_ENV = ROOT / "apps" / "backend" / ".env"
 TABLES = ("customers", "regions", "branches", "projects")
-EXPECTED_PROJECTS = 4004
+SOURCE_PROJECTS = 4119  # includes 3 later test jobs that are not stores
+EXPECTED_PROJECTS = 4116
+# Sismik test jobs ("mm", "ÇUKURCA MJET", "AAA") created after the store load.
+EXCLUDED_PROJECT_IDS = {
+    "3b7239c9-dde6-47c3-928a-b81f80e1a966",
+    "cd8683d7-4c23-487e-a96f-2b7688b76e20",
+    "58cedddc-de22-4435-a398-34be336080e0",
+}
 
 
 def database_url(path: Path, expected_name: str) -> str:
@@ -72,7 +79,7 @@ def main() -> None:
                 target_counts = {table: count(dst, table) for table in ("tenants", *TABLES)}
                 print("Sismik local:", source_counts)
                 print("Okur before:", target_counts)
-                if source_counts["projects"] != EXPECTED_PROJECTS:
+                if source_counts["projects"] != SOURCE_PROJECTS:
                     raise SystemExit("Source project count changed; inspect before importing")
                 if any(target_counts.values()):
                     raise SystemExit("Okur already has tenant/store data; refusing duplicate import")
@@ -110,12 +117,22 @@ def main() -> None:
                     "VALUES (%s, %s, %s, %s, %s, now())",
                     (str(okur_tenant_id), "Okur Yerel", "OKUR_LOCAL", "ACTIVE", True),
                 )
+                src.execute("SELECT id, customer_id FROM projects")
+                kept_customers = {
+                    str(customer_id)
+                    for project_id, customer_id in src.fetchall()
+                    if str(project_id) not in EXCLUDED_PROJECT_IDS
+                }
                 for table in TABLES:
                     table_columns = columns(src, table)
                     with source.cursor(cursor_factory=RealDictCursor) as rows_cursor:
                         rows_cursor.execute(sql.SQL("SELECT * FROM {}").format(sql.Identifier(table)))
                         data = []
                         for row in rows_cursor:
+                            if table == "projects" and str(row["id"]) in EXCLUDED_PROJECT_IDS:
+                                continue
+                            if table == "customers" and str(row["id"]) not in kept_customers:
+                                continue  # Sismik test customers carry no stores.
                             row["tenant_id"] = okur_tenant_id
                             if table == "projects":
                                 row["created_by"] = None  # Sismik users are not imported.
@@ -126,14 +143,16 @@ def main() -> None:
                         sql.SQL(", ").join(map(sql.Identifier, table_columns)),
                     ).as_string(target)
                     execute_values(dst, statement, data, page_size=500)
-                    if count(dst, table) != source_counts[table]:
+                    if count(dst, table) != len(data):
                         raise RuntimeError(f"Count verification failed for {table}")
+                    if table == "projects" and len(data) != EXPECTED_PROJECTS:
+                        raise RuntimeError("Imported project count differs from expected stores")
 
                 dst.execute("SELECT count(*) FROM projects WHERE tenant_id = %s", (str(okur_tenant_id),))
                 if dst.fetchone()[0] != EXPECTED_PROJECTS:
                     raise RuntimeError("Tenant mapping verification failed")
                 # Context manager commits only after every insert and check succeeds.
-                print("Imported 4,004 stores and their hierarchy into Okur local DB.")
+                print(f"Imported {EXPECTED_PROJECTS:,} stores and their hierarchy into Okur local DB.")
 
 
 if __name__ == "__main__":

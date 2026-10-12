@@ -1264,6 +1264,8 @@ class WorkOrder(SQLModel, table=True):
     updated_at:           datetime            = Field(default_factory=utc_now, sa_column_kwargs={"onupdate": utc_now})
 
     assigned_to_user_id:  Optional[UUID]      = Field(foreign_key="users.id", default=None, index=True)
+    # Stock for this job is drawn from the assignee's cep depo (retail_depots).
+    stock_depot_id:       Optional[UUID]      = Field(foreign_key="retail_depots.id", default=None, index=True)
 
     public_links:         List["WorkOrderPublicLink"]      = Relationship(back_populates="work_order")
     photos:               List["WorkOrderPhoto"]           = Relationship(back_populates="work_order")
@@ -1563,6 +1565,10 @@ class RetailMaterial(SQLModel, table=True):
     name: str = Field(max_length=255, index=True)
     category: Optional[str] = Field(default=None, max_length=100)
     unit: str = Field(default="adet", max_length=20)
+    brand: Optional[str] = Field(default=None, max_length=200)
+    spec: Optional[str] = Field(default=None, max_length=255)
+    # Güncel birim fiyat (para birimi katalogda tutulmaz); saha çalışanına gösterilmez.
+    unit_price: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(14, 4), nullable=True))
     min_stock: Decimal = Field(default=Decimal("0"), sa_column=Column(Numeric(14, 3), nullable=False))
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
@@ -1598,3 +1604,29 @@ class RetailMovement(SQLModel, table=True):
     note: Optional[str] = Field(default=None, max_length=500)
     performed_by: UUID = Field(foreign_key="users.id")
     performed_at: datetime = Field(default_factory=utc_now, nullable=False, index=True)
+
+
+class WorkOrderMaterial(SQLModel, table=True):
+    """Material used on a work order, drawn from the assignee's cep depo.
+
+    A line is *planned* (``movement_id`` is NULL) while the job is open and is
+    *issued* — deducted from the depot with a 'use' movement — when the work
+    order is completed.
+    """
+
+    __tablename__ = "work_order_materials"
+    __table_args__ = (
+        UniqueConstraint("work_order_id", "material_id", name="uq_work_order_material"),
+        CheckConstraint("quantity > 0", name="ck_work_order_material_positive"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(foreign_key="tenants.id", index=True)
+    work_order_id: UUID = Field(foreign_key="work_orders.id", index=True)
+    depot_id: UUID = Field(foreign_key="retail_depots.id", index=True)
+    material_id: UUID = Field(foreign_key="retail_materials.id", index=True)
+    quantity: Decimal = Field(sa_column=Column(Numeric(14, 3), nullable=False))
+    movement_id: Optional[UUID] = Field(foreign_key="retail_movements.id", default=None)
+    issued_at: Optional[datetime] = Field(default=None)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)

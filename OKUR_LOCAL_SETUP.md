@@ -60,6 +60,19 @@ kopyalamayı reddeder. `scripts/verify_local_stores.py` iki yerel veritabanını
 salt okunur karşılaştırır. Veritabanı verisi, dump, dosya ve şifreler
 GitHub'a eklenmez.
 
+## Docker'sız, ayrı PostgreSQL ile başlatma (Windows)
+
+Sismik'in PostgreSQL'iyle karışmaması için Okur kendi veri klasörünü ve
+**5433** portunu kullanır (`local-data/pgdata`, Git'e eklenmez). İlk kurulum:
+
+1. `initdb -D local-data/pgdata -U okur_local --pwfile=<parola dosyası> -A scram-sha-256 -E UTF8 --locale=C`
+2. `pg_ctl start -D local-data/pgdata -l local-data/postgres.log -o "-p 5433"`
+3. `okur_erp_local` veritabanını oluşturun; `apps/backend/.env` içindeki
+   `DATABASE_URL` `...@127.0.0.1:5433/okur_erp_local` olmalıdır.
+4. `alembic upgrade head`, ardından `scripts/create_local_admin.py`.
+
+Sonraki açılışlarda yalnız `pg_ctl start`, API ve web komutları yeterlidir.
+
 Bu repodaki kök `docker-compose.yml` de ayrı konteyner adları, ağ ve volume
 kullanır. `infrastructure/docker-compose.yml` içindeki eski Sismik stack'i
 güvenlik için devre dışı bırakılmıştır. Docker yapılandırması bu Windows

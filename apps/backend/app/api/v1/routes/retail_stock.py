@@ -14,7 +14,6 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field as SchemaField, field_validator
 from sqlalchemy import and_, or_, select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -22,14 +21,17 @@ from sqlalchemy.orm import aliased
 from app.core.dependencies import get_current_user, is_platform_admin
 from app.core.database import get_db
 from app.db.models import (
-    Branch, Project, RetailBalance, RetailDepot, RetailMaterial,
+    Branch, RetailBalance, RetailDepot, RetailMaterial,
     RetailMovement, Tenant, User, WorkOrder, utc_now,
 )
+from app.services.retail_stock_service import decrease, locked_balances
 
 
 router = APIRouter()
-Quantity = Annotated[Decimal, SchemaField(gt=0, max_digits=14, decimal_places=3)]
-NonNegative = Annotated[Decimal, SchemaField(ge=0, max_digits=14, decimal_places=3)]
+# Miktar kuralı: tam sayı veya en fazla bir ondalık (5, 0.5); 0.05 / 0.005 reddedilir.
+Quantity = Annotated[Decimal, SchemaField(gt=0, max_digits=14, decimal_places=1)]
+StockLevel = Annotated[Decimal, SchemaField(ge=0, max_digits=14, decimal_places=1)]
+Price = Annotated[Decimal, SchemaField(ge=0, max_digits=14, decimal_places=4)]
 
 
 class DepotCreate(BaseModel):
@@ -59,7 +61,10 @@ class MaterialCreate(BaseModel):
     name: str = SchemaField(min_length=2, max_length=255)
     category: str | None = SchemaField(default=None, max_length=100)
     unit: str = SchemaField(default="adet", min_length=1, max_length=20)
-    min_stock: NonNegative = Decimal("0")
+    brand: str | None = SchemaField(default=None, max_length=200)
+    spec: str | None = SchemaField(default=None, max_length=255)
+    unit_price: Price | None = None
+    min_stock: StockLevel = Decimal("0")
 
     @field_validator("sku")
     @classmethod
@@ -75,21 +80,17 @@ class StockEntry(BaseModel):
     note: str | None = SchemaField(default=None, max_length=500)
 
 
+class TransferLine(BaseModel):
+    material_id: UUID
+    quantity: Quantity
+
+
 class StockTransfer(BaseModel):
+    """Ana depo ↔ araç deposu aktarımı; tüm kalemler tek işlemde uygulanır."""
     source_depot_id: UUID
     target_depot_id: UUID
-    material_id: UUID
-    quantity: Quantity
+    lines: list[TransferLine] = SchemaField(min_length=1, max_length=300)
     reference_no: str | None = SchemaField(default=None, max_length=80)
-    note: str | None = SchemaField(default=None, max_length=500)
-
-
-class StoreUsage(BaseModel):
-    vehicle_depot_id: UUID
-    material_id: UUID
-    branch_id: UUID
-    quantity: Quantity
-    work_order_id: UUID | None = None
     note: str | None = SchemaField(default=None, max_length=500)
 
 
@@ -139,6 +140,11 @@ def _can_use_vehicle(user: User, depot: RetailDepot) -> bool:
     return _manager(user) or (depot.kind == "vehicle" and depot.assigned_user_id == user.id)
 
 
+def _price_json(user: User, material: RetailMaterial) -> dict:
+    # Fiyat yalnızca yöneticiye gösterilir; saha çalışanı listede fiyat görmez.
+    return {"unit_price": material.unit_price} if _manager(user) else {}
+
+
 def _depot_json(depot: RetailDepot) -> dict:
     return {
         "id": depot.id, "kind": depot.kind, "name": depot.name,
@@ -147,30 +153,8 @@ def _depot_json(depot: RetailDepot) -> dict:
     }
 
 
-async def _locked_balances(db: AsyncSession, material_id: UUID, depot_ids: list[UUID]) -> dict[UUID, RetailBalance]:
-    # Insert-zero + deterministic lock order makes concurrent loads/use safe;
-    # the unique PK prevents duplicate rows when two requests race.
-    ordered = sorted(set(depot_ids), key=str)
-    for depot_id in ordered:
-        await db.execute(
-            pg_insert(RetailBalance.__table__)
-            .values(depot_id=depot_id, material_id=material_id, quantity=0, updated_at=utc_now())
-            .on_conflict_do_nothing(index_elements=["depot_id", "material_id"])
-        )
-    rows = (await db.execute(
-        select(RetailBalance)
-        .where(RetailBalance.material_id == material_id, RetailBalance.depot_id.in_(ordered))
-        .order_by(RetailBalance.depot_id)
-        .with_for_update()
-    )).scalars().all()
-    return {row.depot_id: row for row in rows}
-
-
-def _decrease(balance: RetailBalance, quantity: Decimal) -> None:
-    if balance.quantity < quantity:
-        raise HTTPException(status_code=409, detail=f"Yetersiz stok: mevcut {balance.quantity}, istenen {quantity}.")
-    balance.quantity -= quantity
-    balance.updated_at = utc_now()
+_locked_balances = locked_balances
+_decrease = decrease
 
 
 async def _commit_movement(db: AsyncSession, movement: RetailMovement) -> dict:
@@ -185,7 +169,9 @@ async def list_depots(db: AsyncSession = Depends(get_db), user: User = Depends(g
     tenant_id = await _tenant_id(db, user)
     query = select(RetailDepot).where(RetailDepot.tenant_id == tenant_id, RetailDepot.is_active == True)
     if not _manager(user):
-        query = query.where(RetailDepot.kind == "vehicle", RetailDepot.assigned_user_id == user.id)
+        # Çalışan kendi araç depolarını görür; ana depo yalnızca iade hedefi olarak (stoğu görünmez).
+        query = query.where(or_(RetailDepot.kind == "main",
+                                and_(RetailDepot.kind == "vehicle", RetailDepot.assigned_user_id == user.id)))
     rows = (await db.execute(query.order_by(RetailDepot.kind, RetailDepot.plate))).scalars().all()
     return [_depot_json(row) for row in rows]
 
@@ -253,7 +239,8 @@ async def list_materials(
         query = query.where(or_(RetailMaterial.name.ilike(pattern), RetailMaterial.sku.ilike(pattern)))
     rows = (await db.execute(query.order_by(RetailMaterial.name).limit(limit))).scalars().all()
     return [{"id": row.id, "sku": row.sku, "name": row.name, "category": row.category,
-             "unit": row.unit, "min_stock": row.min_stock} for row in rows]
+             "unit": row.unit, "brand": row.brand, "spec": row.spec, "min_stock": row.min_stock,
+             **_price_json(user, row)} for row in rows]
 
 
 @router.post("/materials", status_code=201)
@@ -290,22 +277,10 @@ async def list_stock(
     rows = (await db.execute(query.order_by(RetailMaterial.name).limit(2000))).all()
     return [{"material_id": material.id, "sku": material.sku, "name": material.name,
              "unit": material.unit, "category": material.category,
-             "quantity": quantity or Decimal("0"), "min_stock": material.min_stock}
+             "brand": material.brand, "spec": material.spec,
+             "quantity": quantity or Decimal("0"), "min_stock": material.min_stock,
+             **_price_json(user, material)}
             for material, quantity in rows]
-
-
-@router.get("/stores")
-async def search_stores(
-    search: str = Query(min_length=2, max_length=100),
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user),
-) -> list[dict]:
-    tenant_id = await _tenant_id(db, user)
-    pattern = f"%{search.strip()}%"
-    rows = (await db.execute(select(Branch).where(
-        Branch.tenant_id == tenant_id,
-        or_(Branch.name.ilike(pattern), Branch.code.ilike(pattern)),
-    ).order_by(Branch.name).limit(25))).scalars().all()
-    return [{"id": row.id, "name": row.name, "code": row.code} for row in rows]
 
 
 @router.post("/opening", status_code=201)
@@ -327,72 +302,47 @@ async def opening_stock(body: StockEntry, db: AsyncSession = Depends(get_db), us
     ))
 
 
-@router.post("/load", status_code=201)
-async def load_vehicle(body: StockTransfer, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
-    _require_manager(user)
+@router.post("/transfer", status_code=201)
+async def transfer_stock(body: StockTransfer, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
+    """Ana depodan araca yükleme (yönetici) veya araçtan ana depoya iade (yönetici ya da aracın çalışanı).
+
+    Kalemlerin hepsi tek işlemde uygulanır: biri yetersizse hiçbiri uygulanmaz.
+    """
     tenant_id = await _tenant_id(db, user)
     source = await _depot(db, tenant_id, body.source_depot_id)
     target = await _depot(db, tenant_id, body.target_depot_id)
-    if source.kind != "main" or target.kind != "vehicle":
-        raise HTTPException(status_code=400, detail="Yükleme yalnızca ana depodan araç deposuna yapılır.")
-    await _material(db, tenant_id, body.material_id)
-    balances = await _locked_balances(db, body.material_id, [source.id, target.id])
-    _decrease(balances[source.id], body.quantity)
-    balances[target.id].quantity += body.quantity
-    balances[target.id].updated_at = utc_now()
-    return await _commit_movement(db, RetailMovement(
-        tenant_id=tenant_id, material_id=body.material_id,
-        source_depot_id=source.id, target_depot_id=target.id,
-        kind="load", quantity=body.quantity, reference_no=body.reference_no,
-        note=body.note, performed_by=user.id,
-    ))
+    if source.kind == "main" and target.kind == "vehicle":
+        _require_manager(user)
+        kind = "load"
+    elif source.kind == "vehicle" and target.kind == "main":
+        if not _can_use_vehicle(user, source):
+            raise HTTPException(status_code=403, detail="Bu araç deposundan iade yapamazsınız.")
+        kind = "return"
+    else:
+        raise HTTPException(status_code=400, detail="Aktarım yalnızca ana depo ile araç deposu arasında yapılır.")
 
-
-@router.post("/use", status_code=201)
-async def use_at_store(body: StoreUsage, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
-    tenant_id = await _tenant_id(db, user)
-    vehicle = await _depot(db, tenant_id, body.vehicle_depot_id)
-    if vehicle.kind != "vehicle" or not _can_use_vehicle(user, vehicle):
-        raise HTTPException(status_code=403, detail="Bu araç deposundan malzeme kullanamazsınız.")
-    await _material(db, tenant_id, body.material_id)
-    branch = await db.get(Branch, body.branch_id)
-    if not branch or branch.tenant_id != tenant_id:
-        raise HTTPException(status_code=404, detail="Mağaza bulunamadı.")
-    if body.work_order_id:
-        order = await db.get(WorkOrder, body.work_order_id)
-        project = await db.get(Project, order.project_id) if order else None
-        if not order or order.tenant_id != tenant_id or not project or project.branch_id != branch.id:
-            raise HTTPException(status_code=400, detail="İş emri seçilen mağazaya ait değil.")
-        if not _manager(user) and order.assigned_to_user_id != user.id:
-            raise HTTPException(status_code=403, detail="İş emri size atanmamış.")
-    balances = await _locked_balances(db, body.material_id, [vehicle.id])
-    _decrease(balances[vehicle.id], body.quantity)
-    return await _commit_movement(db, RetailMovement(
-        tenant_id=tenant_id, material_id=body.material_id,
-        source_depot_id=vehicle.id, branch_id=branch.id,
-        work_order_id=body.work_order_id, kind="use", quantity=body.quantity,
-        note=body.note, performed_by=user.id,
-    ))
-
-
-@router.post("/return", status_code=201)
-async def return_to_main(body: StockTransfer, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
-    tenant_id = await _tenant_id(db, user)
-    source = await _depot(db, tenant_id, body.source_depot_id)
-    target = await _depot(db, tenant_id, body.target_depot_id)
-    if source.kind != "vehicle" or target.kind != "main" or not _can_use_vehicle(user, source):
-        raise HTTPException(status_code=403, detail="İade yalnızca yetkili araçtan ana depoya yapılır.")
-    await _material(db, tenant_id, body.material_id)
-    balances = await _locked_balances(db, body.material_id, [source.id, target.id])
-    _decrease(balances[source.id], body.quantity)
-    balances[target.id].quantity += body.quantity
-    balances[target.id].updated_at = utc_now()
-    return await _commit_movement(db, RetailMovement(
-        tenant_id=tenant_id, material_id=body.material_id,
-        source_depot_id=source.id, target_depot_id=target.id,
-        kind="return", quantity=body.quantity, reference_no=body.reference_no,
-        note=body.note, performed_by=user.id,
-    ))
+    merged: dict[UUID, Decimal] = {}
+    for line in body.lines:
+        merged[line.material_id] = merged.get(line.material_id, Decimal("0")) + line.quantity
+    try:
+        # Deterministik kilit sırası: eşzamanlı aktarımlar birbirini kilitlemez.
+        for material_id in sorted(merged, key=str):
+            material = await _material(db, tenant_id, material_id)
+            balances = await _locked_balances(db, material_id, [source.id, target.id])
+            _decrease(balances[source.id], merged[material_id], f"{material.sku} {material.name}")
+            balances[target.id].quantity += merged[material_id]
+            balances[target.id].updated_at = utc_now()
+            db.add(RetailMovement(
+                tenant_id=tenant_id, material_id=material_id,
+                source_depot_id=source.id, target_depot_id=target.id,
+                kind=kind, quantity=merged[material_id], reference_no=body.reference_no,
+                note=body.note, performed_by=user.id,
+            ))
+        await db.commit()
+    except HTTPException:
+        await db.rollback()
+        raise
+    return {"kind": kind, "count": len(merged)}
 
 
 @router.get("/movements")
@@ -404,22 +354,24 @@ async def list_movements(
     source = aliased(RetailDepot)
     target = aliased(RetailDepot)
     query = (
-        select(RetailMovement, RetailMaterial.name, RetailMaterial.unit,
-               source.name, target.name, Branch.name, User.full_name)
+        select(RetailMovement, RetailMaterial.name, RetailMaterial.unit, RetailMaterial.sku,
+               source.name, target.name, Branch.name, User.full_name, WorkOrder.title)
         .join(RetailMaterial, RetailMaterial.id == RetailMovement.material_id)
         .outerjoin(source, source.id == RetailMovement.source_depot_id)
         .outerjoin(target, target.id == RetailMovement.target_depot_id)
         .outerjoin(Branch, Branch.id == RetailMovement.branch_id)
+        .outerjoin(WorkOrder, WorkOrder.id == RetailMovement.work_order_id)
         .join(User, User.id == RetailMovement.performed_by)
         .where(RetailMovement.tenant_id == tenant_id)
     )
     if not _manager(user):
         query = query.where(or_(source.assigned_user_id == user.id, target.assigned_user_id == user.id))
     rows = (await db.execute(query.order_by(RetailMovement.performed_at.desc()).limit(limit))).all()
-    return [{"id": item.id, "kind": item.kind, "material_name": material_name,
+    return [{"id": item.id, "kind": item.kind, "material_name": material_name, "material_sku": material_sku,
              "unit": unit, "quantity": item.quantity,
              "source_name": source_name, "target_name": target_name,
              "store_name": store_name, "performed_by_name": actor_name,
              "performed_at": item.performed_at, "note": item.note,
-             "reference_no": item.reference_no}
-            for item, material_name, unit, source_name, target_name, store_name, actor_name in rows]
+             "reference_no": item.reference_no, "work_order_id": item.work_order_id,
+             "work_order_title": work_order_title}
+            for item, material_name, unit, material_sku, source_name, target_name, store_name, actor_name, work_order_title in rows]

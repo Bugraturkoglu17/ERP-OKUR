@@ -11,10 +11,6 @@ import { apiDelete, apiGet, apiPost } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type Project = { id: string; name: string; project_no?: string; description?: string };
-
-type AppUser = { id: string; full_name?: string; email: string; phone?: string; is_active?: boolean };
-
 type WorkOrder = {
   id: string; project_id: string; project_name?: string; project_no?: string;
   work_type: string; work_type_label: string; title: string; description?: string;
@@ -116,208 +112,6 @@ function DeleteModal({
   );
 }
 
-// ── Create Form Modal ──────────────────────────────────────────────────────────
-
-type WorkOrderCreated = { id: string };
-
-function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: (id: string) => void }) {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [users,    setUsers]    = useState<AppUser[]>([]);
-  const [search, setSearch] = useState("");
-  const [selProject, setSelProject] = useState<Project | null>(null);
-  const [selUserId,  setSelUserId]  = useState("");
-  const [step, setStep] = useState<1 | 2>(1);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const [form, setForm] = useState({
-    work_type: "fault", title: "", description: "",
-    priority: "normal", due_date: "",
-  });
-
-  useEffect(() => {
-    apiGet<Project[]>("/projects?limit=2000")
-      .then(d => setProjects(Array.isArray(d) ? d : []))
-      .catch(() => {});
-    apiGet<AppUser[]>("/auth/users")
-      .then(d => setUsers(Array.isArray(d) ? d.filter(u => u.is_active !== false) : []))
-      .catch(() => {});
-  }, []);
-
-  const filtered = useMemo(() =>
-    projects.filter(p =>
-      !search || p.name.toLowerCase().includes(search.toLowerCase()) || (p.project_no ?? "").includes(search)
-    ), [projects, search]);
-
-  const handleSelectProject = (p: Project) => {
-    setSelProject(p);
-  };
-
-  const handleCreate = async () => {
-    if (!selProject) { setErr("Mağaza seçin."); return; }
-    if (!form.title.trim()) { setErr("İş başlığı zorunludur."); return; }
-    setBusy(true); setErr("");
-    try {
-      const selUser = users.find(u => u.id === selUserId);
-      const wo = await apiPost<WorkOrderCreated>("/work-orders", {
-        project_id: selProject.id,
-        work_type: form.work_type,
-        title: form.title.trim(),
-        description: form.description.trim() || null,
-        assigned_to_name: selUser ? (selUser.full_name || selUser.email) : null,
-        assigned_to_phone: selUser?.phone || null,
-        assigned_to_user_id: selUserId || null,
-        priority: form.priority,
-        due_date: form.due_date ? `${form.due_date}T00:00:00` : null,
-      });
-      onDone(wo.id);
-    } catch (ex) { setErr(apiErrMsg(ex, "İş emri oluşturulamadı. Sunucu bağlantısı kontrol edilmeli.")); }
-    finally { setBusy(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">İş Emri Oluştur</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">Adım {step} / 2</p>
-          </div>
-          <button onClick={onClose}><X className="h-5 w-5 text-slate-300 hover:text-slate-600" /></button>
-        </div>
-
-        <div className="flex gap-1.5 px-5 pt-4">
-          {[1, 2].map(i => (
-            <div key={i} className={`flex-1 h-1 rounded-full ${i <= step ? "bg-blue-600" : "bg-slate-100"}`} />
-          ))}
-        </div>
-
-        <div className="px-5 py-5 space-y-3 max-h-[65vh] overflow-y-auto">
-          {step === 1 && (
-            <>
-              <p className="text-xs font-semibold text-slate-700">Mağaza Seç</p>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Mağaza ara..." autoFocus
-                  className="w-full rounded-xl border pl-9 pr-4 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-              </div>
-              <div className="max-h-56 overflow-y-auto space-y-1">
-                {filtered.slice(0, 50).map(p => (
-                  <button key={p.id} type="button" onClick={() => handleSelectProject(p)}
-                    className={`w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
-                      selProject?.id === p.id ? "border-blue-500 bg-blue-50" : "border-slate-100 hover:border-slate-200"
-                    }`}>
-                    <Building2 className="h-4 w-4 text-slate-300 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-slate-900 truncate">{p.name}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">{p.project_no ?? "—"}</p>
-                    </div>
-                  </button>
-                ))}
-                {filtered.length === 0 && <p className="text-center text-xs text-slate-400 py-6">Bulunamadı.</p>}
-              </div>
-              {selProject && (
-                <div className="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2">
-                  <p className="text-xs font-semibold text-blue-800">Seçili: {selProject.name}</p>
-                  {selProject.project_no && <p className="text-[10px] text-blue-600 font-mono">{selProject.project_no}</p>}
-                </div>
-              )}
-            </>
-          )}
-
-          {step === 2 && (
-            <>
-              {selProject && (
-                <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 mb-1">
-                  <p className="text-[11px] font-semibold text-slate-700">{selProject.name}</p>
-                  {selProject.project_no && <p className="text-[10px] text-slate-400 font-mono">{selProject.project_no}</p>}
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">İş Tipi *</label>
-                  <select value={form.work_type} onChange={e => setForm(p => ({ ...p, work_type: e.target.value }))}
-                    className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
-                    {WORK_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Öncelik</label>
-                  <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}
-                    className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
-                    {PRIORITIES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">İş Başlığı *</label>
-                <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                  placeholder="Ör: Deveboynu kanalı imalatı" autoFocus
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">İş Açıklaması</label>
-                <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  rows={3} placeholder="Detaylı açıklama..."
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none" />
-              </div>
-
-              {/* Atanacak kişi — yalnızca kullanıcı listesinden seç */}
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> Atanacak Kişi</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={selUserId}
-                    onChange={e => setSelUserId(e.target.value)}
-                    className="w-full appearance-none rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none pr-8"
-                  >
-                    <option value="">— Seçiniz —</option>
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>
-                        {u.full_name || u.email}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Termin Tarihi</label>
-                <input type="date" value={form.due_date} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))}
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-              </div>
-            </>
-          )}
-
-          {err && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
-        </div>
-
-        <div className="flex justify-between border-t border-slate-100 px-5 py-4">
-          <button onClick={() => step === 1 ? onClose() : setStep(1)}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            {step === 1 ? "Vazgeç" : "← Geri"}
-          </button>
-          {step === 1 ? (
-            <button onClick={() => { if (!selProject) { setErr("Mağaza seçin."); return; } setErr(""); setStep(2); }}
-              className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-              İleri →
-            </button>
-          ) : (
-            <button onClick={handleCreate} disabled={busy}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              <Plus className="h-4 w-4" /> İş Emri Oluştur
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── WhatsApp Gönder Butonu ────────────────────────────────────────────────────
 
 function SendWhatsAppBtn({ wo, onRefresh }: { wo: WorkOrder; onRefresh: () => void }) {
@@ -358,7 +152,6 @@ export default function IsEmirleriPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
   const [deleting, setDeleting] = useState<WorkOrder | null>(null);
   const [query, setQuery] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -393,7 +186,7 @@ export default function IsEmirleriPage() {
             <p className="text-xs text-slate-500">Arıza, tadilat ve yeni yapım görevlerini tek ekrandan oluşturun, atayın ve takip edin.</p>
           </div>
         </div>
-        <button onClick={() => setShowCreate(true)}
+        <button onClick={() => router.push("/manager/is-emirleri/yeni")}
           className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
           <Plus className="h-4 w-4" /> İş Emri Oluştur
         </button>
@@ -451,7 +244,7 @@ export default function IsEmirleriPage() {
             <p className="text-sm font-semibold text-slate-600">İş emri bulunamadı.</p>
             <p className="text-xs text-slate-400 mt-1">Yeni iş emri oluşturun.</p>
           </div>
-          <button onClick={() => setShowCreate(true)}
+          <button onClick={() => router.push("/manager/is-emirleri/yeni")}
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
             <Plus className="h-4 w-4" /> İş Emri Oluştur
           </button>
@@ -535,12 +328,6 @@ export default function IsEmirleriPage() {
         </div>
       )}
 
-      {showCreate && (
-        <CreateModal
-          onClose={() => setShowCreate(false)}
-          onDone={(woId) => { setShowCreate(false); router.push(`/is-emirleri/${woId}`); }}
-        />
-      )}
       {deleting && (
         <DeleteModal
           wo={deleting}

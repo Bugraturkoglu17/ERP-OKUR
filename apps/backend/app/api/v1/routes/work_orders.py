@@ -11,12 +11,14 @@ import secrets
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import List, Optional
+from decimal import Decimal
+from typing import Annotated, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select, desc, text, update
+from pydantic import Field as SchemaField
+from sqlalchemy import delete, select, desc, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, is_platform_admin
@@ -28,6 +30,11 @@ from app.db.models import (
     WorkOrderPublicLink, WorkOrderReport, WorkOrderReportPhoto, WorkOrderServiceForm,
     WorkOrderStage, WorkOrderStatus, WorkOrderType, WorkOrderWhatsappMessage,
     WorkOrderWhatsappStatus, StoreActivity, StoreApprovalRequest, StoreServiceForm,
+    RetailDepot, RetailMaterial, WorkOrderMaterial,
+)
+from app.services.retail_stock_service import (
+    IssuedLine, format_quantity, has_stock_history, issue_planned_lines,
+    notify_managers_of_issue, save_planned_lines, validate_work_order_depot,
 )
 from app.services.whatsapp_service import WorkOrderNotification, whatsapp_service
 
@@ -99,6 +106,44 @@ STAGE_STATUS_LABELS = {
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
+StockQuantity = Annotated[Decimal, SchemaField(gt=0, max_digits=14, decimal_places=1)]  # tam veya en fazla 1 ondalık
+
+
+class WorkOrderMaterialLine(BaseModel):
+    material_id: UUID
+    quantity:    StockQuantity
+
+
+class WorkOrderMaterialRead(BaseModel):
+    id:            UUID
+    material_id:   UUID
+    sku:           str
+    name:          str
+    spec:          Optional[str] = None
+    unit:          str
+    quantity:      Decimal
+    depot_id:      UUID
+    depot_name:    str
+    depot_plate:   Optional[str] = None
+    status:        str                      # planned | issued
+    issued_at:     Optional[datetime] = None
+
+
+class WorkOrderMaterialsSave(BaseModel):
+    materials: List[WorkOrderMaterialLine] = SchemaField(default_factory=list, max_length=200)
+
+
+class WorkOrderServiceFormRead(BaseModel):
+    id:               UUID
+    file_name:        Optional[str] = None
+    file_size_bytes:  Optional[int] = None
+    uploaded_by_name: Optional[str] = None
+    uploaded_at:      datetime
+    year:             int
+    month:            int
+    url:              Optional[str] = None
+
+
 class WorkOrderCreate(BaseModel):
     project_id:           UUID
     work_type:            str
@@ -106,7 +151,10 @@ class WorkOrderCreate(BaseModel):
     description:          Optional[str]  = None
     assigned_to_name:     Optional[str]  = None
     assigned_to_phone:    Optional[str]  = None
-    assigned_to_user_id:  Optional[UUID] = None
+    # Malzeme, işin tamamlanmasıyla atanan çalışanın cep deposundan düşüldüğü
+    # için çalışan ve onun cep deposu zorunludur.
+    assigned_to_user_id:  UUID
+    stock_depot_id:       UUID
     priority:             str = "normal"
     location_url:         Optional[str]  = None
     due_date:             Optional[str]  = None
@@ -127,6 +175,7 @@ class WorkOrderRead(BaseModel):
     assigned_to_name:      Optional[str] = None
     assigned_to_phone:     Optional[str] = None
     assigned_to_user_id:   Optional[UUID] = None
+    stock_depot_id:        Optional[UUID] = None
     priority:              str
     status:                str
     status_label:          str
@@ -195,6 +244,7 @@ class WorkOrderUpdate(BaseModel):
     assigned_to_name:  Optional[str] = None
     assigned_to_phone: Optional[str] = None
     assigned_to_user_id: Optional[UUID] = None
+    stock_depot_id:    Optional[UUID] = None
     priority:          Optional[str] = None
     due_date:          Optional[str] = None
     status:            Optional[str] = None
@@ -373,6 +423,56 @@ async def _log_activity(
     ))
 
 
+_CLOSED_STATUSES = {"completed", "approved", "cancelled", "failed"}
+
+
+async def _require_service_form(db: AsyncSession, wo: WorkOrder) -> None:
+    exists = await db.execute(
+        select(WorkOrderServiceForm.id).where(WorkOrderServiceForm.work_order_id == wo.id).limit(1)
+    )
+    if exists.first() is None:
+        raise HTTPException(400, "İşi tamamlamak için servis formunu yükleyin.")
+
+
+async def _complete_stock(db: AsyncSession, wo: WorkOrder, actor: User) -> list[IssuedLine]:
+    """Completion = the planned materials leave the cep depo, managers are told.
+
+    A shortage aborts the whole completion (nothing is committed).
+    """
+    try:
+        issued = await issue_planned_lines(db, work_order=wo, performed_by=actor.id)
+    except HTTPException:
+        await db.rollback()
+        raise
+    if issued:
+        summary = ", ".join(f"{item.name} {format_quantity(item.quantity)} {item.unit}" for item in issued)
+        await _log_activity(
+            db, wo.id, wo.project_id, "stock_deducted",
+            f"Cep depodan {len(issued)} kalem malzeme düşüldü", summary,
+        )
+        await notify_managers_of_issue(db, work_order=wo, actor=actor, issued=issued)
+    return issued
+
+
+async def _material_rows(db: AsyncSession, work_order_id: UUID) -> list[WorkOrderMaterialRead]:
+    rows = (await db.execute(
+        select(WorkOrderMaterial, RetailMaterial, RetailDepot)
+        .join(RetailMaterial, RetailMaterial.id == WorkOrderMaterial.material_id)
+        .join(RetailDepot, RetailDepot.id == WorkOrderMaterial.depot_id)
+        .where(WorkOrderMaterial.work_order_id == work_order_id)
+        .order_by(RetailMaterial.name)
+    )).all()
+    return [
+        WorkOrderMaterialRead(
+            id=line.id, material_id=material.id, sku=material.sku, name=material.name, spec=material.spec,
+            unit=material.unit, quantity=line.quantity, depot_id=depot.id,
+            depot_name=depot.name, depot_plate=depot.plate,
+            status="issued" if line.movement_id else "planned", issued_at=line.issued_at,
+        )
+        for line, material, depot in rows
+    ]
+
+
 def _enrich(
     wo: WorkOrder,
     project: Project,
@@ -400,6 +500,7 @@ def _enrich(
         assigned_to_name=wo.assigned_to_name,
         assigned_to_phone=wo.assigned_to_phone,
         assigned_to_user_id=getattr(wo, "assigned_to_user_id", None),
+        stock_depot_id=getattr(wo, "stock_depot_id", None),
         priority=priority,
         status=status,
         status_label=STATUS_LABELS.get(status, status),
@@ -437,17 +538,17 @@ async def create_work_order(
     if user.tenant_id and proj.tenant_id != user.tenant_id:
         raise HTTPException(403, "Bu mağaza şirket kapsamınız dışında.")
 
-    # Kullanıcı ID'sinden isim çek (eğer user_id verilmişse)
-    assigned_name  = payload.assigned_to_name
-    assigned_phone = payload.assigned_to_phone
-    if payload.assigned_to_user_id:
-        assigned_user = await db.get(User, payload.assigned_to_user_id)
-        if not assigned_user or not assigned_user.is_active:
-            raise HTTPException(400, "Atanacak aktif kullanıcı bulunamadı.")
-        if user.tenant_id and assigned_user.tenant_id != user.tenant_id:
-            raise HTTPException(403, "Kullanıcı şirket kapsamınız dışında.")
-        assigned_name  = assigned_user.full_name or assigned_user.email
-        assigned_phone = assigned_user.phone or assigned_phone
+    # Atanan çalışan zorunlu: stok onun cep deposundan düşülür.
+    assigned_user = await db.get(User, payload.assigned_to_user_id)
+    if not assigned_user or not assigned_user.is_active:
+        raise HTTPException(400, "Atanacak aktif kullanıcı bulunamadı.")
+    if proj.tenant_id and assigned_user.tenant_id != proj.tenant_id:
+        raise HTTPException(403, "Kullanıcı mağazanın şirketi kapsamı dışında.")
+    assigned_name  = assigned_user.full_name or assigned_user.email
+    assigned_phone = assigned_user.phone or payload.assigned_to_phone
+    depot = await validate_work_order_depot(
+        db, tenant_id=proj.tenant_id, depot_id=payload.stock_depot_id, assignee=assigned_user,
+    )
 
     wo = WorkOrder(
         id=uuid4(),
@@ -459,6 +560,7 @@ async def create_work_order(
         assigned_to_name=assigned_name,
         assigned_to_phone=assigned_phone,
         assigned_to_user_id=payload.assigned_to_user_id,
+        stock_depot_id=depot.id,
         priority=payload.priority or "normal",
         status=WorkOrderStatus.PLANNED.value,
         location_url=payload.location_url,
@@ -594,6 +696,144 @@ async def get_work_order(
     return _enrich(wo, proj, photos_r.scalars().all(), forms_r.scalars().all(), link, reports_r.scalars().all())
 
 
+@router.get("/{work_order_id}/materials", response_model=List[WorkOrderMaterialRead])
+async def list_work_order_materials(
+    work_order_id: UUID,
+    db:   AsyncSession = Depends(get_db),
+    user: User         = Depends(get_current_user),
+):
+    wo = await db.get(WorkOrder, work_order_id)
+    if not wo:
+        raise HTTPException(404, "İş emri bulunamadı.")
+    _ensure_work_order_access(wo, user)
+    return await _material_rows(db, wo.id)
+
+
+@router.put("/{work_order_id}/materials", response_model=List[WorkOrderMaterialRead])
+async def save_work_order_materials(
+    work_order_id: UUID,
+    payload: WorkOrderMaterialsSave,
+    db:   AsyncSession = Depends(get_db),
+    user: User         = Depends(get_current_user),
+):
+    """Kullanılan malzeme listesini kaydet. Stok, iş tamamlanınca düşülür."""
+    wo = await db.get(WorkOrder, work_order_id)
+    if not wo:
+        raise HTTPException(404, "İş emri bulunamadı.")
+    _ensure_work_order_access(wo, user)
+    if _workflow_value(wo.status) in _CLOSED_STATUSES:
+        raise HTTPException(409, "Tamamlanan veya iptal edilen iş emrinde malzeme listesi değiştirilemez.")
+    if not wo.stock_depot_id:
+        raise HTTPException(409, "Bu iş emrine cep depo bağlı değil.")
+    depot = await db.get(RetailDepot, wo.stock_depot_id)
+    if not depot or not depot.is_active:
+        raise HTTPException(409, "İş emrine bağlı cep depo pasif; yöneticiye başvurun.")
+    await save_planned_lines(
+        db, work_order=wo, depot=depot,
+        lines=[(line.material_id, line.quantity) for line in payload.materials],
+    )
+    await db.commit()
+    return await _material_rows(db, wo.id)
+
+
+@router.get("/{work_order_id}/service-forms", response_model=List[WorkOrderServiceFormRead])
+async def list_service_forms(
+    work_order_id: UUID,
+    db:   AsyncSession = Depends(get_db),
+    user: User         = Depends(get_current_user),
+):
+    wo = await db.get(WorkOrder, work_order_id)
+    if not wo:
+        raise HTTPException(404, "İş emri bulunamadı.")
+    _ensure_work_order_access(wo, user)
+    rows = (await db.execute(
+        select(WorkOrderServiceForm)
+        .where(WorkOrderServiceForm.work_order_id == wo.id)
+        .order_by(WorkOrderServiceForm.uploaded_at)
+    )).scalars().all()
+    out = []
+    for form in rows:
+        try:
+            url = await storage.generate_presigned_url(form.file_key)
+        except Exception:
+            url = form.file_url
+        out.append(WorkOrderServiceFormRead(
+            id=form.id, file_name=form.file_name, file_size_bytes=form.file_size_bytes,
+            uploaded_by_name=form.uploaded_by_name, uploaded_at=form.uploaded_at,
+            year=form.year, month=form.month, url=url,
+        ))
+    return out
+
+
+SERVICE_FORM_MAX_BYTES = 15 * 1024 * 1024
+
+
+@router.post("/{work_order_id}/service-forms", response_model=WorkOrderServiceFormRead, status_code=201)
+async def upload_service_form(
+    work_order_id: UUID,
+    file: UploadFile = File(...),
+    db:   AsyncSession = Depends(get_db),
+    user: User         = Depends(get_current_user),
+):
+    """Servis formu (fotoğrafı veya PDF) — yalnızca bu bölümden yüklenir."""
+    wo = await db.get(WorkOrder, work_order_id)
+    if not wo:
+        raise HTTPException(404, "İş emri bulunamadı.")
+    _ensure_work_order_access(wo, user)
+    if _workflow_value(wo.status) in {"cancelled", "failed"}:
+        raise HTTPException(409, "İptal edilen iş emrine servis formu eklenemez.")
+    content_type = file.content_type or ""
+    if not (content_type.startswith("image/") or content_type == "application/pdf"):
+        raise HTTPException(400, "Servis formu JPG, PNG veya PDF olmalıdır.")
+    content = await file.read()
+    if not content:
+        raise HTTPException(400, "Boş dosya yüklenemez.")
+    if len(content) > SERVICE_FORM_MAX_BYTES:
+        raise HTTPException(413, "Servis formu en fazla 15 MB olabilir.")
+
+    safe_name = sanitize_filename(file.filename or "servis-formu.jpg")
+    file_key = f"work-orders/{wo.id}/service-forms/{int(time.time())}_{safe_name}"
+    uploaded_key = await storage.upload_file(file_content=content, file_key=file_key, content_type=content_type)
+    file_url = await storage.generate_presigned_url(uploaded_key)
+
+    now = utc_now()
+    form = WorkOrderServiceForm(
+        id=uuid4(), work_order_id=wo.id, project_id=wo.project_id,
+        year=now.year, month=now.month,
+        file_key=uploaded_key, file_url=file_url,
+        file_name=file.filename, file_size_bytes=len(content),
+        uploaded_by_name=user.full_name, uploaded_at=now,
+    )
+    db.add(form)
+    await _log_activity(db, wo.id, wo.project_id, "service_form_uploaded", "Servis formu yüklendi")
+    await db.commit()
+    return WorkOrderServiceFormRead(
+        id=form.id, file_name=form.file_name, file_size_bytes=form.file_size_bytes,
+        uploaded_by_name=form.uploaded_by_name, uploaded_at=form.uploaded_at,
+        year=form.year, month=form.month, url=file_url,
+    )
+
+
+@router.delete("/{work_order_id}/service-forms/{form_id}", status_code=204)
+async def delete_service_form(
+    work_order_id: UUID,
+    form_id: UUID,
+    db:   AsyncSession = Depends(get_db),
+    user: User         = Depends(get_current_user),
+):
+    wo = await db.get(WorkOrder, work_order_id)
+    if not wo:
+        raise HTTPException(404, "İş emri bulunamadı.")
+    _ensure_work_order_access(wo, user)
+    form = await db.get(WorkOrderServiceForm, form_id)
+    if not form or form.work_order_id != wo.id:
+        raise HTTPException(404, "Servis formu bulunamadı.")
+    if _workflow_value(wo.status) in {"completed", "approved"}:
+        raise HTTPException(409, "Tamamlanan iş emrinin servis formu silinemez.")
+    await db.delete(form)
+    await db.commit()
+
+
 @router.patch("/{work_order_id}", response_model=WorkOrderRead)
 async def update_work_order(
     work_order_id: UUID,
@@ -622,6 +862,28 @@ async def update_work_order(
         if user.tenant_id and assigned_user.tenant_id != user.tenant_id:
             raise HTTPException(403, "Kullanıcı şirket kapsamınız dışında.")
         previous_assignee_id = wo.assigned_to_user_id
+        if assigned_user.id != previous_assignee_id:
+            # Stok yeni çalışanın cep deposundan düşeceği için depo da onunkine geçer.
+            issued_row = await db.execute(select(WorkOrderMaterial.id).where(
+                WorkOrderMaterial.work_order_id == wo.id, WorkOrderMaterial.movement_id.is_not(None)).limit(1))
+            if issued_row.first() is not None or _workflow_value(wo.status) in _CLOSED_STATUSES:
+                raise HTTPException(409, "Tamamlanan veya stok düşülmüş iş emri başka çalışana devredilemez.")
+            owned = (await db.execute(select(RetailDepot).where(
+                RetailDepot.assigned_user_id == assigned_user.id, RetailDepot.kind == "vehicle",
+                RetailDepot.is_active == True))).scalars().all()
+            if payload.stock_depot_id:
+                new_depot = await validate_work_order_depot(
+                    db, tenant_id=wo.tenant_id, depot_id=payload.stock_depot_id, assignee=assigned_user)
+            elif len(owned) == 1:
+                new_depot = owned[0]
+            else:
+                raise HTTPException(409, (
+                    "Yeni çalışana zimmetli cep depo yok." if not owned
+                    else "Yeni çalışanın birden fazla cep deposu var; depoyu seçin."))
+            wo.stock_depot_id = new_depot.id
+            await db.execute(update(WorkOrderMaterial).where(
+                WorkOrderMaterial.work_order_id == wo.id, WorkOrderMaterial.movement_id.is_(None),
+            ).values(depot_id=new_depot.id, updated_at=utc_now()))
         wo.assigned_to_user_id = assigned_user.id
         wo.assigned_to_name = assigned_user.full_name or assigned_user.email
         wo.assigned_to_phone = assigned_user.phone
@@ -651,6 +913,9 @@ async def update_work_order(
             )
             if not completion_photos.scalars().first():
                 raise HTTPException(400, "İşi tamamlamak için en az bir nihai fotoğraf yükleyin.")
+            if _workflow_value(wo.status) != "completed":
+                await _require_service_form(db, wo)
+                await _complete_stock(db, wo, user)
             completed_at = utc_now()
             wo.completed_at = completed_at
             for item in order_stages:
@@ -710,6 +975,12 @@ async def delete_work_order(
     _ensure_work_order_access(wo, user)
     if not _can_view_all_work_orders(user):
         raise HTTPException(403, "İş emri silme yetkiniz yok.")
+    if await has_stock_history(db, wo.id):
+        raise HTTPException(
+            409,
+            "Stok hareketi bulunan iş emri silinemez (denetim kaydı korunur). "
+            "Bunun yerine iptal edin; işe başlanmadıysa stok otomatik iade edilir.",
+        )
 
     # İş emri kalıcı olarak silindiği için bildirimde work_order_id
     # referansı tutmuyoruz (tıklanınca zaten 404 verir) — sadece başlığı kaydediyoruz.
@@ -728,6 +999,11 @@ async def delete_work_order(
         title=f"İş emri silindi: {wo.title}",
         created_at=utc_now(),
     ))
+
+    # Henüz stoktan düşülmemiş (planlı) malzeme satırları iş emriyle birlikte silinir;
+    # stok hareketi olan iş emri yukarıda zaten reddedildi.
+    await db.execute(delete(WorkOrderMaterial).where(
+        WorkOrderMaterial.work_order_id == work_order_id, WorkOrderMaterial.movement_id.is_(None)))
 
     # Child tabloları FK kısıtı oluşturmadan önce sil.
     # R2/OCI objeleri FİZİKSEL olarak silinmez (yalnızca DB kayıtları) — dosya
@@ -1006,6 +1282,9 @@ async def update_stage(
             )
             if not completion_photos.scalars().first():
                 raise HTTPException(400, "Tamamlandı aşaması için en az bir nihai fotoğraf yükleyin.")
+            if _workflow_value(wo.status) != "completed":
+                await _require_service_form(db, wo)
+                await _complete_stock(db, wo, user)
         stage.status = payload.status
     if payload.description is not None:
         stage.description = payload.description or None
@@ -1495,6 +1774,11 @@ async def public_submit_work_order(
             forms_r = await db.execute(select(WorkOrderServiceForm).where(WorkOrderServiceForm.work_order_id == wo.id))
             if not forms_r.scalars().first():
                 raise HTTPException(400, "Bakım işini tamamlamak için servis formu yüklemelisiniz.")
+
+    if new_status == "completed" and _workflow_value(wo.status) != "completed" and wo.assigned_to_user_id:
+        field_user = await db.get(User, wo.assigned_to_user_id)
+        if field_user:
+            await _complete_stock(db, wo, field_user)
 
     wo.status = new_status
     if payload.completion_notes:
