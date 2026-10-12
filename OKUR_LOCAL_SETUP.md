@@ -60,6 +60,32 @@ kopyalamayı reddeder. `scripts/verify_local_stores.py` iki yerel veritabanını
 salt okunur karşılaştırır. Veritabanı verisi, dump, dosya ve şifreler
 GitHub'a eklenmez.
 
+## Başka bilgisayarda: `git pull` sonrası veriler otomatik gelir
+
+Mağaza kartları, stok kartları (fiyat listesi) ve deneme stoğu `data/` klasöründe
+Git ile taşınır:
+
+| Dosya | İçerik |
+| --- | --- |
+| `data/STOK-VE-MAGAZA-LISTESI.xlsx` | Kaynak Excel (stok kartı + fiyatlar, mağazalar) |
+| `data/okur-stores.json.gz` | 4.116 mağaza kartı (müşteri, bölge, şube, proje) |
+| `data/okur-catalog.json` | 247 stok kartı (Excel'den üretilmiş) |
+| `data/okur-demo-stock.json` | Ana depo + deneme açılış stoğu |
+
+`git pull` sonrası **API'yi yeniden başlatmanız yeterlidir**. Geliştirme ortamında
+(`ENV=development`, izole `okur_erp_local` veritabanı) API açılırken sırayla:
+migrasyonlar güncellenir (`alembic upgrade head`), mağazalar boşsa yüklenir, stok kartları
+koda göre eklenir/güncellenir, ana depo ve deneme stoğu (depo/hareket yoksa ve yönetici
+kullanıcı varsa) yüklenir. Hepsi tekrar çalıştırmaya güvenlidir; mevcut kayıtlar ezilmez
+(stok kartı adı/fiyatı hariç). Kapatmak için `.env` içine `AUTO_SEED_LOCAL_DATA=false`.
+
+Kullanıcılar ve parolalar Git'e girmez: yönetici `scripts/create_local_admin.py` ile,
+deneme kullanıcıları/cep depolar `scripts/seed_demo_data.py` ile oluşturulur.
+
+Veriyi güncelleyip paylaşmak için (Excel değiştiyse ya da yeni mağaza eklendiyse):
+`python scripts/export_seed_data.py "C:/yol/liste.xlsx"` çalıştırın, `data/` klasörünü
+commit/push edin.
+
 ## Docker'sız, ayrı PostgreSQL ile başlatma (Windows)
 
 Sismik'in PostgreSQL'iyle karışmaması için Okur kendi veri klasörünü ve

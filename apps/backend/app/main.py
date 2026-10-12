@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator
 
 from fastapi import FastAPI, Request
@@ -63,6 +64,10 @@ async def app_exception_handler(
 # ── Lifecycle Events ───────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def on_startup() -> None:
+    # Yalnızca yerel geliştirme: git pull sonrası boş veritabanı data/ klasöründen dolar.
+    if settings.ENV.lower() == "development" and settings.AUTO_SEED_LOCAL_DATA:
+        from app.services.local_seed import run_local_bootstrap
+        await asyncio.to_thread(run_local_bootstrap)
     await init_db()
 
 

@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     # ── Celery ──────────────────────────────────────────────────────────────
     CELERY_WORKERS: int = 4
     AUTO_CREATE_SCHEMA: bool = True
+    # Yerel geliştirmede açılışta migrasyon + data/ klasöründen mağaza/katalog/deneme stoğu yükle.
+    AUTO_SEED_LOCAL_DATA: bool = True
 
     # ── Firma kontrollü yerel yedekleme sistemi ─────────────────────────────
     # pg_dump binary yolu — üretimde (Dockerfile) PATH üzerinden "pg_dump"
