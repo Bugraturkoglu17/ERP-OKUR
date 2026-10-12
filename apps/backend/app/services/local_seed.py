@@ -33,6 +33,7 @@ logger = logging.getLogger("okur.local_seed")
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BACKEND_DIR.parents[1] / "data"
 STORE_TABLES = ("customers", "regions", "branches", "projects")
+EXCEL_NAME = "STOK-VE-MAGAZA-LISTESI.xlsx"
 
 
 def _sync_url() -> str:
@@ -97,7 +98,24 @@ def _seed_stores(cursor, tenant_id, stores: dict) -> str:
     return f"{len(stores.get('projects') or [])} mağaza yüklendi"
 
 
-def _seed_catalog(cursor, tenant_id, catalog: list[dict]) -> str:
+def _load_catalog() -> tuple[list[dict] | None, str]:
+    """Stok kartları: önce Excel (kaynak), okunamazsa önceden üretilmiş JSON."""
+    excel = DATA_DIR / EXCEL_NAME
+    if excel.exists():
+        try:
+            from app.services.material_catalog import read_catalog
+            items, _ = read_catalog(excel)
+            return items, "Excel"
+        except ImportError:
+            logger.warning("openpyxl kurulu değil; Excel yerine data/okur-catalog.json kullanılıyor "
+                           "(Excel değişikliklerini işlemek için: pip install -r requirements.txt)")
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Excel okunamadı (%s); data/okur-catalog.json kullanılıyor", error)
+    catalog = _read_json("okur-catalog.json")
+    return catalog, "JSON"
+
+
+def _seed_catalog(cursor, tenant_id, catalog: list[dict], source: str) -> str:
     execute_values(
         cursor,
         """INSERT INTO retail_materials (id, tenant_id, sku, name, category, unit, brand, spec, unit_price, min_stock, is_active, created_at)
@@ -109,7 +127,7 @@ def _seed_catalog(cursor, tenant_id, catalog: list[dict]) -> str:
           item["unit_price"], 0, True) for item in catalog],
         template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())", page_size=200,
     )
-    return f"{len(catalog)} stok kartı güncellendi"
+    return f"{len(catalog)} stok kartı güncellendi ({source})"
 
 
 def _seed_demo_stock(cursor, tenant_id, demo: dict) -> str:
@@ -148,7 +166,7 @@ def _seed_demo_stock(cursor, tenant_id, demo: dict) -> str:
 def seed() -> list[str]:
     """Veri dosyalarından eksik yerel veriyi yükler; ne yaptığını kısa satırlarla döner."""
     stores = _read_json("okur-stores.json.gz")
-    catalog = _read_json("okur-catalog.json")
+    catalog, catalog_source = _load_catalog()
     demo = _read_json("okur-demo-stock.json")
     if not (stores or catalog):
         return ["data/ klasöründe yüklenecek dosya yok"]
@@ -159,7 +177,7 @@ def seed() -> list[str]:
         if stores:
             report.append(_seed_stores(cursor, tenant_id, stores))
         if catalog:
-            report.append(_seed_catalog(cursor, tenant_id, catalog))
+            report.append(_seed_catalog(cursor, tenant_id, catalog, catalog_source))
         if demo and catalog:
             report.append(_seed_demo_stock(cursor, tenant_id, demo))
     return report

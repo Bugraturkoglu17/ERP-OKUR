@@ -15,23 +15,19 @@ Needs `pip install openpyxl` (not an application dependency).
 from __future__ import annotations
 
 import argparse
-import re
-from decimal import Decimal, ROUND_HALF_UP
+import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-import openpyxl
 import psycopg2
 from psycopg2.extras import execute_values
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps" / "backend"))
+from app.services.material_catalog import read_catalog  # noqa: E402  (ayrıştırıcı uygulamayla ortak)
 ENV_FILE = ROOT / "apps" / "backend" / ".env"
-SHEET = "Stok Kartı ve Fiyatlar"
-HEADERS = {"code": "MALZEME KODU", "unit": "BİRİM", "category": "ÜRÜN TİPİ", "name": "MALZEME",
-           "brand": "MARKA", "spec": "TİP"}
-SERVICE_CATEGORY = "İŞÇİLİKLER"
 
 
 def database_url() -> str:
@@ -44,57 +40,11 @@ def database_url() -> str:
     return url
 
 
-def clean(value) -> str | None:
-    if value is None:
-        return None
-    text = re.sub(r"\s+", " ", str(value).replace("\xa0", " ")).strip()
-    return text or None
-
-
-def code_of(value) -> str | None:
-    if isinstance(value, float) and value.is_integer():
-        value = int(value)
-    return clean(value)
-
-
 def read_rows(path: Path) -> tuple[list[dict], dict]:
-    workbook = openpyxl.load_workbook(path, data_only=True)
-    if SHEET not in workbook.sheetnames:
-        raise SystemExit(f"Sheet '{SHEET}' not found; sheets: {workbook.sheetnames}")
-    sheet = workbook[SHEET]
-    header_row = next(i for i, row in enumerate(sheet.iter_rows(max_row=10, values_only=True), 1)
-                      if row and clean(row[0]) == HEADERS["code"])
-    header = [clean(cell) for cell in next(sheet.iter_rows(min_row=header_row, max_row=header_row, values_only=True))]
-    columns = {key: header.index(label) for key, label in HEADERS.items()}
-    price_column = next(i for i, label in enumerate(header) if label and label.startswith("2026"))
-
-    items, stats = [], {"services": 0, "zero_price": 0, "no_category": 0}
-    for row in sheet.iter_rows(min_row=header_row + 1, values_only=True):
-        code = code_of(row[columns["code"]])
-        if not code:
-            continue
-        category = clean(row[columns["category"]])
-        if category == SERVICE_CATEGORY:
-            stats["services"] += 1
-            continue
-        price = row[price_column]
-        price = Decimal(str(price)).quantize(Decimal("0.0001"), ROUND_HALF_UP) if isinstance(price, (int, float)) else None
-        if price is not None and price <= 0:
-            price = None
-        if price is None:
-            stats["zero_price"] += 1
-        if category is None:
-            stats["no_category"] += 1
-        name = clean(row[columns["name"]])
-        if not name:
-            raise SystemExit(f"Row with code {code} has no name; fix the file first")
-        items.append({
-            "sku": code[:80], "name": name[:255], "category": category[:100] if category else None,
-            "unit": (clean(row[columns["unit"]]) or "adet").lower()[:20],
-            "brand": (clean(row[columns["brand"]]) or None), "spec": (clean(row[columns["spec"]]) or None),
-            "unit_price": price,
-        })
-    return items, stats
+    try:
+        return read_catalog(path)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
 
 
 def main() -> None:
