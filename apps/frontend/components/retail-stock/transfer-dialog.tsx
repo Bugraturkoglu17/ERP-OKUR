@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ArrowRightLeft, Check, Loader2, Search, X } from "lucide-react";
+import { AlertCircle, ArrowRight, ArrowRightLeft, Check, Loader2, Search, X } from "lucide-react";
 import { apiGet, apiPost, getRequestErrorMessage } from "@/lib/api";
 import { formatQuantity, parseQuantity, quantityForApi, quantityProblem, sanitizeQuantityInput } from "@/lib/quantity";
 import { MaterialTitle, foldText } from "@/components/retail-stock/material-picker";
@@ -12,17 +12,23 @@ type SourceRow = {
   brand?: string | null; spec?: string | null; quantity: string;
 };
 
-const depotLabel = (depot: TransferDepot) => (depot.kind === "main" ? `Ana depo · ${depot.name}` : `${depot.plate} · ${depot.name}`);
 const VISIBLE_LIMIT = 40;
 
 /**
  * Ana depo ↔ cep depo aktarımı: nereden/nereye seçilir, ürünler işaretlenip miktar yazılır
  * (veya "Tümünü aktar"). Tüm kalemler sunucuda tek işlemde uygulanır.
  */
-export function TransferDialog({ depots, manager, initialSourceId, onClose, onDone }: {
+export function TransferDialog({ depots, manager, initialSourceId, staffNames = {}, onClose, onDone }: {
   depots: TransferDepot[]; manager: boolean; initialSourceId?: string;
+  /** Kullanıcı kimliği → ad; araç seçiminde kime ait olduğu görünsün diye. */
+  staffNames?: Record<string, string>;
   onClose: () => void; onDone: (message: string) => void;
 }) {
+  const depotLabel = (depot: TransferDepot) => {
+    if (depot.kind === "main") return `Ana depo · ${depot.name}`;
+    const owner = depot.assigned_user_id ? staffNames[depot.assigned_user_id] : null;
+    return `${depot.plate} · ${depot.name} — ${owner ?? (depot.assigned_user_id ? "atanmış" : "çalışan atanmamış")}`;
+  };
   const main = depots.find((depot) => depot.kind === "main");
   const vehicles = depots.filter((depot) => depot.kind === "vehicle");
   // Yönetici her iki yönde aktarır; çalışan yalnızca kendi aracından ana depoya iade eder.
@@ -31,10 +37,14 @@ export function TransferDialog({ depots, manager, initialSourceId, onClose, onDo
     const source = depots.find((depot) => depot.id === sourceId);
     return source?.kind === "main" ? vehicles : main ? [main] : [];
   };
+  const defaultTarget = (sourceId: string) => {
+    const options = targetsOf(sourceId);
+    return options.length === 1 ? options[0].id : "";
+  };
 
   const firstSource = sources.find((depot) => depot.id === initialSourceId) ?? sources[0];
   const [sourceId, setSourceId] = useState(firstSource?.id ?? "");
-  const [targetId, setTargetId] = useState(() => targetsOf(firstSource?.id ?? "")[0]?.id ?? "");
+  const [targetId, setTargetId] = useState(() => defaultTarget(firstSource?.id ?? ""));
   const [rows, setRows] = useState<SourceRow[]>([]);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
@@ -77,12 +87,12 @@ export function TransferDialog({ depots, manager, initialSourceId, onClose, onDo
     return parseQuantity(raw) > Number(row.quantity) ? `Depoda en fazla ${formatQuantity(row.quantity)} ${row.unit} var.` : "";
   };
   const selected = rows.filter((row) => quantities[row.material_id] && !quantityProblem(quantities[row.material_id]));
-  const setQuantity = (id: string, value: string) => setQuantities((current) => ({ ...current, [id]: value }));
+  const setQuantity = (id: string, value: string) => { setError(""); setQuantities((current) => ({ ...current, [id]: value })); };
   const setFull = (row: SourceRow) => setQuantity(row.material_id, String(Number(row.quantity)).replace(".", ","));
 
   function changeSource(id: string) {
     setSourceId(id);
-    setTargetId(targetsOf(id)[0]?.id ?? "");
+    setTargetId(defaultTarget(id));
     setSearch("");
   }
 
@@ -101,9 +111,15 @@ export function TransferDialog({ depots, manager, initialSourceId, onClose, onDo
 
   async function submit() {
     const invalid = rows.find((row) => problemOf(row));
-    if (invalid) { setError(`${invalid.sku} – ${invalid.name}: ${problemOf(invalid)}`); return; }
+    if (invalid) {
+      const overStock = !quantityProblem(quantities[invalid.material_id]);
+      setError(overStock
+        ? `Stok yetersiz: ${invalid.name} için depoda yalnızca ${formatQuantity(invalid.quantity)} ${invalid.unit} var.`
+        : `${invalid.name}: ${problemOf(invalid)}`);
+      return;
+    }
     if (selected.length === 0) { setError("Aktarılacak en az bir ürün seçin ve miktarını yazın."); return; }
-    if (!sourceId || !targetId) { setError("Nereden ve nereye aktarılacağını seçin."); return; }
+    if (!sourceId || !targetId) { setError("Aktarılacak aracı \"Nereye\" alanından seçin."); return; }
     setBusy(true); setError("");
     try {
       await apiPost("/retail-stock/transfer", {
@@ -138,7 +154,7 @@ export function TransferDialog({ depots, manager, initialSourceId, onClose, onDo
             {manager ? <button type="button" onClick={swap} aria-label="Yönü değiştir" className="mx-auto mb-0.5 rounded-xl border border-slate-200 p-2.5 text-slate-500 hover:border-[#d90070]/40 hover:text-[#d90070]"><ArrowRightLeft className="h-4 w-4" /></button> : <ArrowRight className="mx-auto mb-3 hidden h-4 w-4 text-slate-300 sm:block" />}
             <label className="block text-xs font-semibold text-slate-600">Nereye
               <select value={targetId} onChange={(event) => setTargetId(event.target.value)} className={selectClass}>
-                {targets.length === 0 && <option value="">Hedef depo yok</option>}
+                {targets.length === 0 ? <option value="">Hedef depo yok</option> : targets.length > 1 && <option value="">Araç seçin</option>}
                 {targets.map((depot) => <option key={depot.id} value={depot.id}>{depotLabel(depot)}</option>)}
               </select>
             </label>
@@ -187,13 +203,13 @@ export function TransferDialog({ depots, manager, initialSourceId, onClose, onDo
 
           <label className="block text-xs font-semibold text-slate-600">Not <span className="font-normal text-slate-400">(isteğe bağlı)</span>
             <input value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#d90070]" /></label>
-
-          {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">{error}</div>}
         </div>
 
+        {/* Uyarı, kaydırılan listenin altında kaybolmasın diye düğmelerin hemen üstünde gösterilir. */}
+        {error && <div role="alert" className="flex items-start gap-2 border-t border-rose-200 bg-rose-50 px-5 py-2.5 text-xs font-medium text-rose-700"><AlertCircle className="mt-px h-4 w-4 shrink-0" />{error}</div>}
         <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <button type="button" onClick={onClose} disabled={busy} className="rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-500">İptal</button>
-          <button type="button" onClick={() => void submit()} disabled={busy || selected.length === 0 || !targetId} className="inline-flex items-center gap-2 rounded-xl bg-[#d90070] px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">
+          <button type="button" onClick={() => void submit()} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-[#d90070] px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">
             {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Aktar{selected.length > 0 ? ` (${selected.length} kalem)` : ""}
           </button>
         </div>

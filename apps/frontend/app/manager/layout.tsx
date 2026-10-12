@@ -10,6 +10,7 @@ import {
   DatabaseBackup,
   UserRound,
   Boxes,
+  PieChart,
 } from "lucide-react";
 import { CorporateShell, type CorporateNavItem } from "@/components/layout/corporate-shell";
 import { useAuth } from "@/contexts/auth-context";
@@ -21,6 +22,7 @@ const BASE_NAV: CorporateNavItem[] = [
   { href: "/manager/depo-stok", label: "Depo & Stok", icon: Boxes },
   { href: "/manager/genel-arsiv", label: "Genel Arşiv", icon: Archive },
   { href: "/manager/kullanicilar", label: "Kullanıcılar", icon: Users },
+  { href: "/manager/istatistikler", label: "İstatistikler", icon: PieChart },
   { href: "/manager/raporlar", label: "Raporlar", icon: BarChart3 },
   { href: "/manager/profile", label: "Profilim", icon: UserRound },
 ];

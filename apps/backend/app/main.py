@@ -69,6 +69,9 @@ async def on_startup() -> None:
         from app.services.local_seed import run_local_bootstrap
         await asyncio.to_thread(run_local_bootstrap)
     await init_db()
+    if settings.ENV.lower() == "development" and settings.AUTO_SEED_LOCAL_DATA:
+        from app.services.local_test_data import start_local_test_data
+        start_local_test_data()
 
 
 @app.on_event("shutdown")

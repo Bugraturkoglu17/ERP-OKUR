@@ -84,8 +84,13 @@ Kapatmak için `.env` içine `AUTO_SEED_LOCAL_DATA=false`.
 `openpyxl` kurulu değilse (`pip install -r apps/backend/requirements.txt`) Excel okunamaz ve
 `okur-catalog.json` yedeği kullanılır; bu durumda değişen Excel'i işlemek için önce paketi kurun.
 
-Kullanıcılar ve parolalar Git'e girmez: yönetici `scripts/create_local_admin.py` ile,
-deneme kullanıcıları/cep depolar `scripts/seed_demo_data.py` ile oluşturulur.
+Test hesapları ve deneme iş emirleri de API açılınca arka planda otomatik oluşur:
+hiç kullanıcı yoksa yönetici (`scripts/create_local_admin.py`), ardından 1 yönetici +
+3 saha kullanıcısı ve cep depoları (`scripts/create_test_users.py`) ile başlıkları
+`[DENEME]` olan 30 iş emri (`scripts/seed_test_work_orders.py`). Parolalar Git'e girmez;
+her bilgisayarda yeniden üretilir ve `local-data/dev-admin.txt` ile
+`local-data/test-kullanicilar.txt` dosyalarına yazılır. Var olan hesap ve iş emirlerine
+dokunulmaz.
 
 Yeni **mağaza** eklediyseniz (mağazalar Excel'den değil, veritabanından dışa aktarılır):
 `python scripts/export_seed_data.py` çalıştırın, `data/` klasörünü commit/push edin. Yalnızca

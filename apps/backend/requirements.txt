@@ -49,3 +49,6 @@ mypy==1.13.0
 
 # ── Excel (stok kartı fiyat listesi, açılışta data/ klasöründen okunur) ──────
 openpyxl==3.1.5
+
+# ── Yerel test verisi betikleri (scripts/create_test_users.py vb.) ───────────
+requests==2.34.2

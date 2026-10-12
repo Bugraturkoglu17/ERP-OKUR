@@ -26,7 +26,7 @@ from app.core.notifications import notify
 from app.core.storage import storage, sanitize_filename
 from app.db.models import (
     Notification,
-    Document, Project, User, WorkOrder, WorkOrderActivity, WorkOrderPhoto,
+    Document, Project, Region, User, WorkOrder, WorkOrderActivity, WorkOrderPhoto,
     WorkOrderPublicLink, WorkOrderReport, WorkOrderReportPhoto, WorkOrderServiceForm,
     WorkOrderStage, WorkOrderStatus, WorkOrderType, WorkOrderWhatsappMessage,
     WorkOrderWhatsappStatus, StoreActivity, StoreApprovalRequest, StoreServiceForm,
@@ -480,6 +480,7 @@ def _enrich(
     service_forms: list,
     link: Optional[WorkOrderPublicLink],
     reports: Optional[list] = None,
+    region_name: Optional[str] = None,
 ) -> WorkOrderRead:
     project_meta = _parse_project_meta(project)
     work_type = _workflow_value(wo.work_type)
@@ -490,7 +491,7 @@ def _enrich(
         project_id=wo.project_id,
         project_name=project.name if project else None,
         project_no=project.project_no if project else None,
-        project_region=project_meta.get("bolge") or project_meta.get("region"),
+        project_region=project_meta.get("bolge") or project_meta.get("region") or region_name,
         project_city=project_meta.get("sehir") or project_meta.get("city"),
         project_address=project_meta.get("adres") or project_meta.get("address"),
         work_type=work_type,
@@ -639,6 +640,12 @@ async def list_work_orders(
 
     projects_r = await db.execute(select(Project).where(Project.id.in_(project_ids)))
     projects_by_id = {p.id: p for p in projects_r.scalars().all()}
+    # Meta alanında bölge yazmayan mağazalar için bölge adı region_id üzerinden gelir.
+    region_ids = {p.region_id for p in projects_by_id.values() if p.region_id}
+    region_names = {}
+    if region_ids:
+        regions_r = await db.execute(select(Region.id, Region.name).where(Region.id.in_(region_ids)))
+        region_names = {row.id: row.name for row in regions_r}
 
     photos_by_wo: dict = defaultdict(list)
     photos_r = await db.execute(select(WorkOrderPhoto).where(WorkOrderPhoto.work_order_id.in_(wo_ids)))
@@ -674,6 +681,7 @@ async def list_work_orders(
             forms_by_wo.get(wo.id, []),
             links_by_wo.get(wo.id),
             reports_by_wo.get(wo.id, []),
+            region_names.get(getattr(projects_by_id.get(wo.project_id), "region_id", None)),
         ))
     return out
 

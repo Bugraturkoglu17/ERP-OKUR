@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import secrets
 import subprocess
+import sys
 
 import psycopg2
 
@@ -39,8 +40,7 @@ def main() -> None:
         PLATFORM_ADMIN_PASSWORD=password,
         PLATFORM_ADMIN_FULL_NAME="Okur Yerel Yönetici",
     )
-    python = BACKEND / ".venv" / "Scripts" / "python.exe"
-    subprocess.run([str(python), "-m", "app.bootstrap_admin"], cwd=BACKEND, env=env, check=True)
+    subprocess.run([sys.executable, "-m", "app.bootstrap_admin"], cwd=BACKEND, env=env, check=True)
     PASSWORD_FILE.parent.mkdir(parents=True, exist_ok=True)
     PASSWORD_FILE.write_text(f"E-posta: {EMAIL}\nGeçici parola: {password}\n", encoding="utf-8")
     print(f"Local admin created. Credentials saved only in ignored file: {PASSWORD_FILE}")

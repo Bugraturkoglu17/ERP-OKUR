@@ -251,7 +251,7 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
 
 
 
-    {transferOpen && <TransferDialog depots={depots} manager={manager} initialSourceId={selectedDepotId} onClose={() => setTransferOpen(false)}
+    {transferOpen && <TransferDialog depots={depots} manager={manager} initialSourceId={selectedDepotId} staffNames={Object.fromEntries(staff.map((person) => [person.id, person.name]))} onClose={() => setTransferOpen(false)}
       onDone={(message) => { setTransferOpen(false); setSuccess(message); void loadAll().then(() => refreshStock(selectedDepotId)); }} />}
 
     {action && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-3 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setAction(null); }}>
