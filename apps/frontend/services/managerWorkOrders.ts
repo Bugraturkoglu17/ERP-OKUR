@@ -1,12 +1,14 @@
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
 
 export type WorkOrderStatus = "planned" | "in_progress" | "completed" | "cancelled";
-export type WorkOrderCategory = "ariza" | "tadilat" | "yeni_yapim";
+export type WorkOrderCategory = "ariza" | "tadilat" | "proje" | "yeni_yapim";
 export type WorkOrderPriority = "normal" | "important" | "critical";
 
 export const CATEGORY_LABEL: Record<WorkOrderCategory, string> = {
-  ariza: "Arıza", tadilat: "Tadilat", yeni_yapim: "Yeni Yapım",
+  ariza: "Arıza", tadilat: "Tadilat", proje: "Proje", yeni_yapim: "Yeni Yapım (eski)",
 };
+/** Yeni iş emrinde seçilebilen tipler; "Yeni Yapım" kaldırıldı, yerine "Proje" geldi. */
+export const CREATABLE_CATEGORIES: WorkOrderCategory[] = ["ariza", "tadilat", "proje"];
 export const PRIORITY_LABEL: Record<WorkOrderPriority, string> = {
   normal: "Normal", important: "Önemli", critical: "Kritik",
 };
@@ -22,6 +24,7 @@ type BackendWorkOrder = {
   assigned_to_name?: string; assigned_to_user_id?: string;
   priority: string; status: string; due_date?: string;
   created_at: string; updated_at: string; photo_count?: number; has_critical_report?: boolean;
+  installation_project_id?: string | null; installation_project_name?: string | null;
 };
 
 export type WorkOrder = {
@@ -32,6 +35,7 @@ export type WorkOrder = {
   assigned_to: string; assigned_to_name: string; due_date: string | null;
   created_at: string; updated_at: string; photo_count: number;
   has_critical_report: boolean;
+  installation_project_id: string | null; installation_project_name: string | null;
 };
 
 export type TeamUser = {
@@ -41,10 +45,10 @@ export type TeamUser = {
 
 const CATEGORY_FROM_API: Record<string, WorkOrderCategory> = {
   fault: "ariza", repair: "ariza", renovation: "tadilat",
-  maintenance: "tadilat", manufacturing: "yeni_yapim",
+  maintenance: "tadilat", manufacturing: "yeni_yapim", project: "proje",
 };
 const CATEGORY_TO_API: Record<WorkOrderCategory, string> = {
-  ariza: "fault", tadilat: "renovation", yeni_yapim: "manufacturing",
+  ariza: "fault", tadilat: "renovation", proje: "project", yeni_yapim: "manufacturing",
 };
 const PRIORITY_FROM_API: Record<string, WorkOrderPriority> = {
   normal: "normal", urgent: "important", critical: "critical",
@@ -82,12 +86,23 @@ function normalizeWorkOrder(item: BackendWorkOrder): WorkOrder {
     updated_at: item.updated_at,
     photo_count: item.photo_count ?? 0,
     has_critical_report: item.has_critical_report ?? false,
+    installation_project_id: item.installation_project_id ?? null,
+    installation_project_name: item.installation_project_name ?? null,
   };
 }
 
+const WORK_ORDER_PAGE = 500;
+
+/** Tüm iş emirleri 500'lük sayfalarla çekilir (sunucudaki eski 500 kayıt sınırı kalktı). */
 export async function getManagerWorkOrders(): Promise<WorkOrder[]> {
-  const data = await apiGet<BackendWorkOrder[]>("/work-orders");
-  return Array.isArray(data) ? data.map(normalizeWorkOrder) : [];
+  const all: BackendWorkOrder[] = [];
+  for (let offset = 0; ; offset += WORK_ORDER_PAGE) {
+    const page = await apiGet<BackendWorkOrder[]>("/work-orders", { limit: WORK_ORDER_PAGE, offset });
+    const rows = Array.isArray(page) ? page : [];
+    all.push(...rows);
+    if (rows.length < WORK_ORDER_PAGE) break;
+  }
+  return all.map(normalizeWorkOrder);
 }
 
 export async function getManagerWorkOrderById(id: string): Promise<WorkOrder> {
@@ -117,6 +132,8 @@ export type CreateWorkOrderPayload = {
   title: string; description: string; category: WorkOrderCategory;
   priority: WorkOrderPriority; store_id: string; assigned_to: string;
   due_date: string | null; stock_depot_id: string;
+  /** Projeye bağlı montaj iş emri: malzeme projenin deposundan düşer. */
+  installation_project_id?: string | null;
 };
 
 export async function createWorkOrder(payload: CreateWorkOrderPayload): Promise<WorkOrder> {
@@ -129,6 +146,7 @@ export async function createWorkOrder(payload: CreateWorkOrderPayload): Promise<
     stock_depot_id: payload.stock_depot_id,
     priority: PRIORITY_TO_API[payload.priority],
     due_date: payload.due_date,
+    installation_project_id: payload.installation_project_id ?? null,
   });
   return normalizeWorkOrder(created);
 }

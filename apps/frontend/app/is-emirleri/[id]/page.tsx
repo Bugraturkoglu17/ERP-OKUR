@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatServerDateTime } from "@/lib/utils";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -21,6 +22,7 @@ import { MaterialTitle } from "@/components/retail-stock/material-picker";
 
 type WorkOrder = {
   id: string; project_id: string; project_name?: string; project_no?: string;
+  installation_project_id?: string | null; installation_project_name?: string | null;
   project_region?: string; project_city?: string; project_address?: string;
   work_type: string; work_type_label: string; title: string; description?: string;
   assigned_to_name?: string;
@@ -1433,6 +1435,7 @@ export default function WorkOrderDetailPage() {
             <p className="text-sm font-semibold text-slate-800 mt-0.5 truncate">{wo.project_name ?? "Belirtilmedi"}</p>
             {wo.project_no && <p className="text-[11px] text-slate-400 font-mono">{wo.project_no}</p>}
             {(wo.project_city || wo.project_region) && <p className="text-[11px] text-slate-400">{[wo.project_region, wo.project_city].filter(Boolean).join(" / ")}</p>}
+            {wo.installation_project_name && <p className="mt-1 inline-flex rounded-md bg-teal-50 px-1.5 py-0.5 text-[11px] font-semibold text-teal-800">Proje: {wo.installation_project_name}</p>}
           </div>
           {wo.assigned_to_name && (
             <div>
@@ -1443,6 +1446,11 @@ export default function WorkOrderDetailPage() {
               </p>
             </div>
           )}
+          <div>
+            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Verilme Tarihi</p>
+            <p className="text-sm text-slate-700 mt-0.5">{formatServerDateTime(wo.created_at)}</p>
+            {wo.created_by_name && <p className="text-[11px] text-slate-400 truncate">{wo.created_by_name}</p>}
+          </div>
           <div>
             <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Termin</p>
             <p className="text-sm text-slate-700 mt-0.5">{fmtDate(wo.due_date)}</p>
@@ -1593,9 +1601,12 @@ export default function WorkOrderDetailPage() {
 
       {/* Sekme İçeriği */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        {activeTab === "reports" && <ReportsTab />}
-        {activeTab === "stages"  && <StagesTab />}
-        {activeTab === "photos"  && <PhotosTab />}
+        {/* Sekmeler bileşen olarak değil fonksiyon olarak çağrılır: sayfa içinde tanımlı bir
+            bileşen her render'da yeni tür sayılır, alt ağaç sökülüp yeniden kurulur ve
+            miktar alanına her tuş basışında odak kaybolup sayfa en üste kayar. */}
+        {activeTab === "reports" && ReportsTab()}
+        {activeTab === "stages"  && StagesTab()}
+        {activeTab === "photos"  && PhotosTab()}
       </div>
 
       {/* Modaller */}

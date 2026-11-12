@@ -1186,7 +1186,8 @@ class WorkOrderType(str, Enum):
     FAULT         = "fault"          # Arıza
     REPAIR        = "repair"         # Onarım
     RENOVATION    = "renovation"     # Tadilat
-    MANUFACTURING = "manufacturing"  # İmalat
+    MANUFACTURING = "manufacturing"  # İmalat (eski "Yeni Yapım"; yeni iş emrinde seçilemez)
+    PROJECT       = "project"        # Proje (kurulum projesine bağlı iş emri)
     OTHER         = "other"          # Diğer
 
 
@@ -1266,6 +1267,8 @@ class WorkOrder(SQLModel, table=True):
     assigned_to_user_id:  Optional[UUID]      = Field(foreign_key="users.id", default=None, index=True)
     # Stock for this job is drawn from the assignee's cep depo (retail_depots).
     stock_depot_id:       Optional[UUID]      = Field(foreign_key="retail_depots.id", default=None, index=True)
+    # Kurulum projesine bağlı iş emirlerinde malzeme projenin deposundan düşer.
+    installation_project_id: Optional[UUID]   = Field(foreign_key="installation_projects.id", default=None, index=True)
 
     public_links:         List["WorkOrderPublicLink"]      = Relationship(back_populates="work_order")
     photos:               List["WorkOrderPhoto"]           = Relationship(back_populates="work_order")
@@ -1541,8 +1544,8 @@ class RetailDepot(SQLModel, table=True):
     __tablename__ = "retail_depots"
     __table_args__ = (
         UniqueConstraint("tenant_id", "plate", name="uq_retail_depot_tenant_plate"),
-        CheckConstraint("kind IN ('main', 'vehicle')", name="ck_retail_depot_kind"),
-        CheckConstraint("(kind = 'main' AND plate IS NULL) OR (kind = 'vehicle' AND plate IS NOT NULL)", name="ck_retail_depot_plate"),
+        CheckConstraint("kind IN ('main', 'vehicle', 'project')", name="ck_retail_depot_kind"),
+        CheckConstraint("(kind IN ('main', 'project') AND plate IS NULL) OR (kind = 'vehicle' AND plate IS NOT NULL)", name="ck_retail_depot_plate"),
     )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -1630,3 +1633,100 @@ class WorkOrderMaterial(SQLModel, table=True):
     issued_at: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+# ── Kurulum projeleri ("Proje" iş tipi) ─────────────────────────────────────
+# Yeni bir soğutma kurulumunun keşiften kapanışa kadar takibi. Bir proje bir
+# mağazaya/yere bağlıdır, sabit aşamalardan geçer ve kendi deposu (kind='project')
+# vardır; projeye bağlı iş emirleri malzemeyi bu depodan düşer.
+
+class InstallationProject(SQLModel, table=True):
+    __tablename__ = "installation_projects"
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'completed', 'cancelled')", name="ck_installation_project_status"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(foreign_key="tenants.id", index=True)
+    store_id: UUID = Field(foreign_key="projects.id", index=True)
+    depot_id: UUID = Field(foreign_key="retail_depots.id", index=True)
+    name: str = Field(max_length=200)
+    description: Optional[str] = Field(default=None)
+    manager_user_id: Optional[UUID] = Field(foreign_key="users.id", default=None, index=True)
+    start_date: Optional[datetime] = Field(default=None)
+    target_date: Optional[datetime] = Field(default=None)
+    budget: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(14, 2), nullable=True))
+    status: str = Field(default="active", max_length=16, index=True)
+    created_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
+    completed_at: Optional[datetime] = Field(default=None)
+
+
+class InstallationProjectStage(SQLModel, table=True):
+    __tablename__ = "installation_project_stages"
+    __table_args__ = (
+        UniqueConstraint("project_id", "stage_order", name="uq_installation_stage_order"),
+        CheckConstraint("status IN ('planned', 'in_progress', 'completed')", name="ck_installation_stage_status"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    project_id: UUID = Field(foreign_key="installation_projects.id", index=True)
+    stage_order: int
+    code: str = Field(max_length=32)
+    name: str = Field(max_length=120)
+    status: str = Field(default="planned", max_length=16)
+    responsible_user_id: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    planned_end: Optional[datetime] = Field(default=None)
+    started_at: Optional[datetime] = Field(default=None)
+    completed_at: Optional[datetime] = Field(default=None)
+    completed_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    note: Optional[str] = Field(default=None)
+    overdue_notified_at: Optional[datetime] = Field(default=None)
+    # Kapanış aşaması: sorumlu yönetici değilse aşamayı onaya gönderir, yönetici onaylayınca kapanır.
+    approval_requested_at: Optional[datetime] = Field(default=None)
+    approval_requested_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+
+
+class InstallationProjectChecklistItem(SQLModel, table=True):
+    __tablename__ = "installation_project_checklist_items"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    stage_id: UUID = Field(foreign_key="installation_project_stages.id", index=True)
+    label: str = Field(max_length=255)
+    sort_order: int = Field(default=0)
+    is_done: bool = Field(default=False)
+    done_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    done_at: Optional[datetime] = Field(default=None)
+
+
+class InstallationProjectDocument(SQLModel, table=True):
+    __tablename__ = "installation_project_documents"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    project_id: UUID = Field(foreign_key="installation_projects.id", index=True)
+    stage_id: Optional[UUID] = Field(foreign_key="installation_project_stages.id", default=None, index=True)
+    doc_type: str = Field(max_length=32, index=True)
+    file_key: str = Field(max_length=500)
+    file_name: str = Field(max_length=255)
+    mime_type: Optional[str] = Field(default=None, max_length=120)
+    file_size_bytes: int = Field(default=0)
+    uploaded_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    uploaded_by_name: Optional[str] = Field(default=None, max_length=255)
+    uploaded_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+class InstallationProjectMaterial(SQLModel, table=True):
+    """Projenin planlanan malzeme listesi (teklif/projelendirme aşamasında çıkarılır)."""
+
+    __tablename__ = "installation_project_materials"
+    __table_args__ = (
+        UniqueConstraint("project_id", "material_id", name="uq_installation_project_material"),
+        CheckConstraint("planned_quantity > 0", name="ck_installation_material_positive"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    project_id: UUID = Field(foreign_key="installation_projects.id", index=True)
+    material_id: UUID = Field(foreign_key="retail_materials.id", index=True)
+    planned_quantity: Decimal = Field(sa_column=Column(Numeric(14, 3), nullable=False))
+    note: Optional[str] = Field(default=None, max_length=255)

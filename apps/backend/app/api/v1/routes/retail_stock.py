@@ -24,6 +24,7 @@ from app.db.models import (
     Branch, RetailBalance, RetailDepot, RetailMaterial,
     RetailMovement, Tenant, User, WorkOrder, utc_now,
 )
+from app.services.alerts import notify_stock_critical
 from app.services.retail_stock_service import decrease, locked_balances
 
 
@@ -70,6 +71,10 @@ class MaterialCreate(BaseModel):
     @classmethod
     def normalize_sku(cls, value: str) -> str:
         return value.strip().upper()
+
+
+class MaterialUpdate(BaseModel):
+    min_stock: StockLevel
 
 
 class StockEntry(BaseModel):
@@ -140,6 +145,26 @@ def _can_use_vehicle(user: User, depot: RetailDepot) -> bool:
     return _manager(user) or (depot.kind == "vehicle" and depot.assigned_user_id == user.id)
 
 
+_OPEN_WORK_ORDER = ("completed", "approved", "cancelled", "failed")
+
+
+def _project_depots_of(user: User):
+    """Çalışanın açık bir proje iş emri olan proje depoları (malzemeyi oradan seçer, aktarım yapamaz)."""
+    return select(WorkOrder.stock_depot_id).where(
+        WorkOrder.assigned_to_user_id == user.id, WorkOrder.installation_project_id.is_not(None),
+        WorkOrder.status.not_in(_OPEN_WORK_ORDER),
+    )
+
+
+async def _can_view_depot(db: AsyncSession, user: User, depot: RetailDepot) -> bool:
+    if _can_use_vehicle(user, depot):
+        return True
+    if depot.kind == "project":
+        row = await db.execute(_project_depots_of(user).where(WorkOrder.stock_depot_id == depot.id).limit(1))
+        return row.first() is not None
+    return False
+
+
 def _price_json(user: User, material: RetailMaterial) -> dict:
     # Fiyat yalnızca yöneticiye gösterilir; saha çalışanı listede fiyat görmez.
     return {"unit_price": material.unit_price} if _manager(user) else {}
@@ -171,7 +196,8 @@ async def list_depots(db: AsyncSession = Depends(get_db), user: User = Depends(g
     if not _manager(user):
         # Çalışan kendi araç depolarını görür; ana depo yalnızca iade hedefi olarak (stoğu görünmez).
         query = query.where(or_(RetailDepot.kind == "main",
-                                and_(RetailDepot.kind == "vehicle", RetailDepot.assigned_user_id == user.id)))
+                                and_(RetailDepot.kind == "vehicle", RetailDepot.assigned_user_id == user.id),
+                                and_(RetailDepot.kind == "project", RetailDepot.id.in_(_project_depots_of(user)))))
     rows = (await db.execute(query.order_by(RetailDepot.kind, RetailDepot.plate))).scalars().all()
     return [_depot_json(row) for row in rows]
 
@@ -202,6 +228,8 @@ async def update_depot(depot_id: UUID, body: DepotUpdate, db: AsyncSession = Dep
     _require_manager(user)
     tenant_id = await _tenant_id(db, user)
     depot = await _depot(db, tenant_id, depot_id, active=False)
+    if depot.kind == "project":
+        raise HTTPException(status_code=400, detail="Proje deposu, projenin kendi ekranından yönetilir.")
     updates = body.model_dump(exclude_unset=True)
     if "assigned_user_id" in updates:
         if depot.kind != "vehicle":
@@ -258,6 +286,20 @@ async def create_material(body: MaterialCreate, db: AsyncSession = Depends(get_d
     return {"id": material.id, "sku": material.sku, "name": material.name}
 
 
+@router.patch("/materials/{material_id}")
+async def update_material(material_id: UUID, body: MaterialUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
+    """Stok kartının kritik stok eşiği; 0 = kritik stok uyarısı kapalı."""
+    _require_manager(user)
+    tenant_id = await _tenant_id(db, user)
+    material = (await db.execute(select(RetailMaterial).where(
+        RetailMaterial.id == material_id, RetailMaterial.tenant_id == tenant_id))).scalar_one_or_none()
+    if material is None:
+        raise HTTPException(status_code=404, detail="Stok kartı bulunamadı.")
+    material.min_stock = body.min_stock
+    await db.commit()
+    return {"id": material.id, "sku": material.sku, "name": material.name, "min_stock": material.min_stock}
+
+
 @router.get("/stock")
 async def list_stock(
     depot_id: UUID, search: str = "", db: AsyncSession = Depends(get_db),
@@ -265,8 +307,8 @@ async def list_stock(
 ) -> list[dict]:
     tenant_id = await _tenant_id(db, user)
     depot = await _depot(db, tenant_id, depot_id)
-    if not _can_use_vehicle(user, depot):
-        raise HTTPException(status_code=403, detail="Bu araç deposuna erişim yetkiniz yok.")
+    if not await _can_view_depot(db, user, depot):
+        raise HTTPException(status_code=403, detail="Bu depoya erişim yetkiniz yok.")
     query = select(RetailMaterial, RetailBalance.quantity).outerjoin(
         RetailBalance,
         and_(RetailBalance.material_id == RetailMaterial.id, RetailBalance.depot_id == depot_id),
@@ -311,15 +353,18 @@ async def transfer_stock(body: StockTransfer, db: AsyncSession = Depends(get_db)
     tenant_id = await _tenant_id(db, user)
     source = await _depot(db, tenant_id, body.source_depot_id)
     target = await _depot(db, tenant_id, body.target_depot_id)
-    if source.kind == "main" and target.kind == "vehicle":
+    if source.kind == "main" and target.kind in ("vehicle", "project"):
         _require_manager(user)
         kind = "load"
     elif source.kind == "vehicle" and target.kind == "main":
         if not _can_use_vehicle(user, source):
             raise HTTPException(status_code=403, detail="Bu araç deposundan iade yapamazsınız.")
         kind = "return"
+    elif source.kind == "project" and target.kind == "main":
+        _require_manager(user)
+        kind = "return"
     else:
-        raise HTTPException(status_code=400, detail="Aktarım yalnızca ana depo ile araç deposu arasında yapılır.")
+        raise HTTPException(status_code=400, detail="Aktarım yalnızca ana depo ile araç ya da proje deposu arasında yapılır.")
 
     merged: dict[UUID, Decimal] = {}
     for line in body.lines:
@@ -329,7 +374,14 @@ async def transfer_stock(body: StockTransfer, db: AsyncSession = Depends(get_db)
         for material_id in sorted(merged, key=str):
             material = await _material(db, tenant_id, material_id)
             balances = await _locked_balances(db, material_id, [source.id, target.id])
+            before = balances[source.id].quantity
             _decrease(balances[source.id], merged[material_id], f"{material.sku} {material.name}")
+            if kind == "load":
+                # Ana depo kritik eşiğin altına ilk kez indiyse yöneticiler uyarılır.
+                await notify_stock_critical(
+                    db, tenant_id=tenant_id, material_name=f"{material.sku} – {material.name}", unit=material.unit,
+                    before=before, after=balances[source.id].quantity, min_stock=material.min_stock,
+                )
             balances[target.id].quantity += merged[material_id]
             balances[target.id].updated_at = utc_now()
             db.add(RetailMovement(

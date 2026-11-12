@@ -1,4 +1,4 @@
-const OFFLINE_CACHE = "sismik-operations-offline-v1";
+const OFFLINE_CACHE = "okur-operations-offline-v2";
 const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {

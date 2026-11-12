@@ -134,6 +134,10 @@ export function NotificationBell() {
     }
     setOpen(false);
     if (notif.work_order_id) router.push(workOrderHref(pathname, notif.work_order_id));
+    // Kritik stok uyarısı bir işe değil depoya aittir: stok listesi kritik filtreyle açılır.
+    else if (notif.category === "stock_critical") router.push("/manager/depo-stok?filtre=kritik");
+    // Proje bildirimleri: saha kullanıcısı görevlerine, yönetici projeler listesine gider.
+    else if (notif.category.startsWith("project_")) router.push(pathname.startsWith("/user") ? "/user/proje-gorevleri" : "/manager/projeler");
   };
 
   const markAllRead = () => {

@@ -15,16 +15,18 @@ from decimal import Decimal
 from typing import Annotated, List, Optional
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status, Request
 from pydantic import BaseModel, Field
 from pydantic import Field as SchemaField
-from sqlalchemy import delete, select, desc, text, update
+from sqlalchemy import delete, func, select, desc, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, is_platform_admin
 from app.core.notifications import notify
+from app.services.alerts import notify_critical_report
 from app.core.storage import storage, sanitize_filename
 from app.db.models import (
+    InstallationProject,
     Notification,
     Document, Project, Region, User, WorkOrder, WorkOrderActivity, WorkOrderPhoto,
     WorkOrderPublicLink, WorkOrderReport, WorkOrderReportPhoto, WorkOrderServiceForm,
@@ -62,7 +64,8 @@ WORK_TYPE_LABELS = {
     "fault":         "Arıza",
     "repair":        "Onarım",
     "renovation":    "Tadilat",
-    "manufacturing": "Yeni Yapım",
+    "manufacturing": "Yeni Yapım (eski)",
+    "project":       "Proje",
     "other":         "Diğer",
 }
 
@@ -158,6 +161,8 @@ class WorkOrderCreate(BaseModel):
     priority:             str = "normal"
     location_url:         Optional[str]  = None
     due_date:             Optional[str]  = None
+    # Kurulum projesine bağlı iş emri: mağaza ve depo projeden alınır.
+    installation_project_id: Optional[UUID] = None
 
 
 class WorkOrderRead(BaseModel):
@@ -191,6 +196,8 @@ class WorkOrderRead(BaseModel):
     photo_count:           int = 0
     has_service_form:      bool = False
     has_critical_report:   bool = False
+    installation_project_id:   Optional[UUID] = None
+    installation_project_name: Optional[str] = None
     public_token:          Optional[str] = None
 
     class Config:
@@ -387,9 +394,13 @@ def _parse_date(d: Optional[str]) -> Optional[datetime]:
     if not d:
         return None
     try:
-        return datetime.fromisoformat(d.replace("Z", "+00:00")).replace(tzinfo=None)
+        parsed = datetime.fromisoformat(d.replace("Z", "+00:00")).replace(tzinfo=None)
     except Exception:
         return None
+    # Eksik yazılmış yıl (ör. 0002) termin olarak kaydedilmesin.
+    if not 2000 <= parsed.year <= 2100:
+        raise HTTPException(422, "Geçerli bir termin tarihi girin (yıl 2000 ile 2100 arasında olmalı).")
+    return parsed
 
 
 async def _get_active_link(work_order_id: UUID, db: AsyncSession) -> Optional[WorkOrderPublicLink]:
@@ -424,6 +435,18 @@ async def _log_activity(
 
 
 _CLOSED_STATUSES = {"completed", "approved", "cancelled", "failed"}
+_VALID_STATUSES = {status.value for status in WorkOrderStatus}
+
+
+def _ensure_status_change_allowed(wo: WorkOrder, new_status: str) -> None:
+    """Tamamlanmış / iptal edilmiş iş emri yeniden açılamaz (stok düşülmüş, kayıt kapanmıştır).
+    Aynı duruma tekrar istek (ör. ikinci kez "tamamlandı") zararsızdır ve izinlidir;
+    tamamlanmış işin onaylanması (completed → approved) da izinlidir."""
+    if new_status not in _VALID_STATUSES:
+        raise HTTPException(400, "Geçersiz iş emri durumu.")
+    current = _workflow_value(wo.status)
+    if current in _CLOSED_STATUSES and new_status != current and not (current == "completed" and new_status == "approved"):
+        raise HTTPException(409, "Tamamlanmış veya iptal edilmiş iş emrinin durumu değiştirilemez.")
 
 
 async def _require_service_form(db: AsyncSession, wo: WorkOrder) -> None:
@@ -481,6 +504,7 @@ def _enrich(
     link: Optional[WorkOrderPublicLink],
     reports: Optional[list] = None,
     region_name: Optional[str] = None,
+    installation_project_name: Optional[str] = None,
 ) -> WorkOrderRead:
     project_meta = _parse_project_meta(project)
     work_type = _workflow_value(wo.work_type)
@@ -517,6 +541,8 @@ def _enrich(
         photo_count=len(photos),
         has_service_form=len(service_forms) > 0,
         has_critical_report=any(report.severity == "critical" for report in (reports or [])),
+        installation_project_id=wo.installation_project_id,
+        installation_project_name=installation_project_name,
         public_token=link.token if link else None,
     )
 
@@ -547,8 +573,19 @@ async def create_work_order(
         raise HTTPException(403, "Kullanıcı mağazanın şirketi kapsamı dışında.")
     assigned_name  = assigned_user.full_name or assigned_user.email
     assigned_phone = assigned_user.phone or payload.assigned_to_phone
+    installation = None
+    if payload.installation_project_id:
+        installation = await db.get(InstallationProject, payload.installation_project_id)
+        if not installation or installation.tenant_id != proj.tenant_id or installation.status != "active":
+            raise HTTPException(400, "Bağlanacak aktif proje bulunamadı.")
+        if installation.store_id != proj.id:
+            raise HTTPException(400, "İş emrinin mağazası projenin mağazasıyla aynı olmalıdır.")
+        payload.work_type = "project"
+    elif payload.work_type == "project":
+        raise HTTPException(400, "Proje iş emri bir projeye bağlı olmalıdır; projeyi Projeler ekranından açın.")
     depot = await validate_work_order_depot(
         db, tenant_id=proj.tenant_id, depot_id=payload.stock_depot_id, assignee=assigned_user,
+        project_depot_id=installation.depot_id if installation else None,
     )
 
     wo = WorkOrder(
@@ -562,6 +599,7 @@ async def create_work_order(
         assigned_to_phone=assigned_phone,
         assigned_to_user_id=payload.assigned_to_user_id,
         stock_depot_id=depot.id,
+        installation_project_id=installation.id if installation else None,
         priority=payload.priority or "normal",
         status=WorkOrderStatus.PLANNED.value,
         location_url=payload.location_url,
@@ -610,9 +648,12 @@ async def create_work_order(
 
 @router.get("", response_model=List[WorkOrderRead])
 async def list_work_orders(
+    response: Response,
     project_id: Optional[UUID] = None,
     status:     Optional[str]  = None,
     work_type:  Optional[str]  = None,
+    limit:      Optional[int]  = Query(None, ge=1, le=1000, description="Sayfa boyutu; verilmezse tüm kayıtlar"),
+    offset:     int            = Query(0, ge=0),
     db:   AsyncSession = Depends(get_db),
     user: User         = Depends(get_current_user),
 ):
@@ -628,9 +669,13 @@ async def list_work_orders(
     if work_type:
         filters.append(WorkOrder.work_type == work_type)
 
-    result = await db.execute(
-        select(WorkOrder).where(*filters).order_by(desc(WorkOrder.created_at)).limit(500)
-    )
+    # Eskiden en yeni 500 kayıtla sınırlıydı; sınır aşılınca listeler ve istatistikler sessizce eksik kalıyordu.
+    total = (await db.execute(select(func.count()).select_from(WorkOrder).where(*filters))).scalar_one()
+    response.headers["X-Total-Count"] = str(total)
+    query = select(WorkOrder).where(*filters).order_by(desc(WorkOrder.created_at), desc(WorkOrder.id)).offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+    result = await db.execute(query)
     wos = result.scalars().all()
     if not wos:
         return []
@@ -646,6 +691,11 @@ async def list_work_orders(
     if region_ids:
         regions_r = await db.execute(select(Region.id, Region.name).where(Region.id.in_(region_ids)))
         region_names = {row.id: row.name for row in regions_r}
+    installation_ids = {wo.installation_project_id for wo in wos if wo.installation_project_id}
+    installation_names = {}
+    if installation_ids:
+        inst_r = await db.execute(select(InstallationProject.id, InstallationProject.name).where(InstallationProject.id.in_(installation_ids)))
+        installation_names = {row.id: row.name for row in inst_r}
 
     photos_by_wo: dict = defaultdict(list)
     photos_r = await db.execute(select(WorkOrderPhoto).where(WorkOrderPhoto.work_order_id.in_(wo_ids)))
@@ -682,6 +732,7 @@ async def list_work_orders(
             links_by_wo.get(wo.id),
             reports_by_wo.get(wo.id, []),
             region_names.get(getattr(projects_by_id.get(wo.project_id), "region_id", None)),
+            installation_names.get(wo.installation_project_id),
         ))
     return out
 
@@ -701,7 +752,9 @@ async def get_work_order(
     forms_r  = await db.execute(select(WorkOrderServiceForm).where(WorkOrderServiceForm.work_order_id == wo.id))
     reports_r = await db.execute(select(WorkOrderReport).where(WorkOrderReport.work_order_id == wo.id))
     link = await _get_active_link(wo.id, db)
-    return _enrich(wo, proj, photos_r.scalars().all(), forms_r.scalars().all(), link, reports_r.scalars().all())
+    installation = await db.get(InstallationProject, wo.installation_project_id) if wo.installation_project_id else None
+    return _enrich(wo, proj, photos_r.scalars().all(), forms_r.scalars().all(), link, reports_r.scalars().all(),
+                   installation_project_name=installation.name if installation else None)
 
 
 @router.get("/{work_order_id}/materials", response_model=List[WorkOrderMaterialRead])
@@ -858,6 +911,8 @@ async def update_work_order(
             raise HTTPException(403, "Bu iş emrinde yalnızca süreç durumu güncellenebilir.")
         if payload.status not in {"started", "completed"}:
             raise HTTPException(400, "Geçersiz süreç durumu.")
+    if payload.status is not None:
+        _ensure_status_change_allowed(wo, payload.status)
 
     if payload.title is not None:           wo.title = payload.title
     if payload.description is not None:     wo.description = payload.description
@@ -879,7 +934,10 @@ async def update_work_order(
             owned = (await db.execute(select(RetailDepot).where(
                 RetailDepot.assigned_user_id == assigned_user.id, RetailDepot.kind == "vehicle",
                 RetailDepot.is_active == True))).scalars().all()
-            if payload.stock_depot_id:
+            if wo.installation_project_id:
+                # Proje işi başka çalışana devredilse de malzeme proje deposundan düşmeye devam eder.
+                new_depot = await db.get(RetailDepot, wo.stock_depot_id)
+            elif payload.stock_depot_id:
                 new_depot = await validate_work_order_depot(
                     db, tenant_id=wo.tenant_id, depot_id=payload.stock_depot_id, assignee=assigned_user)
             elif len(owned) == 1:
@@ -1121,6 +1179,9 @@ async def create_report(
             title="Yeni saha raporu",
             body=f"{user.full_name} — {wo.title}: {report.title}",
         )
+    if report.severity == "critical":
+        await notify_critical_report(db, work_order=wo, actor=user, report_title=report.title,
+                                     already_notified=set(_other_parties(wo, user)))
     await db.commit()
 
     return WorkOrderReportRead(
@@ -1277,6 +1338,8 @@ async def update_stage(
     _ensure_work_order_access(wo, user)
 
     if payload.status is not None:
+        if _workflow_value(wo.status) in _CLOSED_STATUSES and payload.status != stage.status:
+            raise HTTPException(409, "Tamamlanmış veya iptal edilmiş iş emrinin aşamaları değiştirilemez.")
         if _workflow_value(wo.status) in {"planned", "draft", "sent", "approval_pending"}:
             raise HTTPException(409, "Aşamaları güncellemeden önce süreci başlatmalısınız.")
         if payload.status not in {"planned", "in_progress", "completed", "cancelled"}:

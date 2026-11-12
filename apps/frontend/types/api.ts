@@ -808,23 +808,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/retail-stock/stores": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Search Stores */
-        get: operations["search_stores_api_v1_retail_stock_stores_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/retail-stock/opening": {
         parameters: {
             query?: never;
@@ -842,7 +825,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/retail-stock/load": {
+    "/api/v1/retail-stock/transfer": {
         parameters: {
             query?: never;
             header?: never;
@@ -851,42 +834,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Load Vehicle */
-        post: operations["load_vehicle_api_v1_retail_stock_load_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/retail-stock/use": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Use At Store */
-        post: operations["use_at_store_api_v1_retail_stock_use_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/retail-stock/return": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Return To Main */
-        post: operations["return_to_main_api_v1_retail_stock_return_post"];
+        /**
+         * Transfer Stock
+         * @description Ana depodan araca yükleme (yönetici) veya araçtan ana depoya iade (yönetici ya da aracın çalışanı).
+         *
+         *     Kalemlerin hepsi tek işlemde uygulanır: biri yetersizse hiçbiri uygulanmaz.
+         */
+        post: operations["transfer_stock_api_v1_retail_stock_transfer_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2083,6 +2037,65 @@ export interface paths {
         patch: operations["update_work_order_api_v1_work_orders__work_order_id__patch"];
         trace?: never;
     };
+    "/api/v1/work-orders/{work_order_id}/materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Work Order Materials */
+        get: operations["list_work_order_materials_api_v1_work_orders__work_order_id__materials_get"];
+        /**
+         * Save Work Order Materials
+         * @description Kullanılan malzeme listesini kaydet. Stok, iş tamamlanınca düşülür.
+         */
+        put: operations["save_work_order_materials_api_v1_work_orders__work_order_id__materials_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{work_order_id}/service-forms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Service Forms */
+        get: operations["list_service_forms_api_v1_work_orders__work_order_id__service_forms_get"];
+        put?: never;
+        /**
+         * Upload Service Form
+         * @description Servis formu (fotoğrafı veya PDF) — yalnızca bu bölümden yüklenir.
+         */
+        post: operations["upload_service_form_api_v1_work_orders__work_order_id__service_forms_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{work_order_id}/service-forms/{form_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Service Form */
+        delete: operations["delete_service_form_api_v1_work_orders__work_order_id__service_forms__form_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/work-orders/{work_order_id}/reports": {
         parameters: {
             query?: never;
@@ -3088,6 +3101,14 @@ export interface components {
             /** Description */
             description?: string | null;
         };
+        /** Body_upload_service_form_api_v1_work_orders__work_order_id__service_forms_post */
+        Body_upload_service_form_api_v1_work_orders__work_order_id__service_forms_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+        };
         /** BranchCreate */
         BranchCreate: {
             /**
@@ -3911,6 +3932,12 @@ export interface components {
              * @default adet
              */
             unit: string;
+            /** Brand */
+            brand?: string | null;
+            /** Spec */
+            spec?: string | null;
+            /** Unit Price */
+            unit_price?: number | string | null;
             /**
              * Min Stock
              * @default 0
@@ -4878,7 +4905,10 @@ export interface components {
             /** Updated By */
             updated_by: string | null;
         };
-        /** StockTransfer */
+        /**
+         * StockTransfer
+         * @description Ana depo ↔ araç deposu aktarımı; tüm kalemler tek işlemde uygulanır.
+         */
         StockTransfer: {
             /**
              * Source Depot Id
@@ -4890,13 +4920,8 @@ export interface components {
              * Format: uuid
              */
             target_depot_id: string;
-            /**
-             * Material Id
-             * Format: uuid
-             */
-            material_id: string;
-            /** Quantity */
-            quantity: number | string;
+            /** Lines */
+            lines: components["schemas"]["TransferLine"][];
             /** Reference No */
             reference_no?: string | null;
             /** Note */
@@ -5141,30 +5166,6 @@ export interface components {
             progress_percent?: number | null;
             /** Completed At */
             completed_at?: string | null;
-        };
-        /** StoreUsage */
-        StoreUsage: {
-            /**
-             * Vehicle Depot Id
-             * Format: uuid
-             */
-            vehicle_depot_id: string;
-            /**
-             * Material Id
-             * Format: uuid
-             */
-            material_id: string;
-            /**
-             * Branch Id
-             * Format: uuid
-             */
-            branch_id: string;
-            /** Quantity */
-            quantity: number | string;
-            /** Work Order Id */
-            work_order_id?: string | null;
-            /** Note */
-            note?: string | null;
         };
         /** SupplierCreate */
         SupplierCreate: {
@@ -5565,6 +5566,16 @@ export interface components {
             /** Refresh Token */
             refresh_token: string;
         };
+        /** TransferLine */
+        TransferLine: {
+            /**
+             * Material Id
+             * Format: uuid
+             */
+            material_id: string;
+            /** Quantity */
+            quantity: number | string;
+        };
         /** TransferRequest */
         TransferRequest: {
             /**
@@ -5819,8 +5830,16 @@ export interface components {
             assigned_to_name?: string | null;
             /** Assigned To Phone */
             assigned_to_phone?: string | null;
-            /** Assigned To User Id */
-            assigned_to_user_id?: string | null;
+            /**
+             * Assigned To User Id
+             * Format: uuid
+             */
+            assigned_to_user_id: string;
+            /**
+             * Stock Depot Id
+             * Format: uuid
+             */
+            stock_depot_id: string;
             /**
              * Priority
              * @default normal
@@ -5830,6 +5849,57 @@ export interface components {
             location_url?: string | null;
             /** Due Date */
             due_date?: string | null;
+        };
+        /** WorkOrderMaterialLine */
+        WorkOrderMaterialLine: {
+            /**
+             * Material Id
+             * Format: uuid
+             */
+            material_id: string;
+            /** Quantity */
+            quantity: number | string;
+        };
+        /** WorkOrderMaterialRead */
+        WorkOrderMaterialRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Material Id
+             * Format: uuid
+             */
+            material_id: string;
+            /** Sku */
+            sku: string;
+            /** Name */
+            name: string;
+            /** Spec */
+            spec?: string | null;
+            /** Unit */
+            unit: string;
+            /** Quantity */
+            quantity: string;
+            /**
+             * Depot Id
+             * Format: uuid
+             */
+            depot_id: string;
+            /** Depot Name */
+            depot_name: string;
+            /** Depot Plate */
+            depot_plate?: string | null;
+            /** Status */
+            status: string;
+            /** Issued At */
+            issued_at?: string | null;
+        };
+        /** WorkOrderMaterialsSave */
+        WorkOrderMaterialsSave: {
+            /** Materials */
+            materials?: components["schemas"]["WorkOrderMaterialLine"][];
         };
         /** WorkOrderPhotoRead */
         WorkOrderPhotoRead: {
@@ -5903,6 +5973,8 @@ export interface components {
             assigned_to_phone?: string | null;
             /** Assigned To User Id */
             assigned_to_user_id?: string | null;
+            /** Stock Depot Id */
+            stock_depot_id?: string | null;
             /** Priority */
             priority: string;
             /** Status */
@@ -6020,6 +6092,31 @@ export interface components {
              */
             photos: components["schemas"]["WorkOrderReportPhotoRead"][];
         };
+        /** WorkOrderServiceFormRead */
+        WorkOrderServiceFormRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** File Name */
+            file_name?: string | null;
+            /** File Size Bytes */
+            file_size_bytes?: number | null;
+            /** Uploaded By Name */
+            uploaded_by_name?: string | null;
+            /**
+             * Uploaded At
+             * Format: date-time
+             */
+            uploaded_at: string;
+            /** Year */
+            year: number;
+            /** Month */
+            month: number;
+            /** Url */
+            url?: string | null;
+        };
         /** WorkOrderStageRead */
         WorkOrderStageRead: {
             /**
@@ -6069,6 +6166,8 @@ export interface components {
             assigned_to_phone?: string | null;
             /** Assigned To User Id */
             assigned_to_user_id?: string | null;
+            /** Stock Depot Id */
+            stock_depot_id?: string | null;
             /** Priority */
             priority?: string | null;
             /** Due Date */
@@ -7997,37 +8096,6 @@ export interface operations {
             };
         };
     };
-    search_stores_api_v1_retail_stock_stores_get: {
-        parameters: {
-            query: {
-                search: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>[];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     opening_stock_api_v1_retail_stock_opening_post: {
         parameters: {
             query?: never;
@@ -8061,73 +8129,7 @@ export interface operations {
             };
         };
     };
-    load_vehicle_api_v1_retail_stock_load_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StockTransfer"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    use_at_store_api_v1_retail_stock_use_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StoreUsage"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": Record<string, never>;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    return_to_main_api_v1_retail_stock_return_post: {
+    transfer_stock_api_v1_retail_stock_transfer_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -11026,6 +11028,168 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["WorkOrderRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_work_order_materials_api_v1_work_orders__work_order_id__materials_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                work_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderMaterialRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_work_order_materials_api_v1_work_orders__work_order_id__materials_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                work_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkOrderMaterialsSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderMaterialRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_service_forms_api_v1_work_orders__work_order_id__service_forms_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                work_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderServiceFormRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_service_form_api_v1_work_orders__work_order_id__service_forms_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                work_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_service_form_api_v1_work_orders__work_order_id__service_forms_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderServiceFormRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_service_form_api_v1_work_orders__work_order_id__service_forms__form_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                work_order_id: string;
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

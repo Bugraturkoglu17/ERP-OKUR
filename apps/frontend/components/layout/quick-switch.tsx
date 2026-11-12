@@ -41,23 +41,6 @@ export function QuickSwitch({ onNavigate }: { onNavigate?: () => void }) {
 
   if (!user) return null;
 
-  if (user.role === "ADMIN") {
-    const views = [
-      { label: "Admin Görünümü", href: "/admin/dashboard" },
-      { label: "Yönetici Görünümü", href: "/manager/dashboard" },
-      { label: "Kullanıcı Görünümü", href: "/user/dashboard" },
-    ];
-    return (
-      <div className="border-t border-white/[0.06] px-3 py-3">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/30">Panel Görünümü</p>
-        <div className="space-y-0.5">{views.map((view) => <Link key={view.href} href={view.href} draggable={false} onClick={onNavigate} className={`flex items-center gap-2.5 rounded-lg px-2 py-2 text-xs transition-colors ${pathname.startsWith(view.href.split("/dashboard")[0]) ? "bg-white/[0.08] text-white" : "text-slate-400 hover:bg-white/[0.06] hover:text-white"}`}><LayoutDashboard className="h-3.5 w-3.5" />{view.label}</Link>)}</div>
-        <button onClick={() => void handleLogout()} disabled={loggingOut} className="mt-3 flex w-full items-center gap-2 border-t border-white/[0.06] px-2 pt-3 text-xs text-slate-400 hover:text-white disabled:opacity-50">{loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}Çıkış Yap</button>
-      </div>
-    );
-  }
-
-  const others = DEMO_MODE ? QUICK_ACCOUNTS.filter((a) => a.role !== user.role) : [];
-
   const switchTo = async (acc: (typeof QUICK_ACCOUNTS)[0]) => {
     setSwitching(acc.role);
     try {
@@ -70,6 +53,33 @@ export function QuickSwitch({ onNavigate }: { onNavigate?: () => void }) {
       setSwitching(null);
     }
   };
+
+  if (user.role === "ADMIN") {
+    const views = [
+      { label: "Admin Görünümü", href: "/admin/dashboard" },
+      { label: "Yönetici Görünümü", href: "/manager/dashboard" },
+      { label: "Kullanıcı Görünümü", href: "/user/dashboard" },
+    ];
+    return (
+      <div className="border-t border-white/[0.06] px-3 py-3">
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/30">Panel Görünümü</p>
+        <div className="space-y-0.5">{views.map((view) => <Link key={view.href} href={view.href} draggable={false} onClick={onNavigate} className={`flex items-center gap-2.5 rounded-lg px-2 py-2 text-xs transition-colors ${pathname.startsWith(view.href.split("/dashboard")[0]) ? "bg-white/[0.08] text-white" : "text-slate-400 hover:bg-white/[0.06] hover:text-white"}`}><LayoutDashboard className="h-3.5 w-3.5" />{view.label}</Link>)}</div>
+        {DEMO_MODE && <>
+          <p className="mb-2 mt-3 text-[10px] font-semibold uppercase tracking-wider text-white/30">Hesap Değiştir</p>
+          <div className="space-y-0.5">{QUICK_ACCOUNTS.filter((acc) => acc.role !== "ADMIN").map((acc) => (
+            <button key={acc.role} onClick={() => void switchTo(acc)} disabled={switching !== null}
+              className="group flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-xs text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-50">
+              <UserRound className="h-3.5 w-3.5 shrink-0" /><span className="flex-1 truncate text-left">{acc.label} hesabı</span>
+              {switching === acc.role ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
+            </button>))}</div>
+        </>}
+        <button onClick={() => void handleLogout()} disabled={loggingOut} className="mt-3 flex w-full items-center gap-2 border-t border-white/[0.06] px-2 pt-3 text-xs text-slate-400 hover:text-white disabled:opacity-50">{loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}Çıkış Yap</button>
+      </div>
+    );
+  }
+
+  const others = DEMO_MODE ? QUICK_ACCOUNTS.filter((a) => a.role !== user.role) : [];
+
 
   return (
     <div className="border-t border-white/[0.06]">

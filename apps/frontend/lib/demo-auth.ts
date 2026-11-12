@@ -3,9 +3,13 @@ import { buildApiUrl } from "@/lib/api";
 
 // Demo credentials are a local-development convenience and must never be
 // bundled into a production client, even if an environment is misconfigured.
+// OKUR yerel kopyası üretim modunda (hızlı açılış için) derlendiğinden, yalnızca
+// Git'e girmeyen .env.local içinde NEXT_PUBLIC_LOCAL_ONLY_BUILD=true açıkça
+// yazılmışsa üretim derlemesinde de açılır. Canlı/sunucu derlemesinde bu değişken
+// tanımlanmamalıdır.
 export const DEMO_MODE =
-  process.env.NODE_ENV !== "production" &&
-  process.env.NEXT_PUBLIC_DEMO_LOGIN === "true";
+  process.env.NEXT_PUBLIC_DEMO_LOGIN === "true" &&
+  (process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_LOCAL_ONLY_BUILD === "true");
 
 export type LoginTarget = "admin" | "manager" | "user";
 
@@ -21,7 +25,7 @@ export const DEMO_ACCOUNTS: Record<
   },
   manager: {
     label: "Yönetici",
-    description: "Sismik Mekanik şirketini yönetir",
+    description: "Firma operasyonunu yönetir",
     email: process.env.NEXT_PUBLIC_DEMO_MANAGER_EMAIL ?? "",
     password: process.env.NEXT_PUBLIC_DEMO_MANAGER_PASSWORD ?? "",
   },

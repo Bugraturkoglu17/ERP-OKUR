@@ -1,5 +1,6 @@
 "use client";
 
+import { formatServerDateTime } from "@/lib/utils";
 import { Suspense, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -12,10 +13,12 @@ type WorkOrder = {
   project_name?: string;
   project_no?: string;
   work_type_label: string;
+  installation_project_name?: string | null;
   status: string;
   status_label: string;
   priority: string;
   due_date?: string;
+  created_at?: string;
 };
 
 const STATUS_COLOR: Record<string, string> = {
@@ -136,8 +139,9 @@ function IslerimContent() {
                   {wo.project_name ?? "Mağaza bilgisi yok"} - {wo.title}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  {wo.project_no ? `Mağaza kodu: ${wo.project_no} | ` : ""}{wo.work_type_label}
+                  {wo.project_no ? `Mağaza kodu: ${wo.project_no} | ` : ""}{wo.work_type_label}{wo.installation_project_name ? ` · ${wo.installation_project_name}` : ""}
                 </p>
+                {wo.created_at && <p className="mt-0.5 text-[11px] text-slate-400">Verildi: {formatServerDateTime(wo.created_at)}</p>}
               </div>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLOR[wo.status] ?? "bg-slate-100 text-slate-500"}`}>
                 {statusLabel(wo.status)}

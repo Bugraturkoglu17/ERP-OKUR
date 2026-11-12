@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   AlertCircle, ArrowLeft, ArrowRight, Building2, CalendarDays,
-  Check, CheckCircle2, FileUp, Loader2, Plus, Truck, UserRound, X,
+  Check, CheckCircle2, FileUp, FolderKanban, Loader2, Plus, Truck, UserRound, X,
 } from "lucide-react";
 import { StorePicker, parseAdres, parseBolge, type StoreOption } from "@/components/store/store-picker";
 import { getStoreById } from "@/services/stores";
+import { getProject, type ProjectDetail } from "@/services/installationProjects";
 import {
-  CATEGORY_LABEL, PRIORITY_LABEL, createWorkOrder, getCepDepots,
+  CATEGORY_LABEL, CREATABLE_CATEGORIES, PRIORITY_LABEL, createWorkOrder, getCepDepots,
   getManagerWorkOrders, getTeamUsers, type CepDepot, type TeamUser,
   type WorkOrderCategory, type WorkOrderPriority,
 } from "@/services/managerWorkOrders";
@@ -47,6 +48,8 @@ export default function NewWorkOrderPage() {
   const [saving, setSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);
+  // ?proje=<id>: projenin içinden açılan montaj/test iş emri; mağaza ve depo projeden gelir.
+  const [project, setProject] = useState<ProjectDetail | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -75,6 +78,18 @@ export default function NewWorkOrderPage() {
   }, []);
 
   useEffect(() => {
+    const projectId = params.get("proje");
+    if (!projectId) return;
+    getProject(projectId)
+      .then(async (detail) => {
+        setProject(detail);
+        const store = detail.store ? await getStoreById(detail.store.id) : null;
+        setForm((current) => ({ ...current, category: "proje", store, depotId: detail.depot_id }));
+      })
+      .catch(() => setError("Bağlanacak proje bulunamadı."));
+  }, [params]);
+
+  useEffect(() => {
     const storeId = params.get("storeId");
     if (!storeId) return;
     getStoreById(storeId).then((store) => setForm((current) => ({ ...current, store }))).catch(() => setError("Seçilen mağaza bulunamadı."));
@@ -93,7 +108,7 @@ export default function NewWorkOrderPage() {
   function selectAssignee(userId: string) {
     const owned = depotsByUser[userId] ?? [];
     // Çalışanın tek cep deposu varsa otomatik seçilir; birden fazlaysa kullanıcı seçer.
-    setForm((current) => ({ ...current, assigneeId: userId, depotId: owned.length === 1 ? owned[0].id : "" }));
+    setForm((current) => ({ ...current, assigneeId: userId, depotId: project ? project.depot_id : owned.length === 1 ? owned[0].id : "" }));
     setError("");
   }
 
@@ -104,11 +119,12 @@ export default function NewWorkOrderPage() {
 
   function validateCurrentStep() {
     if (step === 0 && !form.category) return "İş tipini seçin.";
+    if (step === 0 && form.category === "proje" && !project) return "Proje iş emirleri projenin içinden açılır; önce projeyi oluşturun.";
     if (step === 0 && !form.store) return "Mağazayı seçin.";
     if (step === 1 && !form.title.trim()) return "İş başlığını yazın.";
     if (step === 1 && !form.description.trim()) return "İş açıklamasını yazın.";
     if (step === 2 && !form.assigneeId) return "Atanacak çalışanı seçin.";
-    if (step === 2 && userDepots.length === 0) return "Seçilen çalışana zimmetli bir cep depo yok.";
+    if (step === 2 && !project && userDepots.length === 0) return "Seçilen çalışana zimmetli bir cep depo yok.";
     if (step === 2 && !form.depotId) return "Stoğun düşüleceği cep depoyu seçin.";
     return "";
   }
@@ -150,6 +166,7 @@ export default function NewWorkOrderPage() {
         category: form.category, priority: form.priority,
         store_id: form.store.id, assigned_to: form.assigneeId,
         due_date: form.dueDate || null, stock_depot_id: form.depotId,
+        installation_project_id: project?.id ?? null,
       });
       setCreatedId(created.id);
       sessionStorage.removeItem("manager_work_order_draft");
@@ -168,11 +185,12 @@ export default function NewWorkOrderPage() {
         <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
         <h1 className="mt-4 text-xl font-bold text-slate-950">İş emri oluşturuldu ve kullanıcıya atandı.</h1>
         <p className="mt-2 text-sm text-slate-500">
-          Yeni kayıt Planlanacak bölümüne eklendi. Kullanılan malzemeler iş tamamlanınca {selectedDepot?.plate ?? "cep depo"} deposundan otomatik düşülecek.
+          Yeni kayıt Planlanacak bölümüne eklendi. Kullanılan malzemeler iş tamamlanınca {project ? `"${project.name}" proje deposundan` : `${selectedDepot?.plate ?? "cep depo"} deposundan`} otomatik düşülecek.
         </p>
         {error && <p className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-800">{error}</p>}
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
           <Link href={`/manager/is-emirleri/${createdId}`} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">İş Emrini Gör</Link>
+          {project && <Link href={`/manager/projeler/${project.id}`} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Projeye Dön</Link>}
           <Link href="/manager/is-emirleri" className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Listeye Dön</Link>
         </div>
       </div>
@@ -201,7 +219,15 @@ export default function NewWorkOrderPage() {
           <div className="space-y-6">
             <div>
               <label className="text-sm font-semibold text-slate-800">İş Tipi</label>
-              <div className="mt-2 grid grid-cols-3 gap-2">{Object.entries(CATEGORY_LABEL).map(([value, label]) => <button key={value} type="button" onClick={() => setForm((current) => ({ ...current, category: value as WorkOrderCategory }))} className={`rounded-xl border px-3 py-3 text-sm font-medium transition ${form.category === value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{label}</button>)}</div>
+              <div className="mt-2 grid grid-cols-3 gap-2">{CREATABLE_CATEGORIES.map((value) => <button key={value} type="button" disabled={Boolean(project)} onClick={() => setForm((current) => ({ ...current, category: value }))} className={`rounded-xl border px-3 py-3 text-sm font-medium transition disabled:cursor-not-allowed ${form.category === value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40"}`}>{CATEGORY_LABEL[value]}</button>)}</div>
+              {project && <div className="mt-3 flex items-start gap-2 rounded-xl bg-teal-50 p-3 text-sm text-teal-900"><FolderKanban className="mt-0.5 h-4 w-4 shrink-0" /><span>Bu iş emri <b>{project.name}</b> projesine bağlanacak. Mağaza projeden alınır, malzeme proje deposundan düşer.</span></div>}
+              {form.category === "proje" && !project && (
+                <div className="mt-3 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">
+                  <p className="font-semibold">Proje, çok aşamalı bir kurulum sürecidir.</p>
+                  <p className="mt-1 text-teal-800">Önce proje açılır; keşif, teklif, onay, malzeme, montaj, test, teslim ve kapanış aşamaları projeden yönetilir. Montaj iş emirleri projenin içinden eklenir.</p>
+                  <Link href="/manager/projeler/yeni" className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-800"><Plus className="h-3.5 w-3.5" />Yeni Proje Oluştur</Link>
+                </div>
+              )}
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-800">Öncelik</label>
@@ -210,9 +236,9 @@ export default function NewWorkOrderPage() {
             <div>
               <label className="text-sm font-semibold text-slate-800">Mağaza</label>
               <p className="mt-1 text-xs text-slate-500">Mağaza adı veya koduyla arayın.</p>
-              <div className="mt-2"><StorePicker value={form.store} onChange={(store) => setForm((current) => ({ ...current, store }))} /></div>
+              {!project && <div className="mt-2"><StorePicker value={form.store} onChange={(store) => setForm((current) => ({ ...current, store }))} /></div>}
               {form.store && <div className="mt-3 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-[auto_1fr]"><Building2 className="h-5 w-5 text-blue-600" /><div><p className="font-semibold text-slate-900">{form.store.name}</p><p className="mt-1 text-xs text-slate-500">Kod: {form.store.project_no ?? "Kayıtlı değil"}{parseBolge(form.store.description) ? ` | ${parseBolge(form.store.description)}` : ""}</p>{parseAdres(form.store.description) && <p className="mt-1 text-xs text-slate-500">{parseAdres(form.store.description)}</p>}</div></div>}
-              {form.category === "yeni_yapim" && !form.store && <Link onClick={openStoreCreation} href="/manager/magaza-karti" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"><Plus className="h-4 w-4" />Yeni Mağaza Kartı Oluştur</Link>}
+              {!project && !form.store && <Link onClick={openStoreCreation} href="/manager/magaza-karti" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"><Plus className="h-4 w-4" />Yeni Mağaza Kartı Oluştur</Link>}
             </div>
           </div>
         )}
@@ -237,28 +263,30 @@ export default function NewWorkOrderPage() {
                   const owned = depotsByUser[user.id] ?? [];
                   const selected = form.assigneeId === user.id;
                   return (
-                    <button key={user.id} type="button" disabled={owned.length === 0} onClick={() => selectAssignee(user.id)} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${selected ? "border-blue-600 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
+                    <button key={user.id} type="button" disabled={!project && owned.length === 0} onClick={() => selectAssignee(user.id)} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${selected ? "border-blue-600 bg-blue-50" : "border-slate-200 hover:bg-slate-50"}`}>
                       <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><UserRound className="h-4 w-4" /></span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold text-slate-900">{user.full_name || user.email}</span>
                         <span className="block text-xs text-slate-500">{load.planned} Planlanacak, {load.active} Devam Eden</span>
-                        <span className={`mt-0.5 flex items-center gap-1 text-xs font-medium ${owned.length ? "text-emerald-700" : "text-amber-700"}`}>
+                        {!project && <span className={`mt-0.5 flex items-center gap-1 text-xs font-medium ${owned.length ? "text-emerald-700" : "text-amber-700"}`}>
                           <Truck className="h-3 w-3" />{owned.length ? owned.map((depot) => depot.plate).join(", ") : "Cep depo tanımlı değil"}
-                        </span>
+                        </span>}
                       </span>
                       {selected && <CheckCircle2 className="h-5 w-5 text-blue-600" />}
                     </button>
                   );
                 })}
               </div>
-              {users.length > 0 && users.every((user) => (depotsByUser[user.id] ?? []).length === 0) && (
+              {!project && users.length > 0 && users.every((user) => (depotsByUser[user.id] ?? []).length === 0) && (
                 <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">Hiçbir çalışana cep depo zimmetlenmemiş. <Link href="/manager/depo-stok" className="font-semibold underline">Depo & Stok</Link> bölümünden araç deposu oluşturup çalışana atayın.</p>
               )}
             </section>
             <section>
-              <h2 className="text-sm font-semibold text-slate-800">Cep Depo</h2>
+              <h2 className="text-sm font-semibold text-slate-800">{project ? "Proje Deposu" : "Cep Depo"}</h2>
               <p className="mt-1 text-xs text-slate-500">Stok bu depodan düşülecek.</p>
-              {!form.assigneeId ? (
+              {project ? (
+                <div className="mt-3 flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50 p-3"><FolderKanban className="h-5 w-5 text-teal-700" /><span className="text-sm font-semibold text-teal-900">Proje · {project.name}</span></div>
+              ) : !form.assigneeId ? (
                 <p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Önce çalışanı seçin; zimmetli cep depoları burada görünür.</p>
               ) : (
                 <div className="mt-3 space-y-2">
@@ -279,7 +307,7 @@ export default function NewWorkOrderPage() {
               <div><dt className="text-xs text-slate-400">İş Tipi / Öncelik</dt><dd className="mt-0.5">{form.category ? CATEGORY_LABEL[form.category] : "Seçilmedi"} · {PRIORITY_LABEL[form.priority]}</dd></div>
               <div><dt className="text-xs text-slate-400">Termin</dt><dd className="mt-0.5">{form.dueDate ? new Date(form.dueDate).toLocaleDateString("tr-TR") : "Belirtilmedi"}</dd></div>
               <div><dt className="text-xs text-slate-400">Atanan</dt><dd className="mt-0.5">{selectedUser?.full_name || selectedUser?.email || "Seçilmedi"}</dd></div>
-              <div><dt className="text-xs text-slate-400">Cep Depo</dt><dd className="mt-0.5">{selectedDepot ? `${selectedDepot.plate} · ${selectedDepot.name}` : "Seçilmedi"}</dd></div>
+              <div><dt className="text-xs text-slate-400">{project ? "Proje Deposu" : "Cep Depo"}</dt><dd className="mt-0.5">{project ? `Proje · ${project.name}` : selectedDepot ? `${selectedDepot.plate} · ${selectedDepot.name}` : "Seçilmedi"}</dd></div>
             </dl><p className="mt-4 border-t border-white/10 pt-3 text-xs text-slate-300">Kullanılan malzemeler ve servis formu, çalışan işi tamamlarken girilir. Tamamlandı denince miktarlar seçili cep depodan otomatik düşer ve yöneticiye bildirilir.</p></aside>
           </div>
         )}

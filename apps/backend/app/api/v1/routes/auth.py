@@ -23,7 +23,10 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user, is_platform_admin
 from app.core.security import create_access_token, create_refresh_token, get_user_permissions, get_user_roles, hash_password, verify_password
 from app.core.session_versions import bump_session_version, get_session_version
-from app.db.models import PlatformTenantSettings, Role, Tenant, TenantEmailMode, User, UserRole, UserSecurityPolicy
+from app.db.models import (
+    PlatformTenantSettings, RetailBalance, RetailDepot, Role, Tenant, TenantEmailMode, User, UserRole,
+    UserSecurityPolicy, WorkOrder,
+)
 from app.db.schemas import CompletePasswordResetRequest, MessageResponse, TemporaryPasswordResponse, TenantContextRead, TenantProfileUpdate, TenantSettingsUpsert, Token, TokenRefresh, UserProfileUpdate, UserRead
 
 router = APIRouter()
@@ -549,6 +552,8 @@ async def update_user_details(
     if user_in.discipline is not None:
         user.discipline = user_in.discipline
     if user_in.is_active is not None:
+        if user_in.is_active is False and user.is_active:
+            await _ensure_no_open_assignments(db, user)
         user.is_active = user_in.is_active
     if user_in.roles is not None:
         raw_role = user_in.roles[0].strip().lower() if user_in.roles else ""
@@ -620,6 +625,40 @@ _USER_OWNED_DELETE_ORDER: tuple[str, ...] = (
 )
 
 
+_CLOSED_WORK_ORDER_STATUSES = ("completed", "approved", "cancelled", "failed")
+
+
+async def _ensure_no_open_assignments(db: AsyncSession, user: User) -> None:
+    """Silinecek ya da pasife alınacak kullanıcıda açık iş veya stoklu araç kalmamalı.
+
+    Aksi halde açık işler sahipsiz kalır (kimse görmez) ve araçtaki stok ortada kalır.
+    """
+    open_count = (await db.execute(
+        select(func.count()).select_from(WorkOrder).where(
+            WorkOrder.assigned_to_user_id == user.id,
+            WorkOrder.status.not_in(_CLOSED_WORK_ORDER_STATUSES),
+        )
+    )).scalar_one()
+    if open_count:
+        raise HTTPException(
+            status_code=409,
+            detail=f"{user.full_name} kullanıcısının {open_count} açık iş emri var. "
+                   "Önce bu işleri başka bir çalışana devredin veya kapatın.",
+        )
+    stocked = (await db.execute(
+        select(RetailDepot.plate).join(RetailBalance, RetailBalance.depot_id == RetailDepot.id).where(
+            RetailDepot.assigned_user_id == user.id, RetailDepot.is_active == True,  # noqa: E712
+            RetailBalance.quantity > 0,
+        ).limit(1)
+    )).first()
+    if stocked:
+        raise HTTPException(
+            status_code=409,
+            detail=f"{user.full_name} kullanıcısına zimmetli {stocked[0] or 'araçta'} stok var. "
+                   "Önce malzemeyi ana depoya iade edin veya aracı başka bir çalışana atayın.",
+        )
+
+
 async def _hard_delete_user(db: AsyncSession, user_id) -> None:
     """Kullanıcıyı KALICI siler.
 
@@ -682,6 +721,7 @@ async def delete_user_account(
         raise HTTPException(status_code=403, detail="Yönetici hesaplarını yalnızca geliştirici admin silebilir.")
 
     full_name = user.full_name
+    await _ensure_no_open_assignments(db, user)
     try:
         await _hard_delete_user(db, user.id)
         await db.commit()

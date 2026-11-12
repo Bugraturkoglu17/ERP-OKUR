@@ -1,5 +1,7 @@
 "use client";
 
+import { daysUntilDue, isPastDue } from "@/lib/utils";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -15,7 +17,7 @@ import DocumentQuickSearch from "@/components/dashboard/document-quick-search";
 import { MetricCard } from "@/components/dashboard/metric-card";
 
 function isOverdue(order: WorkOrder, referenceTime: number | null) {
-  return Boolean(referenceTime && order.due_date && !["completed", "cancelled"].includes(order.status) && new Date(order.due_date).getTime() < referenceTime);
+  return Boolean(referenceTime) && !["completed", "cancelled"].includes(order.status) && isPastDue(order.due_date, new Date(referenceTime as number));
 }
 
 const priorityRank = { critical: 0, important: 1, normal: 2 } as const;
@@ -29,7 +31,7 @@ function deadlineLabel(order: WorkOrder, referenceTime: number | null) {
   if (order.status === "completed") return { label: "Tamamlandı", tone: "text-emerald-700" };
   if (order.status === "cancelled") return { label: "İptal edildi", tone: "text-slate-500" };
   if (!order.due_date || !referenceTime) return { label: "Termin girilmedi", tone: "text-slate-400" };
-  const days = Math.ceil((new Date(order.due_date).getTime() - referenceTime) / 86_400_000);
+  const days = daysUntilDue(order.due_date, new Date(referenceTime)) ?? 0;
   if (days < 0) return { label: `${Math.abs(days)} gün gecikti`, tone: "text-red-700" };
   if (days === 0) return { label: "Termin bugün", tone: "text-amber-700" };
   return { label: `${days} gün kaldı`, tone: days <= 3 ? "text-amber-700" : "text-slate-600" };

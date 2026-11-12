@@ -11,6 +11,7 @@ import {
   UserRound,
   Boxes,
   PieChart,
+  FolderKanban,
 } from "lucide-react";
 import { CorporateShell, type CorporateNavItem } from "@/components/layout/corporate-shell";
 import { useAuth } from "@/contexts/auth-context";
@@ -18,6 +19,7 @@ import { useAuth } from "@/contexts/auth-context";
 const BASE_NAV: CorporateNavItem[] = [
   { href: "/manager/dashboard", label: "Genel Bakış", icon: LayoutDashboard },
   { href: "/manager/is-emirleri", label: "İş Emirleri", icon: ClipboardList },
+  { href: "/manager/projeler", label: "Projeler", icon: FolderKanban },
   { href: "/manager/magaza-karti", label: "Mağaza Kartı", icon: Store },
   { href: "/manager/depo-stok", label: "Depo & Stok", icon: Boxes },
   { href: "/manager/genel-arsiv", label: "Genel Arşiv", icon: Archive },

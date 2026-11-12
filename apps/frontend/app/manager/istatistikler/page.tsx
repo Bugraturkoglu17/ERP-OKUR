@@ -1,5 +1,7 @@
 "use client";
 
+import { isPastDue } from "@/lib/utils";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -8,11 +10,12 @@ import {
 } from "lucide-react";
 import { apiGet } from "@/lib/api";
 import {
-  CATEGORY_LABEL, PRIORITY_LABEL, STATUS_LABEL, getManagerWorkOrders,
+  CATEGORY_LABEL, CREATABLE_CATEGORIES, PRIORITY_LABEL, STATUS_LABEL, getManagerWorkOrders,
   type WorkOrder, type WorkOrderCategory, type WorkOrderPriority, type WorkOrderStatus,
 } from "@/services/managerWorkOrders";
 import { getAllRegions, getStoresPage } from "@/services/stores";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isLowStock } from "@/components/retail-stock/retail-stock-page";
 
 type UserRow = {
   id: string; full_name: string; email: string; phone?: string | null;
@@ -32,12 +35,12 @@ const PRIORITY_COLOR: Record<WorkOrderPriority, string> = {
   critical: "bg-red-500", important: "bg-amber-400", normal: "bg-slate-300",
 };
 const CATEGORY_COLOR: Record<WorkOrderCategory, string> = {
-  ariza: "bg-blue-600", tadilat: "bg-indigo-400", yeni_yapim: "bg-teal-500",
+  ariza: "bg-blue-600", tadilat: "bg-indigo-400", proje: "bg-teal-500", yeni_yapim: "bg-slate-400",
 };
 
 const isOpen = (order: WorkOrder) => order.status === "planned" || order.status === "in_progress";
 const isOverdue = (order: WorkOrder, now: number) =>
-  isOpen(order) && Boolean(order.due_date) && new Date(order.due_date as string).getTime() < now;
+  isOpen(order) && isPastDue(order.due_date, new Date(now));
 const pct = (part: number, total: number) => (total ? Math.round((part / total) * 100) : 0);
 const fmt = (value: number) => value.toLocaleString("tr-TR");
 
@@ -139,7 +142,7 @@ export default function ManagerStatisticsPage() {
         stores: stores.total,
         regions: regions.length,
         materials: stock.length,
-        lowStock: stock.filter((row) => row.min_stock != null && Number(row.min_stock) > 0 && Number(row.quantity) < Number(row.min_stock)).length,
+        lowStock: stock.filter(isLowStock).length,
         vehicles: activeDepots.filter((depot) => depot.kind === "vehicle").length,
       });
     } catch {
@@ -165,8 +168,10 @@ export default function ManagerStatisticsPage() {
     const thisWeek = startOfWeek(now);
     const completedThisWeek = completed.filter((order) => new Date(order.updated_at).getTime() >= thisWeek).length;
 
+    // Eski "Yeni Yapım" kayıtları yalnızca varsa gösterilir; yeni iş tipleri Arıza, Tadilat, Proje.
     const byCategory = (Object.keys(CATEGORY_LABEL) as WorkOrderCategory[])
-      .map((key) => ({ key, value: orders.filter((order) => order.category === key).length }));
+      .map((key) => ({ key, value: orders.filter((order) => order.category === key).length }))
+      .filter(({ key, value }) => CREATABLE_CATEGORIES.includes(key) || value > 0);
     const byPriority = (["critical", "important", "normal"] as WorkOrderPriority[])
       .map((key) => ({ key, value: orders.filter((order) => isOpen(order) && order.priority === key).length }));
 
@@ -219,7 +224,7 @@ export default function ManagerStatisticsPage() {
     { label: "Ort. kapanış", value: stats.avgDays === null ? "—" : `${stats.avgDays.toFixed(1)} gün`, sub: "Açılıştan tamamlanmaya", icon: Timer, tone: "bg-amber-50 text-amber-700" },
     { label: "Aktif mağaza", value: count(assets?.stores), sub: `${fmt(assets?.regions ?? 0)} bölge`, icon: Store, tone: "bg-slate-100 text-slate-600", href: "/manager/magaza-karti" },
     { label: "Stok kalemi", value: count(assets?.materials), sub: "Ana depoda tanımlı", icon: Boxes, tone: "bg-slate-100 text-slate-600", href: "/manager/depo-stok" },
-    { label: "Kritik stok", value: count(assets?.lowStock), sub: "Minimumun altında", icon: AlertCircle, tone: "bg-slate-100 text-slate-600", href: "/manager/depo-stok" },
+    { label: "Kritik stok", value: count(assets?.lowStock), sub: "Eşikte veya altında", icon: AlertCircle, tone: "bg-slate-100 text-slate-600", href: "/manager/depo-stok?filtre=kritik" },
     { label: "Aktif kullanıcı", value: fmt(stats.activeUsers), sub: `${count(assets?.vehicles)} cep depo`, icon: UsersRound, tone: "bg-slate-100 text-slate-600", href: "/manager/kullanicilar" },
   ];
 

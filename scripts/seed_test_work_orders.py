@@ -29,7 +29,6 @@ TEST_PLATES = {"34 TST 001", "34 TST 002", "34 TST 003"}
 JOBS = {
     "fault": ["Klima arızası", "Soğutucu reyon ısınıyor", "Kompresör çalışmıyor", "Gaz kaçağı kontrolü", "Fan motoru arızası"],
     "renovation": ["Periyodik bakım", "Filtre değişimi", "Split klima yer değişikliği", "Bakır boru yenileme"],
-    "manufacturing": ["Yeni reyon montajı", "Soğuk oda kurulumu", "VRF sistem montajı"],
 }
 # (durum, adet): planned = planlanacak, started = devam ediyor
 PLAN = [("completed", 13), ("started", 8), ("planned", 6), ("cancelled", 3)]
@@ -61,7 +60,7 @@ def main() -> None:
     updates = []
     for status, count in PLAN:
         for _ in range(count):
-            work_type = rng.choice(["fault"] * 5 + ["renovation"] * 3 + ["manufacturing"] * 2)
+            work_type = rng.choice(["fault"] * 6 + ["renovation"] * 4)
             store = rng.choice(stores)
             depot = rng.choice(depots)
             priority = rng.choice(["normal"] * 5 + ["urgent"] * 3 + ["critical"] * 2)
