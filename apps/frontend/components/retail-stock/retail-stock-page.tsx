@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import {
-  AlertTriangle, ArrowDownToLine, List as ListIcon, ArrowRightLeft, Boxes, ClipboardList,
+  AlertTriangle, ArrowDownToLine, List as ListIcon, ArrowRightLeft, Boxes, ClipboardList, FolderKanban,
   Package, Plus, Search, Store, Truck, Warehouse, X,
 } from "lucide-react";
 import { apiGet, apiPatch, apiPost, getRequestErrorMessage } from "@/lib/api";
@@ -11,7 +12,8 @@ import { MaterialPicker, MaterialTitle, foldText } from "@/components/retail-sto
 import { TransferDialog } from "@/components/retail-stock/transfer-dialog";
 import { MaterialCatalog } from "@/components/retail-stock/material-catalog";
 
-type Depot = { id: string; kind: "main" | "vehicle" | "project"; name: string; plate: string | null; assigned_user_id: string | null; is_active: boolean };
+type Depot = { id: string; kind: "main" | "vehicle" | "project"; name: string; plate: string | null; assigned_user_id: string | null; is_active: boolean;
+  project_id?: string | null; project_name?: string | null; project_status?: string | null; store_name?: string | null; item_count?: number };
 type Material = { id: string; sku: string; name: string; category: string | null; unit: string; brand?: string | null; spec?: string | null; unit_price?: string | null; min_stock: string };
 type StockRow = { material_id: string; sku: string; name: string; category: string | null; unit: string; brand?: string | null; spec?: string | null; unit_price?: string | null; quantity: string; min_stock: string };
 
@@ -31,7 +33,7 @@ export const isLowStock = (row: { quantity: string | number; min_stock?: string 
 type Movement = { id: string; kind: string; material_name: string; material_sku?: string; unit: string; quantity: string; source_name: string | null; target_name: string | null; store_name: string | null; performed_by_name: string; performed_at: string; note: string | null; reference_no: string | null; work_order_id?: string | null; work_order_title?: string | null };
 type Staff = { id: string; name: string };
 type Action = "main" | "vehicle" | "material" | "opening" | "assign" | "threshold";
-type Tab = "stock" | "catalog" | "vehicles" | "history";
+type Tab = "stock" | "catalog" | "vehicles" | "projects" | "history";
 
 const MOVEMENT_LABELS: Record<string, string> = {
   opening: "Ana depoya giriş", load: "Ana depodan aktarım", use: "İş emri kullanımı",
@@ -80,8 +82,10 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
   const [success, setSuccess] = useState("");
 
   const mainDepot = depots.find((depot) => depot.kind === "main");
-  const viewableDepots = manager ? depots : depots.filter((depot) => depot.kind === "vehicle");
+  // Çalışan: kendi aracı + iş emri olan proje depoları. Ana depo yalnızca iade hedefidir.
+  const viewableDepots = manager ? depots : depots.filter((depot) => depot.kind !== "main");
   const vehicles = depots.filter((depot) => depot.kind === "vehicle");
+  const projectDepots = depots.filter((depot) => depot.kind === "project");
   const selectedDepot = depots.find((depot) => depot.id === selectedDepotId);
 
   useEffect(() => {
@@ -105,7 +109,7 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
       setDepots(nextDepots);
       setMaterials(nextMaterials);
       // Çalışan ana depoyu yalnızca iade hedefi olarak alır; stoğu görüntülenemez.
-      const viewable = manager ? nextDepots : nextDepots.filter((depot) => depot.kind === "vehicle");
+      const viewable = manager ? nextDepots : nextDepots.filter((depot) => depot.kind !== "main");
       setMovements(nextMovements);
       setStaff(nextStaff);
       setSelectedDepotId((current) => viewable.some((depot) => depot.id === current) ? current : (viewable[0]?.id ?? ""));
@@ -244,7 +248,7 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
 
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <StatCard icon={Warehouse} label="Ana depo" value={mainDepot ? "Hazır" : "Yok"} caption={mainDepot?.name ?? "Önce oluşturun"} />
-      <StatCard icon={Truck} label="Cep depolar" value={String(vehicles.length)} caption="Plakaya bağlı araç" />
+      <StatCard icon={Truck} label="Cep depolar" value={String(vehicles.length)} caption={projectDepots.length > 0 ? `Plakaya bağlı araç · ${projectDepots.length} proje deposu` : "Plakaya bağlı araç"} />
       <StatCard icon={Boxes} label="Malzeme kataloğu" value={String(materials.length)} caption={materials.length > 0 ? "Tüm stok kartlarını görmek için tıklayın" : "Henüz stok kartı yok"} onClick={materials.length > 0 ? openCatalog : undefined} />
       <StatCard icon={Package} label="Stoklu malzeme" value={String(stockedMaterialCount)} caption={`${lowCount} kritik stok kalemi`} />
     </div>
@@ -257,7 +261,7 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
 
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex gap-1 overflow-x-auto border-b border-slate-100 p-2">
-        {([ ["stock", "Stok Durumu", Package], ["catalog", "Malzeme Kataloğu", Boxes], ["vehicles", "Araç Depoları", Truck], ["history", "Hareketler", ClipboardList] ] as const).map(([value, label, Icon]) =>
+        {([ ["stock", "Stok Durumu", Package], ["catalog", "Malzeme Kataloğu", Boxes], ["vehicles", "Araç Depoları", Truck], ...(projectDepots.length > 0 || manager ? [["projects", "Proje Depoları", FolderKanban] as const] : []), ["history", "Hareketler", ClipboardList] ] as const).map(([value, label, Icon]) =>
           <button key={value} type="button" onClick={() => setTab(value)} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${tab === value ? "bg-slate-950 text-white" : "text-slate-500 hover:bg-slate-50"}`}><Icon className="h-4 w-4" />{label}</button>
         )}
       </div>
@@ -273,7 +277,13 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
         <div className="mt-5 grid gap-2 sm:grid-cols-[minmax(12rem,18rem)_1fr_auto_auto]">
           <select aria-label="Depo seç" value={selectedDepotId} onChange={(event) => setSelectedDepotId(event.target.value)} className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#d90070]">
             {viewableDepots.length === 0 && <option value="">Depo bulunmuyor</option>}
-            {viewableDepots.map((depot) => <option key={depot.id} value={depot.id}>{depot.kind === "main" ? `Ana depo · ${depot.name}` : depot.kind === "project" ? depot.name : `${depot.plate} · ${depot.name}`}</option>)}
+            {(["main", "vehicle", "project"] as const).map((kind) => {
+              const group = viewableDepots.filter((depot) => depot.kind === kind);
+              if (group.length === 0) return null;
+              return <optgroup key={kind} label={{ main: "Ana depo", vehicle: "Araç depoları", project: "Proje depoları" }[kind]}>
+                {group.map((depot) => <option key={depot.id} value={depot.id}>{depot.kind === "main" ? `Ana depo · ${depot.name}` : depot.kind === "project" ? `${depot.name}${depot.store_name ? ` · ${depot.store_name}` : ""}` : `${depot.plate} · ${depot.name}`}</option>)}
+              </optgroup>;
+            })}
           </select>
           <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Malzeme adı, kodu veya kategori ara" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 pl-10 text-sm outline-none focus:border-[#d90070]" /></div>
           <button type="button" aria-pressed={lowOnly} onClick={() => setLowOnly((value) => !value)}
@@ -312,6 +322,14 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
 
       {tab === "catalog" && <div id="malzeme-katalogu" className="scroll-mt-4"><MaterialCatalog materials={materials} manager={manager} onEditThreshold={openThreshold} /></div>}
 
+      {tab === "projects" && <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
+        {projectDepots.length === 0 ? <p className="col-span-full py-10 text-center text-sm text-slate-500">Açık kurulum projesi yok. Her yeni proje için ayrı bir proje deposu otomatik açılır.</p> : projectDepots.map((depot) => <div key={depot.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+          <div className="flex items-start justify-between gap-2"><FolderKanban className="h-5 w-5 text-[#d90070]" /><span className="rounded-md bg-white px-2 py-1 text-[11px] font-bold text-slate-800">{depot.item_count ?? 0} kalem</span></div>
+          <p className="mt-4 font-semibold text-slate-900">{depot.project_name ?? depot.name.replace(/^Proje · /, "")}</p>
+          <p className="mt-1 text-xs text-slate-500">{depot.store_name ?? "Mağaza bilgisi yok"}</p>
+          <div className="mt-4 flex gap-2"><button type="button" onClick={() => { setSelectedDepotId(depot.id); setTab("stock"); }} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">Stoku gör</button>{manager && depot.project_id && <Link href={`/manager/projeler/${depot.project_id}`} className="rounded-lg px-3 py-2 text-xs font-semibold text-[#bd0063]">Projeyi aç</Link>}</div>
+        </div>)}
+      </div>}
       {tab === "vehicles" && <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
         {vehicles.length === 0 ? <p className="col-span-full py-10 text-center text-sm text-slate-500">Henüz plakaya bağlı araç deposu yok.</p> : vehicles.map((vehicle) => <div key={vehicle.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
           <div className="flex items-start justify-between"><Truck className="h-5 w-5 text-[#d90070]" /><span className="rounded-md bg-white px-2 py-1 text-[11px] font-bold tracking-wide text-slate-800">{vehicle.plate}</span></div>

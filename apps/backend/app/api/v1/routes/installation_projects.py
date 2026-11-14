@@ -64,8 +64,7 @@ STAGE_TEMPLATE: list[tuple[int, str, str, list[str], Optional[str], list[str]]] 
      ["Eksik malzemeler belirlendi", "Malzemeler proje deposuna aktarıldı"]),
     (5, "montaj", "Montaj", [], "work_orders_done",
      ["Ekip ve tarihler planlandı", "Montaj tamamlandı"]),
-    (6, "test", "Devreye alma ve test", ["test_formu"], None,
-     ["Basınç / vakum testi yapıldı", "Gaz şarjı yapıldı (gaz tipi ve miktarı kaydedildi)", "Sıcaklık ölçümleri alındı"]),
+    (6, "test", "Devreye alma ve test", ["test_formu"], None, []),
     (7, "teslim", "Teslim", ["kabul_tutanagi"], None,
      ["Kullanıcı eğitimi verildi", "Son çizimler teslim edildi"]),
     (8, "kapanis", "Kapanış", [], "depot_empty",
@@ -208,7 +207,8 @@ async def _requirements(db: AsyncSession, project: InstallationProject, stage: I
                         materials: list[dict], work_orders: list[WorkOrder]) -> list[dict]:
     """Aşamanın kapanma şartları ve her birinin karşılanıp karşılanmadığı."""
     docs, rule = STAGE_BY_CODE.get(stage.code, ([], None))
-    reqs = [{"label": "Kontrol listesi tamamlanmış olmalı", "ok": all(item.is_done for item in checklist)}]
+    # Kontrol listesi boş olan aşamada (ör. Devreye alma ve test) bu şart gösterilmez.
+    reqs = [{"label": "Kontrol listesi tamamlanmış olmalı", "ok": all(item.is_done for item in checklist)}] if checklist else []
     for doc in docs:
         reqs.append({"label": f"{DOC_TYPES[doc]} yüklenmiş olmalı", "ok": doc in doc_types})
     if rule == "materials_listed":
