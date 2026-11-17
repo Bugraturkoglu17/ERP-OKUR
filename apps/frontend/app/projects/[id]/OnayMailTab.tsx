@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Clock, Download, FileText, Loader2, Mail, Plus, X, XCircle } from "lucide-react";
 import { apiGet, apiPost } from "@/lib/api";
@@ -132,8 +133,7 @@ export default function OnayMailTab({ projectId }: { projectId: string }) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">Onay Mailleri & Onay Talepleri</h3>
-          <p className="text-[11px] text-slate-400 mt-0.5">Proje onayları, teklif onayları, hakkediş onayları</p>
+          <h3 className="text-sm font-semibold text-slate-800">Onay Mailleri & Onay Talepleri<InfoHint text="Proje onayları, teklif onayları, hakkediş onayları" /></h3>
         </div>
         <button onClick={() => setShowAdd(true)}
           className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">

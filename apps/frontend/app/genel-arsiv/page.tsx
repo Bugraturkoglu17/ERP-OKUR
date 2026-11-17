@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useCallback, useEffect, useState } from "react";
 import {
   Archive, CheckSquare, Download, ExternalLink, Loader2, Search,
@@ -223,8 +224,7 @@ export default function GenelArsivPage() {
             <Archive className="h-5 w-5 text-slate-600" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">Genel Arşiv</h1>
-            <p className="text-xs text-slate-500">“Dosya Yükle” ile ekleyin; dosyayı seçip “Mağazaya Aktar” ile ilgili mağaza kartına bağlayın.</p>
+            <h1 className="text-lg font-bold text-slate-900">Genel Arşiv<InfoHint text="“Dosya Yükle” ile ekleyin; dosyayı seçip “Mağazaya Aktar” ile ilgili mağaza kartına bağlayın." /></h1>
           </div>
         </div>
         <button

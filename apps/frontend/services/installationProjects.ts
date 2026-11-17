@@ -6,8 +6,30 @@ export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
   active: "Devam ediyor", completed: "Tamamlandı", cancelled: "İptal edildi",
 };
 
+export type ProjectType = "market" | "soguk_oda" | "sogutma";
+
+export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
+  market: "Market", soguk_oda: "Soğuk oda", sogutma: "Soğutma",
+};
+export const PROJECT_TYPES = Object.keys(PROJECT_TYPE_LABEL) as ProjectType[];
+
+export type ProjectMember = { id: string; name: string };
+export type ProductionNumber = { id: string; number: string; note: string | null; created_by_name: string | null; created_at: string };
+
+export type CostKind = "target" | "actual";
+export type CostCategory = "montaj_iscilik" | "nakliye" | "urun" | "ek";
+export type CostExtra = { id: string; amount: string; description: string | null };
+/** "ek" kaleminde tutar, extras içindeki satırların toplamıdır. */
+export type CostItem = { category: CostCategory; label: string; amount: string | null; description: string | null; extras?: CostExtra[] };
+export type ProjectCosts = {
+  categories: Record<CostCategory, string>;
+  target: { items: CostItem[]; total: string };
+  actual: { items: CostItem[]; total: string };
+};
+
 export type ProjectSummary = {
   id: string; name: string; status: ProjectStatus;
+  project_type: ProjectType; project_type_label: string; member_count: number;
   store_id: string; store_name: string | null; store_no: string | null;
   manager_name: string | null; target_date: string | null; created_at: string; completed_at: string | null;
   stages_total: number; stages_done: number; current_stage: string | null;
@@ -37,24 +59,41 @@ export type ProjectMaterial = {
   unit_price: string | null; planned_quantity: string; in_depot: string; used: string; missing: string; note: string | null;
 };
 
+/** Kapanış aşamasındaki faturalandırma bilgileri. */
+type InvoiceParty = { invoice_title: string | null; invoice_tax_office: string | null; invoice_tax_no: string | null; invoice_address: string | null };
+export type ProjectBilling = InvoiceParty & {
+  sale_price: string | null; sale_price_includes_vat: boolean; vat_rate: string;
+  invoice_no: string | null; invoice_date: string | null; invoice_due_date: string | null;
+  /** Kesilen faturanın KDV dahil tutarı. */
+  invoice_amount: string | null;
+  /** Fatura tarafı boşken önerilen değerler (müşteri firmanın önceki projesi ya da firma kaydı). */
+  defaults: InvoiceParty;
+};
+export type ProjectBillingPayload = Omit<ProjectBilling, "defaults">;
+
 export type ProjectWorkOrder = {
   id: string; title: string; status: string; assigned_to_name: string | null; due_date: string | null; created_at: string;
 };
 
 export type ProjectDetail = {
   id: string; name: string; description: string | null; status: ProjectStatus;
-  store: { id: string; name: string; no: string | null } | null;
+  project_type: ProjectType; project_type_label: string;
+  can_manage: boolean; members: ProjectMember[]; production_numbers: ProductionNumber[]; costs: ProjectCosts;
+  /** Adres ve iletişim bilgileri mağaza kartından gelir. */
+  store: { id: string; name: string; no: string | null; address: string | null; city: string | null; region: string | null; phones: string[] } | null;
+  billing: ProjectBilling;
   depot_id: string; manager_user_id: string | null; manager_name: string | null;
   start_date: string | null; target_date: string | null; budget: string | null;
   created_at: string; completed_at: string | null;
   stages: ProjectStage[]; documents: ProjectDocument[]; doc_types: Record<string, string>;
-  materials: ProjectMaterial[]; planned_cost: string; used_cost: string;
+  materials: ProjectMaterial[]; planned_cost: string | null; used_cost: string | null;
   work_orders: ProjectWorkOrder[];
 };
 
 export type ProjectCreatePayload = {
   name: string; store_id: string; description?: string | null; manager_user_id?: string | null;
   start_date?: string | null; target_date?: string | null; budget?: string | null;
+  project_type?: ProjectType; member_user_ids?: string[];
 };
 
 const BASE = "/installation-projects";
@@ -72,6 +111,15 @@ export const addChecklistItem = (stageId: string, label: string) => apiPost(`${B
 export const setChecklistItem = (itemId: string, isDone: boolean) => apiPatch(`${BASE}/checklist/${itemId}`, { is_done: isDone });
 export const saveProjectMaterials = (id: string, materials: { material_id: string; planned_quantity: string; note?: string | null }[]) =>
   apiPut<ProjectMaterial[]>(`${BASE}/${id}/materials`, { materials });
+export const saveProjectBilling = (id: string, payload: ProjectBillingPayload) =>
+  apiPut<ProjectBilling>(`${BASE}/${id}/billing`, payload);
+export const saveProjectMembers = (id: string, userIds: string[]) =>
+  apiPut<ProjectMember[]>(`${BASE}/${id}/members`, { user_ids: userIds });
+export const addProductionNumber = (id: string, number: string, note?: string | null) =>
+  apiPost<ProductionNumber[]>(`${BASE}/${id}/production-numbers`, { number, note: note ?? null });
+export const deleteProductionNumber = (numberId: string) => apiDelete(`${BASE}/production-numbers/${numberId}`);
+export const saveProjectCosts = (id: string, kind: CostKind, items: { category: CostCategory; amount: string | null; description?: string | null }[]) =>
+  apiPut<ProjectCosts>(`${BASE}/${id}/costs`, { kind, items });
 export const deleteProjectDocument = (documentId: string) => apiDelete(`${BASE}/documents/${documentId}`);
 export const projectDocumentUrl = (id: string) => `${BASE}/${id}/documents`;
 
@@ -84,7 +132,12 @@ export type MyStage = {
 };
 
 export type StageTask = {
-  project: { id: string; name: string; description: string | null; status: ProjectStatus; store: { name: string; no: string | null } | null };
+  project: {
+    id: string; name: string; description: string | null; status: ProjectStatus;
+    project_type: ProjectType; project_type_label: string; is_member: boolean;
+    store: { name: string; no: string | null } | null;
+  };
+  production_numbers: ProductionNumber[];
   stage: {
     id: string; order: number; code: string; name: string; status: "planned" | "in_progress" | "completed";
     planned_end: string | null; started_at: string | null; completed_at: string | null; note: string | null;
@@ -100,3 +153,20 @@ export type StageTask = {
 
 export const getMyStages = () => apiGet<MyStage[]>(`${BASE}/my-stages`);
 export const getStageTask = (stageId: string) => apiGet<StageTask>(`${BASE}/stages/${stageId}/task`);
+
+/** İstatistik ekranı: proje ve maliyet özeti (yalnızca yönetici). Para toplamlarına iptal edilen projeler katılmaz. */
+export type ProjectStats = {
+  counts: { total: number; active: number; completed: number; cancelled: number; overdue: number; closing_pending: number };
+  avg_completion_days: number | null;
+  money: { budget_total: number; target_total: number; actual_total: number; missing_target: number; over_target: number };
+  by_type: { type: ProjectType; label: string; count: number; active: number; budget: number; target: number; actual: number }[];
+  by_stage: { order: number; name: string; count: number }[];
+  by_category: { category: CostCategory; label: string; target: number; actual: number }[];
+  projects: {
+    id: string; name: string; status: ProjectStatus; project_type_label: string;
+    stages_total: number; stages_done: number; current_stage: string | null; overdue: boolean;
+    budget: number | null; target: number | null; actual: number | null; usage_pct: number | null;
+  }[];
+};
+
+export const getProjectStats = () => apiGet<ProjectStats>(`${BASE}/stats`);

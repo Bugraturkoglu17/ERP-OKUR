@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useState } from "react";
 import {
   ClipboardList, Plus, Check, X, ChevronDown, ChevronUp,
@@ -196,10 +197,7 @@ export default function FieldReportsPage() {
                   {pendingApprovalCount} onay bekliyor
                 </span>
               )}
-            </h2>
-            <p className="text-slate-300 mt-1.5 text-xs max-w-xl">
-              Şantiye günlük faaliyetlerini kaydedin, ekip saatlerini takip edin ve onay süreçlerini yönetin.
-            </p>
+            <InfoHint text="Şantiye günlük faaliyetlerini kaydedin, ekip saatlerini takip edin ve onay süreçlerini yönetin." /></h2>
           </div>
           <button onClick={() => setShowModal(true)} className="corp-btn-primary self-start md:self-auto">
             <Plus className="h-4 w-4" /> Yeni Günlük Rapor

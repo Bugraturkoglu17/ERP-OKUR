@@ -431,3 +431,32 @@ body > div {
   }
 
 }
+
+/* İstatistik sayfası giriş animasyonları: sırayla belirme, büyüyen çubuklar, üzerine gelince yükselme.
+   Kartların belirmesi yalnızca sayfaya ilk girişte (.stat-intro) oynar; "Yenile" sonrası sadece sayılar ve çubuklar hareket eder. */
+@keyframes stat-rise {
+  from { opacity: 0; transform: translateY(30px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes stat-row-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.stat-intro .stat-reveal { animation: stat-rise 0.75s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.stat-intro .stat-row-in { animation: stat-row-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+/* Çubuklar ekran kartının çalıştırdığı CSS animasyonudur (eski bilgisayarlarda kasmaması için). Gecikme, süre ve hız eğrisi
+   sayıların saatiyle (components/stats/motion.tsx, StatClock) aynıdır; gecikme --stat-delay ile oradan gelir. */
+@keyframes stat-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes stat-grow-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.stat-grow-x { transform-origin: left center; animation: stat-grow-x 1.6s cubic-bezier(0.65, 0, 0.35, 1) var(--stat-delay, 0ms) backwards; }
+.stat-grow-y { transform-origin: center bottom; animation: stat-grow-y 1.6s cubic-bezier(0.65, 0, 0.35, 1) var(--stat-delay, 0ms) backwards; }
+.stat-lift { transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, border-color 0.25s ease; }
+.stat-lift:hover { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(15, 23, 42, 0.1); }
+
+/* Yukarıdaki genel "hareketi azalt" kuralı (animation-duration: 0.01ms) bu sayfadaki hareketi tümüyle kapatıyordu.
+   İstatistik animasyonları, işletim sisteminde animasyonlar kapalı olsa da oynar. */
+.stat-intro .stat-reveal { animation-duration: 0.75s !important; }
+.stat-intro .stat-row-in { animation-duration: 0.5s !important; }
+.stat-grow-x, .stat-grow-y { animation-duration: 1.6s !important; }
+.stat-lift { transition-duration: 0.25s !important; }

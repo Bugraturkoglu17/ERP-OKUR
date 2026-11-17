@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -201,8 +202,7 @@ export default function NewWorkOrderPage() {
     <div className="mx-auto max-w-4xl space-y-5">
       <Link href="/manager/is-emirleri" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"><ArrowLeft className="h-4 w-4" />İş Emirleri</Link>
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Yeni İş Emri</h1>
-        <p className="mt-1 text-sm text-slate-500">Mağazayı seçin, işi tanımlayın, çalışanı ve stoğun düşüleceği cep deposunu belirleyin.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Yeni İş Emri<InfoHint text="Mağazayı seçin, işi tanımlayın, çalışanı ve stoğun düşüleceği cep deposunu belirleyin." /></h1>
       </header>
 
       <ol className="grid grid-cols-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -255,8 +255,7 @@ export default function NewWorkOrderPage() {
         {step === 2 && (
           <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
             <section>
-              <h2 className="text-sm font-semibold text-slate-800">Atanacak Çalışan</h2>
-              <p className="mt-1 text-xs text-slate-500">Malzeme, çalışanın zimmetindeki cep depodan düşülür.</p>
+              <h2 className="text-sm font-semibold text-slate-800">Atanacak Çalışan<InfoHint text="Malzeme, çalışanın zimmetindeki cep depodan düşülür." /></h2>
               <div className="mt-3 space-y-2">
                 {users.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Atama yapılabilecek aktif çalışan bulunamadı.</p> : users.map((user) => {
                   const load = workloads[user.id] ?? { planned: 0, active: 0 };
@@ -282,8 +281,7 @@ export default function NewWorkOrderPage() {
               )}
             </section>
             <section>
-              <h2 className="text-sm font-semibold text-slate-800">{project ? "Proje Deposu" : "Cep Depo"}</h2>
-              <p className="mt-1 text-xs text-slate-500">Stok bu depodan düşülecek.</p>
+              <h2 className="text-sm font-semibold text-slate-800">{project ? "Proje Deposu" : "Cep Depo"}<InfoHint text="Stok bu depodan düşülecek." /></h2>
               {project ? (
                 <div className="mt-3 flex items-center gap-3 rounded-xl border border-teal-200 bg-teal-50 p-3"><FolderKanban className="h-5 w-5 text-teal-700" /><span className="text-sm font-semibold text-teal-900">Proje · {project.name}</span></div>
               ) : !form.assigneeId ? (

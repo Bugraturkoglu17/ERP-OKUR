@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -396,8 +397,7 @@ export default function ImportPage() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Excel'den Mağaza İçe Aktar</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Mağaza listesini Excel dosyasından toplu olarak sisteme aktarın.</p>
+          <h1 className="text-xl font-bold text-slate-900">Excel'den Mağaza İçe Aktar<InfoHint text="Mağaza listesini Excel dosyasından toplu olarak sisteme aktarın." /></h1>
         </div>
       </div>
 
@@ -410,8 +410,7 @@ export default function ImportPage() {
       {step === 1 && (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
           <div>
-            <h2 className="text-sm font-bold text-slate-900 mb-1">Excel Dosyası Yükle</h2>
-            <p className="text-xs text-slate-500">Mağaza bilgilerini içeren .xlsx veya .xls dosyasını seçin.</p>
+            <h2 className="text-sm font-bold text-slate-900 mb-1">Excel Dosyası Yükle<InfoHint text="Mağaza bilgilerini içeren .xlsx veya .xls dosyasını seçin." /></h2>
           </div>
 
           <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
@@ -499,8 +498,7 @@ export default function ImportPage() {
           {/* Default Location */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
             <div>
-              <h2 className="text-sm font-bold text-slate-900 mb-1">Varsayılan Konum</h2>
-              <p className="text-xs text-slate-500">İçe aktarılacak mağazalar bu konuma bağlanacak. Zorunludur.</p>
+              <h2 className="text-sm font-bold text-slate-900 mb-1">Varsayılan Konum<InfoHint text="İçe aktarılacak mağazalar bu konuma bağlanacak. Zorunludur." /></h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>

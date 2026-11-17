@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiGet, apiPatch, apiPost, apiPut } from "@/lib/api";
@@ -648,8 +649,7 @@ function PlatformTenantsPageContent() {
         <div className="flex flex-wrap items-center justify-between gap-4 relative z-10">
           <div>
             <p className="text-[10px] font-black uppercase tracking-wider text-slate-350">Geliştirici Admin</p>
-            <h1 className="mt-1.5 text-2xl font-bold tracking-tight">Super Admin Paneli</h1>
-            <p className="mt-1 text-xs text-slate-350">Firma yaşam döngüsü, yönetici, lisans ve denetim.</p>
+            <h1 className="mt-1.5 text-2xl font-bold tracking-tight">Super Admin Paneli<InfoHint text="Firma yaşam döngüsü, yönetici, lisans ve denetim." /></h1>
           </div>
           <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
             <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5">Firma: <b>{firmalar.length}</b></div>

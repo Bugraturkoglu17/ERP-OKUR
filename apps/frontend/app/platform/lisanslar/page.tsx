@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarClock, CheckCircle2, CreditCard, Loader2, PauseCircle, PlayCircle, XCircle } from "lucide-react";
 import { apiGet, apiPost } from "@/lib/api";
@@ -211,8 +212,7 @@ export default function LisanslarPage() {
 
       {/* Başlık */}
       <div>
-        <h1 className="text-xl font-bold text-slate-900">Lisanslar</h1>
-        <p className="mt-1 text-sm text-slate-500">Tüm firmaların lisans durumunu görüntüleyin ve yönetin.</p>
+        <h1 className="text-xl font-bold text-slate-900">Lisanslar<InfoHint text="Tüm firmaların lisans durumunu görüntüleyin ve yönetin." /></h1>
       </div>
 
       {error && (

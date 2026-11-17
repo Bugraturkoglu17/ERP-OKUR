@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -96,10 +97,7 @@ function StoreAssignModal({ allStores, assignedIds, onClose, onDone }: {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Bakım Mağazası Ekle</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Bakım kapsamına alınacak mağazaları genel mağaza listesinden seçin.
-            </p>
+            <h3 className="text-sm font-bold text-slate-900">Bakım Mağazası Ekle<InfoHint text="Bakım kapsamına alınacak mağazaları genel mağaza listesinden seçin." /></h3>
           </div>
           <button onClick={onClose}><X className="h-5 w-5 text-slate-300 hover:text-slate-600" /></button>
         </div>
@@ -269,8 +267,7 @@ export default function BakimPage() {
             <Wrench className="h-5 w-5 text-sky-600" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">Bakım & Onarım</h1>
-            <p className="text-xs text-slate-500">Aylık servis formu, fatura ve hakkediş takibi</p>
+            <h1 className="text-lg font-bold text-slate-900">Bakım & Onarım<InfoHint text="Aylık servis formu, fatura ve hakkediş takibi" /></h1>
           </div>
         </div>
         <button onClick={() => setShowAssign(true)}

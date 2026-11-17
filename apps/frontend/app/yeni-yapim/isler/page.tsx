@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Building2, FileText, FolderOpen, Search, Store } from "lucide-react";
@@ -41,8 +42,7 @@ export default function YeniYapimIslerPage() {
           <FileText className="h-5 w-5 text-emerald-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Yapılacak İşler</h1>
-          <p className="text-xs text-slate-500">Yeni yapım projelerine ait iş kalemleri ve kapsamları.</p>
+          <h1 className="text-lg font-bold text-slate-900">Yapılacak İşler<InfoHint text="Yeni yapım projelerine ait iş kalemleri ve kapsamları." /></h1>
         </div>
       </div>
 

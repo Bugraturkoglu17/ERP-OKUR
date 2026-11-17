@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { formatServerDateTime } from "@/lib/utils";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -298,8 +299,7 @@ function CreateReportModal({ woId, onClose, onDone }: {
       <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Rapor Oluştur</h2>
-            <p className="text-xs text-slate-400 mt-0.5">İş ilerlemesi, sorun veya not ekleyin</p>
+            <h2 className="text-sm font-bold text-slate-900">Rapor Oluştur<InfoHint text="İş ilerlemesi, sorun veya not ekleyin" /></h2>
           </div>
           <button onClick={onClose}><X className="h-5 w-5 text-slate-400 hover:text-slate-700" /></button>
         </div>

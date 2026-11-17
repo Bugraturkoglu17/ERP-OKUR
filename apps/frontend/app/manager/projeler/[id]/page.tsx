@@ -1,8 +1,9 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import {
   AlertCircle, ArrowLeft, Check, CheckCircle2, Circle, ClipboardList, FileText, Loader2,
   Package, Plus, Trash2, Upload, X, XCircle,
@@ -12,11 +13,12 @@ import { uploadFormData } from "@/lib/upload";
 import { formatQuantity } from "@/lib/quantity";
 import { formatServerDate, formatServerDateTime } from "@/lib/utils";
 import { MaterialPicker, MaterialTitle } from "@/components/retail-stock/material-picker";
+import { BillingCard, CostsCard, MembersCard, ProductionNumbersCard, ProjectTypeSwitch } from "@/components/installation-projects/project-extras";
 import { STATUS_LABEL, normalizeStatus } from "@/services/managerWorkOrders";
 import {
   PROJECT_STATUS_LABEL, addChecklistItem, deleteProjectDocument, getProject, projectDocumentUrl,
   saveProjectMaterials, setChecklistItem, updateProject, updateStage,
-  type ProjectDetail, type ProjectMaterial, type ProjectStage,
+  type ProjectDetail, type ProjectMaterial, type ProjectStage, type ProjectType,
 } from "@/services/installationProjects";
 
 type UserRow = { id: string; full_name: string; email: string; is_active: boolean };
@@ -29,7 +31,7 @@ const qty = (value: string | number) => formatQuantity(value);
 
 function StageStepper({ stages, selectedId, onSelect }: { stages: ProjectStage[]; selectedId: string; onSelect: (id: string) => void }) {
   return (
-    <ol className="grid grid-cols-4 gap-1.5 sm:grid-cols-8">
+    <ol className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 lg:grid-cols-9">
       {stages.map((stage) => {
         const done = stage.status === "completed";
         const active = stage.status === "in_progress";
@@ -49,8 +51,8 @@ function StageStepper({ stages, selectedId, onSelect }: { stages: ProjectStage[]
   );
 }
 
-function StagePanel({ stage, users, editable, onChanged, onError }: {
-  stage: ProjectStage; users: UserRow[]; editable: boolean;
+function StagePanel({ stage, total, users, editable, onChanged, onError }: {
+  stage: ProjectStage; total: number; users: UserRow[]; editable: boolean;
   onChanged: () => Promise<void>; onError: (message: string) => void;
 }) {
   const [newItem, setNewItem] = useState("");
@@ -71,7 +73,7 @@ function StagePanel({ stage, users, editable, onChanged, onError }: {
     <section className="erp-section-card">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div>
-          <p className="text-xs font-semibold text-slate-400">Aşama {stage.order} / 8</p>
+          <p className="text-xs font-semibold text-slate-400">Aşama {stage.order} / {total}</p>
           <h2 className="text-lg font-bold text-slate-950">{stage.name}</h2>
           <p className="mt-0.5 text-xs text-slate-500">
             {stage.status === "completed" ? `Tamamlandı · ${formatServerDateTime(stage.completed_at)}` : stage.status === "in_progress" ? `Devam ediyor${stage.started_at ? ` · başladı ${formatServerDate(stage.started_at)}` : ""}` : "Henüz başlamadı (önceki aşama kapanınca başlar)"}
@@ -100,6 +102,8 @@ function StagePanel({ stage, users, editable, onChanged, onError }: {
               <select disabled={locked || busy} value={stage.responsible_user_id ?? ""} onChange={(e) => void run(() => updateStage(stage.id, { responsible_user_id: e.target.value || null }), "Sorumlu kaydedilemedi.")}
                 className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-50">
                 <option value="">Atanmadı</option>
+                {/* Kullanıcı listesini göremeyen (projeye atanmış saha kullanıcısı) için sorumlunun adı yine görünsün. */}
+                {stage.responsible_user_id && !users.some((u) => u.id === stage.responsible_user_id) && <option value={stage.responsible_user_id}>{stage.responsible_name ?? "Sorumlu"}</option>}
                 {users.map((u) => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
               </select></label>
             <label className="block text-xs font-semibold text-slate-600">Planlanan bitiş
@@ -146,11 +150,13 @@ function StagePanel({ stage, users, editable, onChanged, onError }: {
   );
 }
 
-function DocumentsCard({ project, selectedStage, editable, onChanged, onError }: {
+function DocumentsCard({ project, selectedStage, editable, invoiceOnly = false, onChanged, onError }: {
   project: ProjectDetail; selectedStage: ProjectStage | undefined; editable: boolean;
+  /** Kapanmış projede yalnızca fatura belgesi yüklenebilir. */
+  invoiceOnly?: boolean;
   onChanged: () => Promise<void>; onError: (message: string) => void;
 }) {
-  const [docType, setDocType] = useState("kesif_raporu");
+  const [docType, setDocType] = useState(invoiceOnly ? "fatura" : "kesif_raporu");
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const stageNames = useMemo(() => Object.fromEntries(project.stages.map((s) => [s.id, s.name])), [project.stages]);
@@ -176,15 +182,15 @@ function DocumentsCard({ project, selectedStage, editable, onChanged, onError }:
   return (
     <section className="erp-section-card">
       <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-        <div><h2 className="text-sm font-semibold text-slate-900">Belgeler</h2><p className="mt-1 text-xs text-slate-400">Keşif raporu, çizim, teklif, sözleşme, test formu, kabul tutanağı.</p></div>
+        <div><h2 className="text-sm font-semibold text-slate-900">Belgeler<InfoHint text="Keşif raporu, çizim, teklif, sözleşme, test formu, kabul tutanağı, fatura." /></h2></div>
         <FileText className="h-4 w-4 text-slate-300" />
       </div>
       <div className="space-y-4 p-5">
-        {editable && (
+        {(editable || invoiceOnly) && (
           <div className="flex flex-wrap items-end gap-2 rounded-xl bg-slate-50 p-3">
             <label className="text-xs font-semibold text-slate-600">Belge türü
               <select value={docType} onChange={(e) => setDocType(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm">
-                {Object.entries(project.doc_types).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                {Object.entries(project.doc_types).filter(([value]) => !invoiceOnly || value === "fatura").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select></label>
             <label className="min-w-0 flex-1 basis-48 text-xs font-semibold text-slate-600">Dosya
               <input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.dwg,.dxf,.doc,.docx,.xls,.xlsx" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="mt-1 block w-full text-sm" /></label>
@@ -247,8 +253,7 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
     <section className="erp-section-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Malzeme listesi</h2>
-          <p className="mt-1 text-xs text-slate-400">Planlanan malzeme, proje deposundaki miktar ve montajda kullanılan.{missingCount > 0 ? ` ${missingCount} kalem eksik.` : ""}</p>
+          <h2 className="text-sm font-semibold text-slate-900">Malzeme listesi<InfoHint text={`Planlanan malzeme, proje deposundaki miktar ve montajda kullanılan.${missingCount > 0 ? ` ${missingCount} kalem eksik.` : ""}`} /></h2>
         </div>
         {editable && !editing && <button type="button" onClick={startEdit} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Listeyi düzenle</button>}
       </div>
@@ -274,7 +279,7 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
             </div>
           </div>
         ) : project.materials.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">Malzeme listesi henüz girilmedi. Projelendirme aşamasında katalogdan malzeme ekleyin.</p>
+          <p className="py-6 text-center text-sm text-slate-500">Malzeme listesi henüz girilmedi. &quot;Listeyi düzenle&quot; ile katalogdan malzeme ekleyin.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
@@ -308,6 +313,9 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
 export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  // Aynı ekran yönetici panelinde (tam yetki) ve kullanıcı panelinde (projeye atananlar) açılır.
+  const inUserPanel = usePathname().startsWith("/user");
+  const [typeBusy, setTypeBusy] = useState(false);
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
@@ -339,17 +347,25 @@ export default function ProjectDetailPage() {
     try { await updateProject(project.id, { status: "cancelled" }); await refresh(); } catch (reason) { setError(getRequestErrorMessage(reason, "Proje iptal edilemedi.")); }
   }
 
+  async function changeType(next: ProjectType) {
+    if (!project) return;
+    setTypeBusy(true); setError("");
+    try { await updateProject(project.id, { project_type: next }); await refresh(); } catch (reason) { setError(getRequestErrorMessage(reason, "Proje türü değiştirilemedi.")); } finally { setTypeBusy(false); }
+  }
+
   if (loading) return <div className="flex items-center justify-center gap-2 py-24 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Proje yükleniyor</div>;
   if (!project) return <div className="mx-auto max-w-xl rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">{error || "Proje bulunamadı."}</div>;
 
-  const editable = project.status === "active";
+  const active = project.status === "active";
+  const editable = active && project.can_manage;
+  const total = project.stages.length;
   const selected = project.stages.find((s) => s.id === selectedId) ?? project.stages[0];
   const done = project.stages.filter((s) => s.status === "completed").length;
   const openWorkOrders = project.work_orders.filter((wo) => !["completed", "cancelled"].includes(normalizeStatus(wo.status))).length;
 
   return (
     <div className="mx-auto max-w-7xl space-y-5">
-      <Link href="/manager/projeler" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"><ArrowLeft className="h-4 w-4" />Projeler</Link>
+      <Link href={inUserPanel ? "/user/proje-gorevleri" : "/manager/projeler"} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"><ArrowLeft className="h-4 w-4" />{inUserPanel ? "Proje Görevlerim" : "Projeler"}</Link>
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -357,20 +373,27 @@ export default function ProjectDetailPage() {
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${project.status === "active" ? "bg-blue-50 text-blue-700" : project.status === "completed" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{PROJECT_STATUS_LABEL[project.status]}</span>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            {project.store ? <Link href={`/manager/magaza-karti/${project.store.id}`} className="hover:underline">{project.store.name}{project.store.no ? ` · ${project.store.no}` : ""}</Link> : "Yer bilgisi yok"}
+            {project.store ? <Link href={`${inUserPanel ? "/user" : "/manager"}/magaza-karti/${project.store.id}`} className="hover:underline">{project.store.name}{project.store.no ? ` · ${project.store.no}` : ""}</Link> : "Yer bilgisi yok"}
             {project.manager_name ? ` · Sorumlu: ${project.manager_name}` : ""}
           </p>
           {project.description && <p className="mt-2 max-w-3xl text-sm text-slate-600">{project.description}</p>}
+          {project.production_numbers.length > 0 && <p className="mt-2 text-xs text-slate-500">Üretim no: <span className="font-semibold tabular-nums text-slate-700">{project.production_numbers.map((n) => n.number).join(", ")}</span></p>}
         </div>
         {editable && <button type="button" onClick={() => void cancelProject()} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"><XCircle className="h-4 w-4" />Projeyi iptal et</button>}
       </header>
 
-      <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div>
+        <p className="mb-1.5 text-xs font-semibold text-slate-500">Proje türü</p>
+        <ProjectTypeSwitch value={project.project_type} editable={editable} busy={typeBusy} onChange={(next) => void changeType(next)} />
+      </div>
+
+      <section className={`grid grid-cols-2 gap-2 ${project.planned_cost === null ? "sm:grid-cols-4" : "sm:grid-cols-5"}`}>
         {[
-          { label: "İlerleme", value: `${done}/8 aşama` },
+          { label: "İlerleme", value: `${done}/${total} aşama` },
           { label: "Hedef bitiş", value: formatServerDate(project.target_date) },
           { label: "Bütçe / teklif", value: project.budget ? `₺${money(project.budget)}` : "—" },
-          { label: "Malzeme maliyeti (plan / gerçek)", value: `₺${money(project.planned_cost)} / ₺${money(project.used_cost)}` },
+          { label: "Maliyet (hedef / gerçekleşen)", value: `₺${money(project.costs.target.total)} / ₺${money(project.costs.actual.total)}` },
+          ...(project.planned_cost === null ? [] : [{ label: "Malzeme maliyeti (plan / gerçek)", value: `₺${money(project.planned_cost)} / ₺${money(project.used_cost)}` }]),
         ].map((tile) => (
           <div key={tile.label} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
             <p className="text-[11px] font-medium text-slate-500">{tile.label}</p>
@@ -383,13 +406,24 @@ export default function ProjectDetailPage() {
 
       {error && <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
 
-      <StagePanel stage={selected} users={users} editable={editable} onChanged={refresh} onError={setError} />
+      <StagePanel stage={selected} total={total} users={users} editable={editable} onChanged={refresh} onError={setError} />
 
-      <div className="grid gap-5 xl:grid-cols-2">
-        <MaterialsCard project={project} catalog={catalog} editable={editable} onChanged={refresh} onError={setError} />
+      {selected.code === "uretim" && <ProductionNumbersCard projectId={project.id} numbers={project.production_numbers} canEnter={active} onChanged={refresh} onError={setError} />}
+
+      {selected.code === "kapanis" && <BillingCard projectId={project.id} billing={project.billing} store={project.store}
+        storeHref={project.store ? `${inUserPanel ? "/user" : "/manager"}/magaza-karti/${project.store.id}` : null}
+        editable={project.can_manage && project.status !== "cancelled"} onChanged={refresh} onError={setError} />}
+
+      {selected.code === "kapanis" && <CostsCard projectId={project.id} costs={project.costs} canEnter={active} onChanged={refresh} onError={setError} />}
+
+      <MembersCard projectId={project.id} members={project.members} users={users} editable={editable} onChanged={refresh} onError={setError} />
+
+      {/* Malzeme listesi yalnızca "Malzeme hazırlığı" aşamasında gösterilir. */}
+      <div className={`grid gap-5 ${selected.code === "malzeme" ? "xl:grid-cols-2" : ""}`}>
+        {selected.code === "malzeme" && <MaterialsCard project={project} catalog={catalog} editable={editable} onChanged={refresh} onError={setError} />}
         <section className="erp-section-card">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-            <div><h2 className="text-sm font-semibold text-slate-900">İş emirleri</h2><p className="mt-1 text-xs text-slate-400">Montaj ve test işleri; teknisyenler bunları normal iş emri ekranından yürütür.{openWorkOrders ? ` ${openWorkOrders} açık iş.` : ""}</p></div>
+            <div><h2 className="text-sm font-semibold text-slate-900">İş emirleri<InfoHint text={`Montaj ve test işleri; teknisyenler bunları normal iş emri ekranından yürütür.${openWorkOrders ? ` ${openWorkOrders} açık iş.` : ""}`} /></h2></div>
             {editable && <Link href={`/manager/is-emirleri/yeni?proje=${project.id}`} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"><Plus className="h-3.5 w-3.5" />İş emri ekle</Link>}
           </div>
           {project.work_orders.length === 0 ? <div className="px-5 py-10 text-center"><ClipboardList className="mx-auto h-7 w-7 text-slate-300" /><p className="mt-2 text-sm text-slate-500">Henüz iş emri yok.</p></div> : (
@@ -398,7 +432,7 @@ export default function ProjectDetailPage() {
                 const status = normalizeStatus(wo.status);
                 return (
                   <li key={wo.id}>
-                    <Link href={`/manager/is-emirleri/${wo.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
+                    <Link href={`${inUserPanel ? "/user/islerim" : "/manager/is-emirleri"}/${wo.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
                       <Package className="h-4 w-4 shrink-0 text-slate-400" />
                       <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-slate-900">{wo.title}</p><p className="truncate text-[11px] text-slate-400">{wo.assigned_to_name ?? "Atanmadı"} · Verildi: {formatServerDateTime(wo.created_at)}</p></div>
                       <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${status === "completed" ? "bg-emerald-50 text-emerald-700" : status === "cancelled" ? "bg-slate-100 text-slate-500" : status === "in_progress" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>{STATUS_LABEL[status]}</span>
@@ -411,7 +445,7 @@ export default function ProjectDetailPage() {
         </section>
       </div>
 
-      <DocumentsCard project={project} selectedStage={editable ? selected : undefined} editable={editable} onChanged={refresh} onError={setError} />
+      <DocumentsCard project={project} selectedStage={editable ? selected : undefined} editable={editable} invoiceOnly={project.can_manage && project.status === "completed"} onChanged={refresh} onError={setError} />
     </div>
   );
 }

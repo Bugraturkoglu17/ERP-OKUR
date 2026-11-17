@@ -1,20 +1,25 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, Building2, Loader2, Plus } from "lucide-react";
 import { StorePicker, parseAdres, type StoreOption } from "@/components/store/store-picker";
 import { apiGet, getRequestErrorMessage } from "@/lib/api";
-import { createProject } from "@/services/installationProjects";
+import { MoneyInput, parseMoneyInput } from "@/components/form/money-input";
+import { MemberChecklist } from "@/components/installation-projects/project-extras";
+import { createProject, type ProjectType } from "@/services/installationProjects";
 
 type UserRow = { id: string; full_name: string; email: string; is_active: boolean; default_role?: string | null };
 
-const STAGES = ["Keşif", "Projelendirme ve teklif", "Müşteri onayı", "Malzeme hazırlığı", "Montaj", "Devreye alma ve test", "Teslim", "Kapanış"];
+const STAGES = ["Keşif", "Projelendirme ve teklif", "Müşteri onayı", "Üretim", "Malzeme hazırlığı", "Montaj", "Devreye alma ve test", "Teslim", "Kapanış"];
 
 export default function NewProjectPage() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [projectType, setProjectType] = useState<ProjectType | null>(null);
+  const [memberIds, setMemberIds] = useState<Set<string>>(new Set());
   const [store, setStore] = useState<StoreOption | null>(null);
   const [description, setDescription] = useState("");
   const [managerId, setManagerId] = useState("");
@@ -29,15 +34,17 @@ export default function NewProjectPage() {
   }, []);
 
   async function submit() {
+    if (!projectType) { setError("Proje türünü seçin: Market, Soğuk oda veya Soğutma."); return; }
     if (name.trim().length < 2) { setError("Proje adını yazın."); return; }
     if (!store) { setError("Kurulumun yapılacağı mağazayı / yeri seçin."); return; }
-    const amount = budget.trim().replace(/\./g, "").replace(",", ".");
-    if (amount && !/^\d+(\.\d{1,2})?$/.test(amount)) { setError("Bütçe sayı olmalı (örn. 250000 veya 250.000,50)."); return; }
+    const amount = parseMoneyInput(budget);
+    if (amount === undefined) { setError("Bütçe sayı olmalı (örn. 250000 veya 250.000,50)."); return; }
     setSaving(true); setError("");
     try {
       const created = await createProject({
         name: name.trim(), store_id: store.id, description: description.trim() || null,
-        manager_user_id: managerId || null, target_date: targetDate || null, budget: amount || null,
+        manager_user_id: managerId || null, target_date: targetDate || null, budget: amount,
+        project_type: projectType, member_user_ids: Array.from(memberIds),
       });
       router.push(`/manager/projeler/${created.id}`);
     } catch (reason) {
@@ -50,11 +57,25 @@ export default function NewProjectPage() {
     <div className="mx-auto max-w-3xl space-y-5">
       <Link href="/manager/projeler" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"><ArrowLeft className="h-4 w-4" />Projeler</Link>
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Yeni Proje</h1>
-        <p className="mt-1 text-sm text-slate-500">Proje açılınca 8 aşama, kontrol listeleri ve projeye özel bir depo otomatik oluşturulur.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Yeni Proje<InfoHint text="Proje açılınca 9 aşama, kontrol listeleri ve projeye özel bir depo otomatik oluşturulur." /></h1>
       </header>
 
       <main className="space-y-5 rounded-xl border border-slate-200 bg-white p-5 sm:p-7">
+        <div>
+          <span className="text-sm font-semibold text-slate-800">Proje türü</span>
+          <p className="mt-1 text-xs text-slate-500">Aşamalar her türde aynıdır; tür sonradan değiştirilebilir.</p>
+          <div className="mt-2">
+            <div role="radiogroup" aria-label="Proje türü" className="grid gap-2 sm:grid-cols-3">
+              {(["market", "soguk_oda", "sogutma"] as ProjectType[]).map((type) => (
+                <button key={type} type="button" role="radio" aria-checked={projectType === type} onClick={() => setProjectType(type)}
+                  className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${projectType === type ? "border-blue-600 bg-blue-50 text-blue-800 ring-1 ring-blue-600" : "border-slate-200 text-slate-700 hover:border-slate-300"}`}>
+                  {{ market: "Market", soguk_oda: "Soğuk oda", sogutma: "Soğutma" }[type]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <label className="block"><span className="text-sm font-semibold text-slate-800">Proje adı</span>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} placeholder="Örn. Kadıköy Migros soğuk oda kurulumu" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500" /></label>
 
@@ -78,7 +99,13 @@ export default function NewProjectPage() {
           <label className="block"><span className="text-sm font-semibold text-slate-800">Hedef bitiş</span>
             <input type="date" min="2000-01-01" max="2100-12-31" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
           <label className="block"><span className="text-sm font-semibold text-slate-800">Bütçe / teklif (₺)</span>
-            <input inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="isteğe bağlı" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+            <MoneyInput value={budget} onValueChange={setBudget} placeholder="isteğe bağlı" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+        </div>
+
+        <div>
+          <span className="text-sm font-semibold text-slate-800">Projeye atanacak kişiler <span className="font-normal text-slate-400">(isteğe bağlı, birden çok seçilebilir)</span></span>
+          <p className="mb-2 mt-1 text-xs text-slate-500">Atanan herkes projenin tüm aşamalarını ve maliyetlerini görür. Sonradan değiştirilebilir.</p>
+          <MemberChecklist users={users} selected={memberIds} onToggle={(id) => setMemberIds((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} />
         </div>
 
         <div className="rounded-xl bg-slate-50 p-4">

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FolderOpen, Paperclip, Receipt, Search, Store } from "lucide-react";
@@ -139,8 +140,7 @@ export default function HakkedislerPage() {
           <Receipt className="h-5 w-5 text-blue-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Faturalar / Hakkedişler</h1>
-          <p className="text-xs text-slate-500">Tüm mağazalara ait hakkediş ve fatura kayıtları</p>
+          <h1 className="text-lg font-bold text-slate-900">Faturalar / Hakkedişler<InfoHint text="Tüm mağazalara ait hakkediş ve fatura kayıtları" /></h1>
         </div>
       </div>
 

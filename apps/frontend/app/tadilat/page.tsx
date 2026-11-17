@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -83,10 +84,7 @@ function StoreAssignModal({ allStores, assignedIds, onClose, onDone }: {
       <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl flex flex-col max-h-[85vh]">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 shrink-0">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Tadilat Mağazası Ekle</h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Tadilat kapsamına alınacak mağazaları genel mağaza listesinden seçin.
-            </p>
+            <h3 className="text-sm font-bold text-slate-900">Tadilat Mağazası Ekle<InfoHint text="Tadilat kapsamına alınacak mağazaları genel mağaza listesinden seçin." /></h3>
           </div>
           <button onClick={onClose}><X className="h-5 w-5 text-slate-300 hover:text-slate-600" /></button>
         </div>
@@ -466,8 +464,7 @@ export default function TadilatPage() {
             <HardHat className="h-5 w-5 text-amber-600" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">Tadilat</h1>
-            <p className="text-xs text-slate-500">Tadilat mağazaları ve aktif süreçler</p>
+            <h1 className="text-lg font-bold text-slate-900">Tadilat<InfoHint text="Tadilat mağazaları ve aktif süreçler" /></h1>
           </div>
         </div>
         <div className="flex items-center gap-2">

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -182,8 +183,7 @@ export default function IsEmirleriPage() {
             <ClipboardList className="h-5 w-5 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">İş Emirleri</h1>
-            <p className="text-xs text-slate-500">Arıza, tadilat ve yeni yapım görevlerini tek ekrandan oluşturun, atayın ve takip edin.</p>
+            <h1 className="text-lg font-bold text-slate-900">İş Emirleri<InfoHint text="Arıza, tadilat ve yeni yapım görevlerini tek ekrandan oluşturun, atayın ve takip edin." /></h1>
           </div>
         </div>
         <button onClick={() => router.push("/manager/is-emirleri/yeni")}

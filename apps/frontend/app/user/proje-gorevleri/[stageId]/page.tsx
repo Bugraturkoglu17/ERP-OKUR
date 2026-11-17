@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -9,6 +10,7 @@ import { uploadFormData } from "@/lib/upload";
 import { formatQuantity } from "@/lib/quantity";
 import { formatServerDate, formatServerDateTime } from "@/lib/utils";
 import { MaterialTitle } from "@/components/retail-stock/material-picker";
+import { ProductionNumbersCard } from "@/components/installation-projects/project-extras";
 import { STATUS_LABEL, normalizeStatus } from "@/services/managerWorkOrders";
 import {
   addChecklistItem, getStageTask, projectDocumentUrl, setChecklistItem, updateStage, type StageTask,
@@ -76,7 +78,8 @@ export default function ProjectTaskPage() {
     <div className="mx-auto max-w-3xl space-y-5">
       <Link href="/user/proje-gorevleri" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"><ArrowLeft className="h-4 w-4" />Proje Görevlerim</Link>
       <header>
-        <p className="text-xs font-semibold text-slate-400">{project.name}{project.store ? ` · ${project.store.name}` : ""}</p>
+        <p className="text-xs font-semibold text-slate-400">{project.name} · {project.project_type_label}{project.store ? ` · ${project.store.name}` : ""}</p>
+        {project.is_member && <Link href={`/user/projeler/${project.id}`} className="mt-1 inline-block text-xs font-semibold text-blue-700 hover:underline">Projenin tamamını aç</Link>}
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">{stage.order}. {stage.name}</h1>
         <p className="mt-1 text-sm text-slate-500">
           {stage.status === "completed" ? `Tamamlandı · ${formatServerDateTime(stage.completed_at)}` : stage.status === "in_progress" ? "Sıra sizde" : "Önceki aşama kapanınca başlar"}
@@ -91,6 +94,11 @@ export default function ProjectTaskPage() {
       {pending && <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><Clock className="mt-0.5 h-4 w-4 shrink-0" />Kapanış {formatServerDateTime(stage.approval_requested_at)} tarihinde yöneticiye onaya gönderildi. Yönetici onaylayınca proje tamamlanacak.</div>}
       {error && <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
       {success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
+
+      {stage.code === "uretim" && (
+        <ProductionNumbersCard projectId={project.id} numbers={task.production_numbers} canEnter={project.status === "active"}
+          onChanged={load} onError={setError} />
+      )}
 
       <section className="erp-section-card">
         <div className="border-b border-slate-100 px-5 py-4"><h2 className="text-sm font-semibold text-slate-900">Kontrol listesi</h2></div>
@@ -142,7 +150,7 @@ export default function ProjectTaskPage() {
 
       {(stage.code === "malzeme" || stage.code === "kapanis") && planned.length > 0 && (
         <section className="erp-section-card">
-          <div className="border-b border-slate-100 px-5 py-4"><h2 className="text-sm font-semibold text-slate-900">Malzeme durumu</h2><p className="mt-1 text-xs text-slate-400">Malzemeyi proje deposuna aktarma ve iade işlemlerini yönetici yapar.</p></div>
+          <div className="border-b border-slate-100 px-5 py-4"><h2 className="text-sm font-semibold text-slate-900">Malzeme durumu<InfoHint text="Malzemeyi proje deposuna aktarma ve iade işlemlerini yönetici yapar." /></h2></div>
           <div className="overflow-x-auto p-5"><table className="w-full min-w-[480px] text-sm">
             <thead><tr className="text-left text-[11px] font-semibold uppercase text-slate-400"><th className="py-1.5 pr-2">Malzeme</th><th className="px-2 text-right">Plan</th><th className="px-2 text-right">Depoda</th><th className="px-2 text-right">Kullanılan</th><th className="pl-2 text-right">Eksik</th></tr></thead>
             <tbody className="divide-y divide-slate-100">{planned.map((m) => (

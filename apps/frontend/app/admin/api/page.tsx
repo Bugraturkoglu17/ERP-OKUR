@@ -1,5 +1,6 @@
 'use client';
 
+import { InfoHint } from "@/components/ui/info-hint";
 // ─────────────────────────────────────────────────────────────────────────────
 //  OKUR — API Yönetim & Sistem Entegrasyon Kontrol Paneli
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,11 +84,7 @@ export default function ApiControlPanel() {
             </div>
             <h2 className="text-3xl font-extrabold tracking-tight font-sans">
               Type-Safe OpenAPI Kontrol Paneli
-            </h2>
-            <p className="text-slate-300 mt-2 text-sm max-w-xl font-medium">
-              FastAPI backend API sözleşmesi (OpenAPI) ve Next.js frontend arasındaki entegrasyonu, 
-              endpoint sağlık durumunu ve TypeScript veri tiplerinin uyumluluğunu yönetin.
-            </p>
+            <InfoHint text="FastAPI backend API sözleşmesi (OpenAPI) ve Next.js frontend arasındaki entegrasyonu, endpoint sağlık durumunu ve TypeScript veri tiplerinin uyumluluğunu yönetin." /></h2>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button 
@@ -206,8 +203,7 @@ export default function ApiControlPanel() {
           <div className="flex-1 flex flex-col">
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-950">FastAPI Swagger UI Önizleme</h3>
-                <p className="text-xs font-semibold text-slate-500 mt-0.5">Uvicorn API sunucunuzun canlı test arayüzü</p>
+                <h3 className="text-sm font-bold text-slate-950">FastAPI Swagger UI Önizleme<InfoHint text="Uvicorn API sunucunuzun canlı test arayüzü" /></h3>
               </div>
               <a 
                 href="http://localhost:8001/api/docs" 
@@ -288,8 +284,7 @@ export default function ApiControlPanel() {
         {activeTab === 'health' && (
           <div className="p-6 space-y-6">
             <div>
-              <h3 className="text-sm font-bold text-slate-950">Sistem Sağlık Tanı Logları</h3>
-              <p className="text-xs font-semibold text-slate-500 mt-1">Docker konteynerleri ve mikroservislerin canlı sağlık raporu.</p>
+              <h3 className="text-sm font-bold text-slate-950">Sistem Sağlık Tanı Logları<InfoHint text="Docker konteynerleri ve mikroservislerin canlı sağlık raporu." /></h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -322,11 +317,7 @@ export default function ApiControlPanel() {
                   <h4 className="text-xs font-bold text-slate-950 uppercase tracking-wider flex items-center gap-2">
                     <Activity size={14} className="text-indigo-600" />
                     Bütünlük Eşleşmesi
-                  </h4>
-                  <p className="text-xs font-semibold text-slate-500 leading-relaxed">
-                    Sistemimiz, OpenAPI standartlarında çalışmaktadır. Herhangi bir tip değişimi yapıldığında Next.js
-                    çalışma anında hata üretilmesi garantilenmiştir. Ölü ve geçersiz API uçları derleme adımında bloklanır.
-                  </p>
+                  <InfoHint text="Sistemimiz, OpenAPI standartlarında çalışmaktadır. Herhangi bir tip değişimi yapıldığında Next.js çalışma anında hata üretilmesi garantilenmiştir. Ölü ve geçersiz API uçları derleme adımında bloklanır." /></h4>
                 </div>
               </div>
 

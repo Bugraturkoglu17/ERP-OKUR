@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { formatQuantity } from "@/lib/quantity";
@@ -47,7 +48,7 @@ export function MaterialCatalog({ materials, manager, onEditThreshold }: {
   const price = (value?: string | null) => (value ? Number(value).toLocaleString("tr-TR", { maximumFractionDigits: 4 }) : "—");
 
   return <div className="p-4 sm:p-5">
-    <div><h2 className="font-semibold text-slate-900">Malzeme kataloğu</h2><p className="mt-0.5 text-xs text-slate-500">Tanımlı tüm stok kartları ve bilgileri. Depodaki miktarlar için &quot;Stok Durumu&quot; sekmesine bakın.</p></div>
+    <div><h2 className="font-semibold text-slate-900">Malzeme kataloğu<InfoHint text="Tanımlı tüm stok kartları ve bilgileri. Depodaki miktarlar için &quot;Stok Durumu&quot; sekmesine bakın." /></h2></div>
 
     <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]">
       <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Kod, ad, marka, tip veya kategori ara" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 pl-10 text-sm outline-none focus:border-[#d90070]" /></div>

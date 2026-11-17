@@ -5,7 +5,6 @@ import {
   Users,
   Shield,
   Settings,
-  UserRound,
   Boxes,
 } from "lucide-react";
 import { CorporateShell, type CorporateNavItem } from "@/components/layout/corporate-shell";
@@ -16,7 +15,6 @@ const NAV: CorporateNavItem[] = [
   { href: "/manager/depo-stok", label: "Depo & Stok", icon: Boxes },
   { href: "/admin/roles", label: "Roller & Yetkiler", icon: Shield },
   { href: "/admin/settings", label: "Sistem Ayarları", icon: Settings },
-  { href: "/admin/profile", label: "Profilim", icon: UserRound },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

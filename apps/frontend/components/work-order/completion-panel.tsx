@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AlertCircle, Boxes, CheckCircle2, ExternalLink, FileText, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import { apiDelete, apiGet, apiPut, getRequestErrorMessage } from "@/lib/api";
@@ -166,8 +167,7 @@ export function CompletionPanel({ c, closed, depotLabel }: { c: WorkOrderComplet
           <div className="flex min-w-0 items-center gap-2">
             <FileText className="h-4 w-4 shrink-0 text-slate-500" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Servis Formu</h3>
-              <p className="text-[11px] text-slate-500">Yalnızca imzalı servis formunun fotoğrafı veya PDF&apos;i. Tamamlamak için zorunludur.</p>
+              <h3 className="text-sm font-bold text-slate-900">Servis Formu<InfoHint text="Yalnızca imzalı servis formunun fotoğrafı veya PDF&apos;i. Tamamlamak için zorunludur." /></h3>
             </div>
           </div>
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.hasForm ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
@@ -218,10 +218,7 @@ export function CompletionPanel({ c, closed, depotLabel }: { c: WorkOrderComplet
           <div className="flex min-w-0 items-center gap-2">
             <Boxes className="h-4 w-4 shrink-0 text-slate-500" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Kullanılan Malzemeler</h3>
-              <p className="text-[11px] text-slate-500">
-                {closed ? "Bu iş tamamlandı; aşağıdaki malzemeler cep depodan düşüldü." : "Metraj veya adet yazın. Tamamlandı denildiğinde bu miktarlar cep depodan otomatik düşer ve yöneticiye bildirilir."}
-              </p>
+              <h3 className="text-sm font-bold text-slate-900">Kullanılan Malzemeler<InfoHint text={closed ? "Bu iş tamamlandı; aşağıdaki malzemeler cep depodan düşüldü." : "Metraj veya adet yazın. Tamamlandı denildiğinde bu miktarlar cep depodan otomatik düşer ve yöneticiye bildirilir."} /></h3>
             </div>
           </div>
           {depotLabel && <span className="shrink-0 rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{depotLabel}</span>}

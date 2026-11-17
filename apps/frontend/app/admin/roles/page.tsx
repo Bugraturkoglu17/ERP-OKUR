@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { Shield, Users, User } from "lucide-react";
 
 const ROLES = [
@@ -59,10 +60,7 @@ export default function AdminRolesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Roller & Yetkiler</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Sistem rolleri merkezi yetki yapısına göre yönetilir.
-        </p>
+        <h1 className="text-2xl font-bold text-slate-100">Roller & Yetkiler<InfoHint text="Sistem rolleri merkezi yetki yapısına göre yönetilir." /></h1>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

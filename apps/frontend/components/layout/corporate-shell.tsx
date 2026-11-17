@@ -10,6 +10,7 @@ import type { UserRole } from "@/lib/permissions";
 import type { BrandTone } from "@/components/brand/brand-mark";
 import { OkurWordmark } from "@/components/brand/okur-wordmark";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { HEADER_SLOT_ID } from "@/components/layout/header-slot";
 import { useMobileDrawer } from "@/hooks/use-mobile-drawer";
 
 export type CorporateNavItem = { href: string; label: string; icon: LucideIcon };
@@ -39,7 +40,7 @@ function CorporateSidebar({
       <div
         className="flex items-center justify-between border-b border-white/[0.06] px-4"
         style={{
-          minHeight: "calc(4rem + env(safe-area-inset-top))",
+          minHeight: "calc(3rem + env(safe-area-inset-top))",
           paddingTop: "env(safe-area-inset-top)",
         }}
       >
@@ -48,11 +49,11 @@ function CorporateSidebar({
             key={`sidebar-brand-${mobileOpen ? "open" : "closed"}`}
             dark
             animated
-            className="w-[5.5rem] shrink-0"
+            className="w-[4.5rem] shrink-0"
           />
           <div>
-            <span className="text-sm font-semibold tracking-[-0.02em] text-white leading-none">{title}</span>
-            <span className="block text-[10px] text-white/40 mt-0.5 uppercase tracking-widest">OKUR ERP</span>
+            <span className="block text-[13px] font-semibold leading-none tracking-[-0.02em] text-white">{title}</span>
+            <span className="mt-1 block text-[9px] uppercase leading-none tracking-widest text-white/40">OKUR ERP</span>
           </div>
         </div>
         <button type="button" aria-label="Yan paneli kapat" onClick={onClose} className="lg:hidden rounded-lg p-2 text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white">
@@ -149,21 +150,23 @@ export function CorporateShell({
           navItems={navItems}
         />
         <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-hidden">
-          <header className="fixed inset-x-0 top-0 z-30 flex min-h-[calc(4rem_+_env(safe-area-inset-top))] shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 pb-0 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-xl sm:px-6 lg:static lg:min-h-16 lg:shadow-none">
+          <header className="fixed inset-x-0 top-0 z-30 flex min-h-[calc(3rem_+_env(safe-area-inset-top))] shrink-0 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/95 px-4 pb-0 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-xl sm:px-6 lg:static lg:min-h-12 lg:shadow-none">
             <button
               onClick={drawer.openDrawer}
-              className={`h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-[0.98] lg:hidden ${drawer.open ? "hidden" : "flex"}`}
+              className={`h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-[0.98] lg:hidden ${drawer.open ? "hidden" : "flex"}`}
               aria-label="Menüyü aç"
               aria-hidden={drawer.open}
               tabIndex={drawer.open ? -1 : undefined}
             >
               <Menu className="h-4 w-4" />
             </button>
-            <div className="hidden lg:block">
-              <p className="text-xs font-semibold tracking-[-0.01em] text-slate-700">OKUR ERP</p>
-              <p className="mt-0.5 text-[10px] text-slate-400">Güvenli operasyon çalışma alanı</p>
-            </div>
+            <p className="hidden min-w-0 items-baseline gap-2 truncate lg:flex">
+              <span className="text-xs font-semibold tracking-[-0.01em] text-slate-700">OKUR ERP</span>
+              <span className="truncate text-[11px] text-slate-400">Güvenli operasyon çalışma alanı</span>
+            </p>
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              {/* Sayfaya özel düğmeler (HeaderSlot) buraya yerleşir. */}
+              <div id={HEADER_SLOT_ID} className="flex shrink-0 items-center gap-2 empty:hidden" />
               <div className="flex min-w-0 items-center gap-2">
                 <div className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-50" />
                 <span className="max-w-[6.5rem] truncate text-[11px] font-semibold tracking-wide text-slate-500 sm:max-w-none">{headerLabel}</span>
@@ -171,7 +174,7 @@ export function CorporateShell({
               <NotificationBell />
             </div>
           </header>
-          <main id="main-content" className="erp-workspace min-w-0 flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(5rem_+_env(safe-area-inset-top))] sm:p-6 sm:pt-[calc(5rem_+_env(safe-area-inset-top))] lg:p-8">{children}</main>
+          <main id="main-content" className="erp-workspace min-w-0 flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(4rem_+_env(safe-area-inset-top))] sm:p-6 sm:pt-[calc(4rem_+_env(safe-area-inset-top))] lg:p-8">{children}</main>
         </div>
       </div>
     </RoleGuard>

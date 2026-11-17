@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowRight, FolderKanban, Plus, Search } from "lucide-react";
@@ -30,15 +31,14 @@ export default function ProjectsPage() {
 
   const visible = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr-TR");
-    return projects.filter((p) => p.status === tab && (!q || `${p.name} ${p.store_name ?? ""} ${p.store_no ?? ""}`.toLocaleLowerCase("tr-TR").includes(q)));
+    return projects.filter((p) => p.status === tab && (!q || `${p.name} ${p.project_type_label} ${p.store_name ?? ""} ${p.store_no ?? ""}`.toLocaleLowerCase("tr-TR").includes(q)));
   }, [projects, tab, query]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">Projeler</h1>
-          <p className="mt-1 text-sm text-slate-500">Yeni soğutma kurulumlarını keşiften kapanışa kadar aşama aşama takip edin.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950">Projeler<InfoHint text="Yeni soğutma kurulumlarını keşiften kapanışa kadar aşama aşama takip edin." /></h1>
         </div>
         <Link href="/manager/projeler/yeni" className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"><Plus className="h-4 w-4" />Yeni Proje</Link>
       </header>
@@ -72,8 +72,8 @@ export default function ProjectsPage() {
                 <Link key={p.id} href={`/manager/projeler/${p.id}`} className="group block rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-900">{p.name}</p>
-                      <p className="mt-0.5 truncate text-xs text-slate-500">{p.store_name ?? "Yer bilgisi yok"}{p.store_no ? ` · ${p.store_no}` : ""}{p.manager_name ? ` · Sorumlu: ${p.manager_name}` : ""}</p>
+                      <p className="flex min-w-0 items-center gap-2"><span className="truncate font-semibold text-slate-900">{p.name}</span><span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">{p.project_type_label}</span></p>
+                      <p className="mt-0.5 truncate text-xs text-slate-500">{p.store_name ?? "Yer bilgisi yok"}{p.store_no ? ` · ${p.store_no}` : ""}{p.manager_name ? ` · Sorumlu: ${p.manager_name}` : ""}{p.member_count ? ` · ${p.member_count} kişi atandı` : ""}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       {p.overdue && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">Hedef tarih geçti</span>}

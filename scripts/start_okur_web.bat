@@ -1,9 +1,15 @@
 @echo off
 rem Okur ERP: PostgreSQL (5433), API (8001) ve arayuzu (3001, uretim modu) baslatir, uygulama penceresinde acar.
-set "ROOT=%~dp0.."
+for %%I in ("%~dp0..") do set "ROOT=%%~fI"
 set "PGBIN=%ROOT%\local-data\pgvenv\Lib\site-packages\pgserver\pginstall\bin"
+set "NOWIN="
+if /i "%~1"=="/nowindow" set "NOWIN=1"
 title Okur ERP aciliyor
 echo Okur ERP aciliyor, lutfen bekleyin...
+
+rem Portlarda baska bir kopya, gelistirme sunucusu ya da eski kodla calisan API varsa kapatilir;
+rem boylece asagida her zaman bu klasordeki guncel surum baslar.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\ensure_own_servers.ps1"
 
 rem PostgreSQL
 "%PGBIN%\pg_ctl.exe" status -D "%ROOT%\local-data\pgdata" >nul 2>&1
@@ -14,15 +20,22 @@ netstat -ano | findstr /r /c:"127.0.0.1:8001 .*LISTENING" >nul
 if errorlevel 1 start "Okur ERP - API (8001)" /d "%ROOT%\apps\backend" "%ROOT%\apps\backend\.venv\Scripts\python.exe" -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 
 rem Web (uretim modu): kod degistiyse once derlenir, sonra hazir derleme calistirilir.
+rem Arayuz sunucusu acik kalmis ama kod degismisse, eski sunucu kapatilir ki yeni surum derlenip acilsin.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\build_web_if_needed.ps1" -CheckOnly >nul 2>&1
+if errorlevel 2 (
+    echo Kod degismis; calisan arayuz yenileniyor...
+    powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+    timeout /t 2 /nobreak >nul
+)
 netstat -ano | findstr /r /c:"127.0.0.1:3001 .*LISTENING" >nul
 if errorlevel 1 (
     powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\build_web_if_needed.ps1"
     if errorlevel 1 (
         echo Arayuz derlenemedi. Ayrintilar yukarida.
-        pause
+        if not defined NOWIN pause
         exit /b 1
     )
-    start "Okur ERP - Web (3001)" /d "%ROOT%\apps\frontend\.next-prod\standalone" cmd /c "set PORT=3001&& set HOSTNAME=127.0.0.1&& node server.js"
+    start "Okur ERP - Web (3001)" /d "%ROOT%\apps\frontend\.next-prod\standalone" cmd /c "set PORT=3001&& set HOSTNAME=127.0.0.1&& node "%ROOT%\apps\frontend\.next-prod\standalone\server.js""
 )
 
 rem Pencere, API ve arayuz yanit vermeye baslayinca acilir (en fazla ~3 dakika beklenir).
@@ -34,12 +47,14 @@ powershell -NoProfile -Command "try { $null = Invoke-WebRequest -UseBasicParsing
 if not errorlevel 1 goto hazir
 if %TRIES% GEQ 90 (
     echo Sunucular zamaninda acilmadi. "Okur ERP - API" ve "Okur ERP - Web" pencerelerindeki hatalara bakin.
-    pause
+    if not defined NOWIN pause
     exit /b 1
 )
 timeout /t 2 /nobreak >nul
 goto bekle
 :hazir
+rem /nowindow: sunucular hazir olunca pencere acmadan biter (gelistirme sirasinda yeniden derleme icin).
+if defined NOWIN exit /b 0
 
 rem Adres cubugu ve sekmeler olmadan, ayri bir uygulama penceresi (Chrome/Edge --app).
 set "URL=http://localhost:3001"

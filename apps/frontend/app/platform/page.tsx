@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Building2, CreditCard, TriangleAlert, Users } from "lucide-react";
@@ -79,8 +80,7 @@ export default function PlatformDashboardPage() {
 
       {/* Sayfa başlığı */}
       <div>
-        <h1 className="text-xl font-bold text-slate-900">Genel Bakış</h1>
-        <p className="mt-1 text-sm text-slate-500">Sistem genelindeki firma ve lisans durumunu görüntüleyin.</p>
+        <h1 className="text-xl font-bold text-slate-900">Genel Bakış<InfoHint text="Sistem genelindeki firma ve lisans durumunu görüntüleyin." /></h1>
       </div>
 
       {/* İstatistikler */}

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -288,10 +289,7 @@ export function DashboardOverview() {
       {/* Başlık + Arama */}
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Genel Bakış</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Mağaza kartları, iş emirleri ve dosyaları tek ekrandan takip edin.
-          </p>
+          <h1 className="text-xl font-bold text-slate-900">Genel Bakış<InfoHint text="Mağaza kartları, iş emirleri ve dosyaları tek ekrandan takip edin." /></h1>
         </div>
         <SmartSearch projects={projects} />
       </div>

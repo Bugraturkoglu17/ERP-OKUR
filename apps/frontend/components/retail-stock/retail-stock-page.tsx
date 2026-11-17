@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
@@ -234,8 +235,7 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-[#bd0063]">OKUR · SAHA LOJİSTİĞİ</p>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Depo & Stok</h1>
-        <p className="mt-1 max-w-2xl text-sm text-slate-500">Ana depodan plakalı araçlara aktarın. Kullanılan malzeme, iş emri tamamlanınca çalışanın cep deposundan otomatik düşer.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Depo & Stok<InfoHint text="Ana depodan plakalı araçlara aktarın. Kullanılan malzeme, iş emri tamamlanınca çalışanın cep deposundan otomatik düşer." /></h1>
       </div>
       <div className="flex flex-wrap gap-2">
         {manager && <button type="button" onClick={() => openAction("material")} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:border-[#d90070]/40"><Plus className="h-4 w-4" /> Malzeme ekle</button>}
@@ -268,7 +268,7 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
 
       {tab === "stock" && <div id="stok-listesi" className="scroll-mt-4 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="font-semibold text-slate-900">Depo bakiyesi</h2><p className="mt-0.5 text-xs text-slate-500">Miktarlar hareket kaydından güncellenir; eksi stok mümkün değildir.</p></div>
+          <div><h2 className="font-semibold text-slate-900">Depo bakiyesi<InfoHint text="Miktarlar hareket kaydından güncellenir; eksi stok mümkün değildir." /></h2></div>
           <div className="flex flex-wrap gap-2">
             {manager && mainDepot && materials.length > 0 && <button type="button" onClick={() => openAction("opening")} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">Stok girişi</button>}
             {canTransfer && <button type="button" onClick={() => setTransferOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white"><ArrowRightLeft className="h-3.5 w-3.5" />{manager ? "Aktarım" : "Ana depoya iade"}</button>}

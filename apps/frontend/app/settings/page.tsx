@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -584,10 +585,7 @@ export default function SettingsPage() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight flex items-center gap-3">
               Sistem Ayarları <span className="rounded-full bg-indigo-500/20 border border-indigo-400/30 px-2.5 py-0.5 text-xs font-semibold tracking-wide text-indigo-200 uppercase">Firma Yönetimi</span>
-            </h2>
-            <p className="mt-1.5 text-xs text-slate-350 max-w-3xl">
-              Firma yasal bilgileri, organizasyon şeması hiyerarşisi, kurumsal e-posta entegrasyonları, finansal varsayımlar ve güvenlik politikalarını tek bir merkezi panelden yönetin.
-            </p>
+            <InfoHint text="Firma yasal bilgileri, organizasyon şeması hiyerarşisi, kurumsal e-posta entegrasyonları, finansal varsayımlar ve güvenlik politikalarını tek bir merkezi panelden yönetin." /></h2>
           </div>
           <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-1.5 rounded-full self-start lg:self-center">
             <CheckCircle2 className="h-4 w-4" />
@@ -736,8 +734,7 @@ export default function SettingsPage() {
               <div className="border-b border-slate-100 pb-4">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2.5">
                   <Building2 className="h-5 w-5 text-indigo-500" /> Kurumsal Profil & Arayüz Markalama
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">Firma resmi yasal bilgilerini ve panel marka görsel ayarlarını buradan yönetebilirsiniz.</p>
+                <InfoHint text="Firma resmi yasal bilgilerini ve panel marka görsel ayarlarını buradan yönetebilirsiniz." /></h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -855,8 +852,7 @@ export default function SettingsPage() {
                 <div>
                   <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2.5">
                     <Layers className="h-5 w-5 text-indigo-500" /> Organizasyon & Hiyerarşi Yönetimi
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1">Müşteri firmaları, onlara bağlı bölgeleri ve bu bölgelerin altındaki şubeleri merkezi olarak yönetin.</p>
+                  <InfoHint text="Müşteri firmaları, onlara bağlı bölgeleri ve bu bölgelerin altındaki şubeleri merkezi olarak yönetin." /></h3>
                 </div>
                 <button
                   onClick={loadHierarchy}
@@ -1061,10 +1057,7 @@ export default function SettingsPage() {
                   <div>
                     <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-amber-500 animate-pulse" /> Hazır Zincir Market Şablonları
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Türkiye'nin en yaygın zincir marketlerinin güncel şube verilerini otomatik olarak kurumsal hiyerarşinize aktarın veya CSV şablonu olarak indirin.
-                    </p>
+                    <InfoHint text="Türkiye'nin en yaygın zincir marketlerinin güncel şube verilerini otomatik olarak kurumsal hiyerarşinize aktarın veya CSV şablonu olarak indirin." /></h4>
                   </div>
                 </div>
 
@@ -1269,8 +1262,7 @@ export default function SettingsPage() {
               <div className="border-b border-slate-100 pb-4">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2.5">
                   <Workflow className="h-5 w-5 text-indigo-500" /> Operasyon & Finans Varsayımları
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">Stok, onaylama, faturalama ve varsayılan vade süreçlerinin finansal ayarlarını düzenleyin.</p>
+                <InfoHint text="Stok, onaylama, faturalama ve varsayılan vade süreçlerinin finansal ayarlarını düzenleyin." /></h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -1345,8 +1337,7 @@ export default function SettingsPage() {
               <div className="border-b border-slate-100 pb-4">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2.5">
                   <Mail className="h-5 w-5 text-indigo-500" /> E-posta & Entegrasyon Altyapısı
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">Sistem tarafından gönderilen onay, şifre sıfırlama ve fatura e-postalarının kimliğini ve sıklığını yönetin.</p>
+                <InfoHint text="Sistem tarafından gönderilen onay, şifre sıfırlama ve fatura e-postalarının kimliğini ve sıklığını yönetin." /></h3>
               </div>
 
               {/* E-posta Gönderim Türü Seçimi */}
@@ -1460,8 +1451,7 @@ export default function SettingsPage() {
               <div className="border-b border-slate-100 pb-4">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2.5">
                   <Shield className="h-5 w-5 text-indigo-500" /> Güvenlik Politikaları & Oturum Denetimi
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">İki faktörlü kimlik doğrulama, oturum zaman aşımı ve yetkili IP erişim kısıtlamalarını yönetin.</p>
+                <InfoHint text="İki faktörlü kimlik doğrulama, oturum zaman aşımı ve yetkili IP erişim kısıtlamalarını yönetin." /></h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

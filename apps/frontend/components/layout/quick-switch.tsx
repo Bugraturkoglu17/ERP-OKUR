@@ -41,6 +41,22 @@ export function QuickSwitch({ onNavigate }: { onNavigate?: () => void }) {
 
   if (!user) return null;
 
+  // Profil sayfası yan menüde ayrı bir satır değildir; en alttaki "Aktif hesap" alanına tıklanarak açılır.
+  const panel = pathname.split("/")[1];
+  const profileHref = `/${["admin", "manager", "user"].includes(panel) ? panel : "user"}/profile`;
+  const onProfile = pathname.startsWith(profileHref);
+  const accountLink = (
+    <Link href={profileHref} draggable={false} onClick={onNavigate} title="Profilim" aria-label={`Profilim (${ROLE_LABEL[user.role]})`}
+      aria-current={onProfile ? "page" : undefined}
+      className={`group flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.06] ${onProfile ? "bg-white/[0.09]" : ""}`}>
+      <UserRound className={`h-4 w-4 shrink-0 ${onProfile ? "text-white" : "text-slate-500 group-hover:text-slate-300"}`} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-medium text-white">{ROLE_LABEL[user.role]}</span>
+        <span className="block text-[10px] text-white/40 group-hover:text-white/60">Aktif hesap · Profilim</span>
+      </span>
+    </Link>
+  );
+
   const switchTo = async (acc: (typeof QUICK_ACCOUNTS)[0]) => {
     setSwitching(acc.role);
     try {
@@ -73,7 +89,10 @@ export function QuickSwitch({ onNavigate }: { onNavigate?: () => void }) {
               {switching === acc.role ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}
             </button>))}</div>
         </>}
-        <button onClick={() => void handleLogout()} disabled={loggingOut} className="mt-3 flex w-full items-center gap-2 border-t border-white/[0.06] px-2 pt-3 text-xs text-slate-400 hover:text-white disabled:opacity-50">{loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}Çıkış Yap</button>
+        <div className="mt-3 flex items-center gap-1 border-t border-white/[0.06] pt-2">
+          {accountLink}
+          <button onClick={() => void handleLogout()} disabled={loggingOut} title="Çıkış Yap" aria-label="Çıkış Yap" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white disabled:opacity-50">{loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}</button>
+        </div>
       </div>
     );
   }
@@ -108,16 +127,13 @@ export function QuickSwitch({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </div>}
 
-      <div className="flex items-center gap-2.5 border-t border-white/[0.06] p-3">
-        <UserRound className="h-4 w-4 shrink-0 text-slate-500" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium text-white">{ROLE_LABEL[user.role]}</p>
-          <p className="text-[10px] text-white/40">Aktif hesap</p>
-        </div>
+      <div className="flex items-center gap-1 border-t border-white/[0.06] px-1 py-2 pr-3">
+        {accountLink}
         <button
           onClick={() => void handleLogout()}
           disabled={loggingOut}
           title="Çıkış Yap"
+          aria-label="Çıkış Yap"
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-white/[0.06] hover:text-white transition-colors"
         >
           {loggingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowRight, FileText, Loader2, Search } from "lucide-react";
@@ -62,8 +63,7 @@ export default function ManagerReportsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Operasyon kayıtları</p>
-          <h1 className="mt-1 text-2xl font-bold text-slate-950">Raporlar</h1>
-          <p className="mt-1 text-sm text-slate-500">Tüm iş emirlerindeki saha raporlarını tek ekrandan inceleyin.</p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-950">Raporlar<InfoHint text="Tüm iş emirlerindeki saha raporlarını tek ekrandan inceleyin." /></h1>
         </div>
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-2.5">
           <p className="text-xs font-medium text-red-600">Kritik rapor</p>

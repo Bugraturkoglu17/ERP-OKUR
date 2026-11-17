@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FileText, FolderOpen, HardHat, Search, Store } from "lucide-react";
@@ -31,8 +32,7 @@ export default function TadilatDosyalarPage() {
           <FileText className="h-5 w-5 text-amber-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Tadilat Dosyaları</h1>
-          <p className="text-xs text-slate-500">Tadilat projelerine ait proje dosyalarını takip edin.</p>
+          <h1 className="text-lg font-bold text-slate-900">Tadilat Dosyaları<InfoHint text="Tadilat projelerine ait proje dosyalarını takip edin." /></h1>
         </div>
       </div>
 

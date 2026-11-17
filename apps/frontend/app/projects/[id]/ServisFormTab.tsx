@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { Archive, FileText, Folder, Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useDocActions } from "@/hooks/use-doc-actions";
@@ -32,8 +33,7 @@ export default function ServisFormTab({ docs, onDeleted }: { docs: Document[]; o
     return (
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">Servis Formları</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Bu mağazaya ait servis formları burada görüntülenir.</p>
+          <h3 className="text-sm font-semibold text-slate-800">Servis Formları<InfoHint text="Bu mağazaya ait servis formları burada görüntülenir." /></h3>
         </div>
         <div className="flex flex-col items-center justify-center py-14 gap-3">
           <Folder className="h-8 w-8 text-slate-200" />
@@ -47,8 +47,7 @@ export default function ServisFormTab({ docs, onDeleted }: { docs: Document[]; o
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-slate-800">Servis Formları</h3>
-        <p className="text-xs text-slate-400 mt-0.5">Bu mağazaya ait servis formları burada görüntülenir.</p>
+        <h3 className="text-sm font-semibold text-slate-800">Servis Formları<InfoHint text="Bu mağazaya ait servis formları burada görüntülenir." /></h3>
       </div>
 
       {actionError && (

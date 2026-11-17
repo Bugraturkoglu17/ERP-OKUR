@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Users, ClipboardList, Shield, Activity, ArrowRight } from "lucide-react";
@@ -48,8 +49,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Genel Bakış</h1>
-        <p className="mt-1 text-sm text-slate-500">Hesaplar, roller ve sistem yönetimi özeti.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Genel Bakış<InfoHint text="Hesaplar, roller ve sistem yönetimi özeti." /></h1>
       </div>
 
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">

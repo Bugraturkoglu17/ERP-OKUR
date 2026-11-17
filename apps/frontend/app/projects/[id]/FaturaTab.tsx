@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -143,8 +144,7 @@ export default function FaturaTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-slate-800">Faturalar</h3>
-        <p className="text-[11px] text-slate-400 mt-0.5">Mağazaya ait tüm modüllerden fatura kayıtları</p>
+        <h3 className="text-sm font-semibold text-slate-800">Faturalar<InfoHint text="Mağazaya ait tüm modüllerden fatura kayıtları" /></h3>
       </div>
 
       {/* Read-only banner */}

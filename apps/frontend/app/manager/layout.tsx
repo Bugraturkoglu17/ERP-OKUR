@@ -8,10 +8,10 @@ import {
   BarChart3,
   Users,
   DatabaseBackup,
-  UserRound,
   Boxes,
   PieChart,
   FolderKanban,
+  HardHat,
 } from "lucide-react";
 import { CorporateShell, type CorporateNavItem } from "@/components/layout/corporate-shell";
 import { useAuth } from "@/contexts/auth-context";
@@ -20,13 +20,13 @@ const BASE_NAV: CorporateNavItem[] = [
   { href: "/manager/dashboard", label: "Genel Bakış", icon: LayoutDashboard },
   { href: "/manager/is-emirleri", label: "İş Emirleri", icon: ClipboardList },
   { href: "/manager/projeler", label: "Projeler", icon: FolderKanban },
+  { href: "/manager/taseronlar", label: "Taşeron Kartları", icon: HardHat },
   { href: "/manager/magaza-karti", label: "Mağaza Kartı", icon: Store },
   { href: "/manager/depo-stok", label: "Depo & Stok", icon: Boxes },
   { href: "/manager/genel-arsiv", label: "Genel Arşiv", icon: Archive },
   { href: "/manager/kullanicilar", label: "Kullanıcılar", icon: Users },
   { href: "/manager/istatistikler", label: "İstatistikler", icon: PieChart },
   { href: "/manager/raporlar", label: "Raporlar", icon: BarChart3 },
-  { href: "/manager/profile", label: "Profilim", icon: UserRound },
 ];
 
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {

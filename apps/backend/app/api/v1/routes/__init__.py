@@ -9,7 +9,7 @@ from app.api.v1.routes import (
     procurement, field_reports, whatsapp,
     store_process, service_forms, progress_payments, approvals, invoice_records,
     work_orders, store_assignments, notifications, backup, push, retail_stock,
-    installation_projects,
+    installation_projects, subcontractors,
 )
 
 router = APIRouter()
@@ -19,6 +19,7 @@ router.include_router(projects.router,          prefix="/projects",          tag
 router.include_router(inventory.router,         prefix="/inventory",         tags=["inventory"])
 router.include_router(retail_stock.router,      prefix="/retail-stock",      tags=["retail-stock"])
 router.include_router(installation_projects.router, prefix="/installation-projects", tags=["installation-projects"])
+router.include_router(subcontractors.router,    prefix="/subcontractors",    tags=["subcontractors"])
 router.include_router(finance.router,           prefix="/finance",           tags=["finance"])
 router.include_router(documents.router,         prefix="/documents",         tags=["documents"])
 router.include_router(platform.router,          prefix="/platform",          tags=["platform"])

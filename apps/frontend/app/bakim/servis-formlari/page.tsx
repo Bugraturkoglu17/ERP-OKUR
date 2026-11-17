@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -124,8 +125,7 @@ export default function BakimServisFormlariPage() {
           <FileText className="h-5 w-5 text-sky-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Servis Formları</h1>
-          <p className="text-xs text-slate-500">Bakım mağazalarına ait aylık servis formları</p>
+          <h1 className="text-lg font-bold text-slate-900">Servis Formları<InfoHint text="Bakım mağazalarına ait aylık servis formları" /></h1>
         </div>
       </div>
 

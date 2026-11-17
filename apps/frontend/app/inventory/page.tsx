@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useState, useEffect } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import { 
@@ -430,11 +431,7 @@ export default function InventoryPage() {
             <div className="flex items-center gap-2 text-indigo-300 text-[10px] font-black uppercase tracking-wider mb-2 bg-indigo-900/50 px-3 py-1 rounded-md w-fit border border-indigo-800">
               <Activity className="w-3.5 h-3.5" /> Depo & Envanter Yönetimi
             </div>
-            <h2 className="text-2xl lg:text-3xl font-black tracking-tight font-sans">SİSMİK Stok Yönetimi</h2>
-            <p className="text-slate-300 mt-1.5 text-xs lg:text-sm max-w-2xl font-medium leading-relaxed">
-              Merkez depoları, dinamik şantiye envanterlerini ve stok hareketlerini gerçek zamanlı takip edin. 
-              Rol tabanlı yetkilendirme ile kontrollü satın alma, sarfiyat ve transfer süreçleri yürütün.
-            </p>
+            <h2 className="text-2xl lg:text-3xl font-black tracking-tight font-sans">SİSMİK Stok Yönetimi<InfoHint text="Merkez depoları, dinamik şantiye envanterlerini ve stok hareketlerini gerçek zamanlı takip edin. Rol tabanlı yetkilendirme ile kontrollü satın alma, sarfiyat ve transfer süreçleri yürütün." /></h2>
           </div>
           
           <div className="flex flex-wrap items-center gap-3">
@@ -717,8 +714,7 @@ export default function InventoryPage() {
                 <div className="corp-card">
                   <div className="p-5 bg-slate-50 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h3 className="font-extrabold text-slate-800 text-sm">{selectedWarehouse.name}</h3>
-                      <p className="text-[11px] text-slate-500 font-medium mt-1">Bu deponun anlık malzeme stok seviyeleri</p>
+                      <h3 className="font-extrabold text-slate-800 text-sm">{selectedWarehouse.name}<InfoHint text="Bu deponun anlık malzeme stok seviyeleri" /></h3>
                     </div>
                     
                     {/* Stocks Search */}
@@ -956,8 +952,7 @@ export default function InventoryPage() {
             
             <div className="p-5 border-b flex items-center justify-between bg-slate-900 text-white">
               <div>
-                <h3 className="text-base font-black tracking-tight">Yeni Stok Hareketi Sihirbazı</h3>
-                <p className="text-[10px] text-slate-300 mt-0.5 font-medium">Birim maliyet, irsaliye ve proje entegrasyonu ile stok yönetimi</p>
+                <h3 className="text-base font-black tracking-tight">Yeni Stok Hareketi Sihirbazı<InfoHint text="Birim maliyet, irsaliye ve proje entegrasyonu ile stok yönetimi" /></h3>
               </div>
               <button 
                 onClick={() => setIsTxModalOpen(false)} 
@@ -1139,8 +1134,7 @@ export default function InventoryPage() {
               <div>
                 <h3 className="text-base font-black tracking-tight">
                   {editingMaterial ? "Malzeme Tanımını Düzenle" : "Malzeme Kataloğuna Ekle"}
-                </h3>
-                <p className="text-[10px] text-slate-300 mt-0.5 font-medium">Sistem düzeyinde malzeme kartı tanımlayın</p>
+                <InfoHint text="Sistem düzeyinde malzeme kartı tanımlayın" /></h3>
               </div>
               <button onClick={() => {
                 setIsMaterialModalOpen(false);
@@ -1265,8 +1259,7 @@ export default function InventoryPage() {
               <div>
                 <h3 className="text-base font-black tracking-tight">
                   {editingWarehouse ? "Depo Kartını Düzenle" : "Yeni Depo Kaydet"}
-                </h3>
-                <p className="text-[10px] text-slate-300 mt-0.5 font-medium">Merkez veya şantiye lojistik deposu oluşturun</p>
+                <InfoHint text="Merkez veya şantiye lojistik deposu oluşturun" /></h3>
               </div>
               <button onClick={() => {
                 setIsWarehouseModalOpen(false);

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock, FileText, FolderOpen, Search } from "lucide-react";
@@ -65,8 +66,7 @@ export default function BakimIcmallerPage() {
           <FileText className="h-5 w-5 text-sky-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Bakım İcmalleri</h1>
-          <p className="text-xs text-slate-500">Bakım mağazalarına ait aylık icmal takibi</p>
+          <h1 className="text-lg font-bold text-slate-900">Bakım İcmalleri<InfoHint text="Bakım mağazalarına ait aylık icmal takibi" /></h1>
         </div>
       </div>
 

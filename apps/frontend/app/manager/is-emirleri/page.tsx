@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { formatServerDateTime, isPastDue, localToday, parseServerDate } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -123,8 +124,7 @@ export default function ManagerWorkOrdersPage() {
     <div className="mx-auto max-w-7xl space-y-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">İş Emirleri</h1>
-          <p className="mt-1 text-sm text-slate-500">Arıza, tadilat ve yeni yapım görevlerini oluşturun, atayın ve takip edin.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950">İş Emirleri<InfoHint text="Arıza, tadilat ve yeni yapım görevlerini oluşturun, atayın ve takip edin." /></h1>
         </div>
         <Link href="/manager/is-emirleri/yeni" className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:scale-[0.98]">
           <Plus className="h-4 w-4" /> İş Emri Oluştur

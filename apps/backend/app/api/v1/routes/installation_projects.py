@@ -1,16 +1,19 @@
 """Kurulum projeleri ("Proje" iş tipi).
 
-Yeni bir soğutma kurulumu keşiften kapanışa kadar sabit 8 aşamadan geçer. Her aşamanın bir
-kontrol listesi ve kapanma şartları vardır (gerekli belge, malzeme hazırlığı, montaj iş
-emirlerinin bitmesi vb.); aşamalar sırayla kapanır. Her projenin kendi deposu (kind='project')
-vardır: malzeme ana depodan buraya aktarılır, projeye bağlı iş emirleri buradan düşer.
+Yeni bir kurulum (tür: market / soğuk oda / soğutma) keşiften kapanışa kadar sabit 9 aşamadan
+geçer. Her aşamanın bir kontrol listesi ve kapanma şartları vardır (gerekli belge, üretim no,
+malzeme hazırlığı, montaj iş emirlerinin bitmesi vb.); aşamalar sırayla kapanır. Her projenin
+kendi deposu (kind='project') vardır: malzeme ana depodan buraya aktarılır, projeye bağlı iş
+emirleri buradan düşer.
 
-Yalnızca yöneticiler kullanır; teknisyenler projeye bağlı iş emirlerini normal iş emri
-ekranlarında görür.
+Projeyi yöneticiler yönetir. Projeye atanan kişiler (members) projenin tüm aşamalarını ve
+maliyetlerini görür, üretim no ve maliyet girebilir; aşama sorumlusu kendi aşamasını yürütür.
+Teknisyenler projeye bağlı iş emirlerini normal iş emri ekranlarında görür.
 """
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
@@ -27,9 +30,10 @@ from app.core.storage import sanitize_filename, storage
 from app.services.alerts import manager_ids
 from app.core.notifications import notify
 from app.db.models import (
-    InstallationProject, InstallationProjectChecklistItem, InstallationProjectDocument,
-    InstallationProjectMaterial, InstallationProjectStage, Project, RetailBalance, RetailDepot,
-    RetailMaterial, RetailMovement, Tenant, User, WorkOrder, utc_now,
+    Customer, InstallationProject, InstallationProjectChecklistItem, InstallationProjectCost,
+    InstallationProjectDocument, InstallationProjectMaterial, InstallationProjectMember,
+    InstallationProjectProductionNumber, InstallationProjectStage, Project, Region, RetailBalance,
+    RetailDepot, RetailMaterial, RetailMovement, Tenant, User, WorkOrder, utc_now,
 )
 
 router = APIRouter()
@@ -49,29 +53,48 @@ DOC_TYPES = {
     "sozlesme": "Onay / sözleşme",
     "test_formu": "Test formu",
     "kabul_tutanagi": "Kabul tutanağı",
+    "fatura": "Fatura",
     "diger": "Diğer",
 }
+INVOICE_DOC = "fatura"  # Proje kapandıktan sonra da yüklenebilen tek belge türü.
+DEFAULT_VAT_RATE = Decimal("20")
+INVOICE_PARTY_FIELDS = ("invoice_title", "invoice_tax_office", "invoice_tax_no", "invoice_address")
 
 # (sıra, kod, ad, gerekli belge türleri, ek kural, varsayılan kontrol listesi)
 STAGE_TEMPLATE: list[tuple[int, str, str, list[str], Optional[str], list[str]]] = [
     (1, "kesif", "Keşif", ["kesif_raporu", "fotograf"], None,
      ["Yer ölçüleri alındı", "Mevcut durum fotoğraflandı", "Müşteri ihtiyacı not edildi"]),
-    (2, "teklif", "Projelendirme ve teklif", ["teklif"], "materials_listed",
+    # Malzeme listesi artık yalnızca "Malzeme hazırlığı" aşamasında girildiği için bu aşamada
+    # "malzeme listesi girilmiş olmalı" şartı aranmaz; liste şartı 5. aşamadaki materials_ready içindedir.
+    (2, "teklif", "Projelendirme ve teklif", ["teklif"], None,
      ["Soğutma ihtiyacı hesaplandı", "Çizim hazırlandı", "Malzeme listesi çıkarıldı", "Teklif hazırlandı"]),
     (3, "onay", "Müşteri onayı", ["sozlesme"], None,
      ["Teklif müşteriye iletildi", "Müşteri onayı alındı", "Avans (varsa) alındı"]),
-    (4, "malzeme", "Malzeme hazırlığı", [], "materials_ready",
+    (4, "uretim", "Üretim", [], "production_number", []),
+    (5, "malzeme", "Malzeme hazırlığı", [], "materials_ready",
      ["Eksik malzemeler belirlendi", "Malzemeler proje deposuna aktarıldı"]),
-    (5, "montaj", "Montaj", [], "work_orders_done",
+    (6, "montaj", "Montaj", [], "work_orders_done",
      ["Ekip ve tarihler planlandı", "Montaj tamamlandı"]),
-    (6, "test", "Devreye alma ve test", ["test_formu"], None, []),
-    (7, "teslim", "Teslim", ["kabul_tutanagi"], None,
+    (7, "test", "Devreye alma ve test", ["test_formu"], None, []),
+    (8, "teslim", "Teslim", ["kabul_tutanagi"], None,
      ["Kullanıcı eğitimi verildi", "Son çizimler teslim edildi"]),
-    (8, "kapanis", "Kapanış", [], "depot_empty",
+    (9, "kapanis", "Kapanış", [], "depot_empty",
      ["Teklif ile gerçekleşen maliyet karşılaştırıldı", "Hakediş / fatura kesildi"]),
 ]
 STAGE_BY_CODE = {code: (docs, rule) for _, code, _, docs, rule, _ in STAGE_TEMPLATE}
+
+PROJECT_TYPES = {"market": "Market", "soguk_oda": "Soğuk oda", "sogutma": "Soğutma"}
+COST_KINDS = {"target": "Hedeflenen", "actual": "Gerçekleşen"}
+COST_CATEGORIES = {
+    "montaj_iscilik": "Montaj işçilik bedeli",
+    "nakliye": "Nakliye bedeli",
+    "urun": "Proje ürün maliyeti",
+    "ek": "Ek maliyetler",
+}
+EXTRA_COST = "ek"  # Bu kalemde birden fazla satır girilebilir.
+
 RULE_LABELS = {
+    "production_number": "En az bir üretim no girilmiş olmalı",
     "materials_listed": "Malzeme listesi girilmiş olmalı",
     "materials_ready": "Listedeki tüm malzemeler proje deposunda hazır olmalı",
     "work_orders_done": "En az bir montaj iş emri tamamlanmış ve açık iş emri kalmamış olmalı",
@@ -107,6 +130,127 @@ async def _project(db: AsyncSession, user: User, project_id: UUID) -> Installati
     if not project or project.tenant_id != tenant_id:
         raise HTTPException(404, "Proje bulunamadı.")
     return project
+
+
+async def _is_member(db: AsyncSession, project_id: UUID, user_id: UUID) -> bool:
+    return (await db.execute(select(InstallationProjectMember.id).where(
+        InstallationProjectMember.project_id == project_id,
+        InstallationProjectMember.user_id == user_id).limit(1))).first() is not None
+
+
+async def _project_view(db: AsyncSession, user: User, project_id: UUID) -> tuple[InstallationProject, bool]:
+    """Projeyi görme: yönetici her projeyi, saha kullanıcısı yalnızca atandığı projeyi görür."""
+    manager = _is_manager(user)
+    tenant_id = await _tenant_id(db, user) if manager else user.tenant_id
+    project = await db.get(InstallationProject, project_id)
+    if not project or project.tenant_id != tenant_id:
+        raise HTTPException(404, "Proje bulunamadı.")
+    if not manager and not await _is_member(db, project.id, user.id):
+        raise HTTPException(403, "Bu projeye atanmadınız.")
+    return project, manager
+
+
+async def _members(db: AsyncSession, project_id: UUID) -> list[dict]:
+    rows = (await db.execute(
+        select(User.id, User.full_name, User.email)
+        .join(InstallationProjectMember, InstallationProjectMember.user_id == User.id)
+        .where(InstallationProjectMember.project_id == project_id)
+        .order_by(User.full_name)
+    )).all()
+    return [{"id": uid, "name": name or email} for uid, name, email in rows]
+
+
+async def _production_numbers(db: AsyncSession, project_id: UUID) -> list[dict]:
+    rows = (await db.execute(select(InstallationProjectProductionNumber).where(
+        InstallationProjectProductionNumber.project_id == project_id)
+        .order_by(InstallationProjectProductionNumber.created_at))).scalars().all()
+    return [{"id": r.id, "number": r.number, "note": r.note, "created_by_name": r.created_by_name,
+             "created_at": _iso(r.created_at)} for r in rows]
+
+
+async def _costs(db: AsyncSession, project_id: UUID) -> dict:
+    """Hedeflenen / gerçekleşen maliyet kalemleri ve toplamları (girilmemiş kalem None döner)."""
+    rows = (await db.execute(select(InstallationProjectCost).where(
+        InstallationProjectCost.project_id == project_id))).scalars().all()
+    by_key = {(r.kind, r.category): r for r in rows if r.category != EXTRA_COST}
+    out: dict = {"categories": COST_CATEGORIES}
+    for kind in COST_KINDS:
+        items = []
+        for category, label in COST_CATEGORIES.items():
+            if category == EXTRA_COST:
+                # "Ek maliyetler" başlığı altında birden fazla kalem olabilir; tutar bunların toplamıdır.
+                extras = sorted((r for r in rows if r.kind == kind and r.category == EXTRA_COST),
+                                key=lambda r: (r.sort_order, r.updated_at, str(r.id)))
+                items.append({"category": category, "label": label, "description": None,
+                              "amount": sum((r.amount for r in extras), Decimal("0")) if extras else None,
+                              "extras": [{"id": r.id, "amount": r.amount, "description": r.description} for r in extras]})
+                continue
+            row = by_key.get((kind, category))
+            items.append({"category": category, "label": label, "amount": row.amount if row else None,
+                          "description": row.description if row else None})
+        out[kind] = {"items": items,
+                     "total": sum((i["amount"] for i in items if i["amount"] is not None), Decimal("0"))}
+    return out
+
+
+def _store_card(store: Optional[Project], region: Optional[Region] = None) -> Optional[dict]:
+    """Mağaza kartındaki adres ve iletişim bilgileri (kartın açıklama alanında JSON olarak durur).
+
+    Şehir ve bölge kartta yazmıyorsa mağazanın bağlı olduğu bölge kaydından alınır.
+    """
+    if not store:
+        return None
+    try:
+        extra = json.loads(store.description) if store.description else {}
+    except (TypeError, ValueError):
+        extra = {}
+    if not isinstance(extra, dict):
+        extra = {}
+    text = lambda key: str(extra.get(key) or "").strip() or None  # noqa: E731
+    city = text("sehir") or (region.city if region else None)
+    region_name = text("bolge") or (region.name if region else None)
+    if city and region_name and city.casefold() == region_name.casefold():
+        city = None  # Bölge kaydında şehir ile bölge adı aynıysa iki kez yazılmasın.
+    return {"id": store.id, "name": store.name, "no": store.project_no,
+            "address": text("adres"), "city": city, "region": region_name,
+            "phones": [phone for phone in (text(f"tel{n}") for n in range(1, 5)) if phone]}
+
+
+async def _billing(db: AsyncSession, project: InstallationProject, store: Optional[Project]) -> dict:
+    """Fatura bilgileri. "defaults": fatura tarafı alanları boşken önerilecek değerler —
+    önce aynı müşteri firmanın en son projesinde girilenler, yoksa müşteri firma kaydı."""
+    defaults: dict[str, Optional[str]] = {field: None for field in INVOICE_PARTY_FIELDS}
+    if store:
+        previous = (await db.execute(
+            select(InstallationProject).join(Project, Project.id == InstallationProject.store_id)
+            .where(InstallationProject.tenant_id == project.tenant_id, InstallationProject.id != project.id,
+                   Project.customer_id == store.customer_id, InstallationProject.invoice_title.is_not(None))
+            .order_by(InstallationProject.updated_at.desc()).limit(5))).scalars().all()
+        for other in previous:
+            for field in INVOICE_PARTY_FIELDS:
+                defaults[field] = defaults[field] or getattr(other, field)
+        customer = await db.get(Customer, store.customer_id)
+        if customer:
+            defaults["invoice_title"] = defaults["invoice_title"] or customer.name
+            defaults["invoice_tax_no"] = defaults["invoice_tax_no"] or customer.tax_no
+            defaults["invoice_address"] = defaults["invoice_address"] or customer.address
+    return {
+        "sale_price": project.sale_price, "sale_price_includes_vat": project.sale_price_includes_vat,
+        "vat_rate": project.vat_rate if project.vat_rate is not None else DEFAULT_VAT_RATE,
+        "invoice_no": project.invoice_no, "invoice_date": _iso(project.invoice_date),
+        "invoice_due_date": _iso(project.invoice_due_date), "invoice_amount": project.invoice_amount,
+        **{field: getattr(project, field) for field in INVOICE_PARTY_FIELDS},
+        "defaults": defaults,
+    }
+
+
+async def _can_enter_production(db: AsyncSession, user: User, project: InstallationProject) -> bool:
+    """Üretim no girebilenler: yönetici, projeye atanan kişi veya Üretim aşamasının sorumlusu."""
+    if _is_manager(user) or await _is_member(db, project.id, user.id):
+        return True
+    return (await db.execute(select(InstallationProjectStage.id).where(
+        InstallationProjectStage.project_id == project.id, InstallationProjectStage.code == "uretim",
+        InstallationProjectStage.responsible_user_id == user.id).limit(1))).first() is not None
 
 
 async def _stage_context(db: AsyncSession, user: User, stage_id: UUID) -> tuple[InstallationProjectStage, InstallationProject, bool]:
@@ -211,7 +355,11 @@ async def _requirements(db: AsyncSession, project: InstallationProject, stage: I
     reqs = [{"label": "Kontrol listesi tamamlanmış olmalı", "ok": all(item.is_done for item in checklist)}] if checklist else []
     for doc in docs:
         reqs.append({"label": f"{DOC_TYPES[doc]} yüklenmiş olmalı", "ok": doc in doc_types})
-    if rule == "materials_listed":
+    if rule == "production_number":
+        has_number = (await db.execute(select(InstallationProjectProductionNumber.id).where(
+            InstallationProjectProductionNumber.project_id == project.id).limit(1))).first()
+        reqs.append({"label": RULE_LABELS[rule], "ok": has_number is not None})
+    elif rule == "materials_listed":
         reqs.append({"label": RULE_LABELS[rule], "ok": any(row["planned_quantity"] > 0 for row in materials)})
     elif rule == "materials_ready":
         planned = [row for row in materials if row["planned_quantity"] > 0]
@@ -241,9 +389,32 @@ class ProjectCreate(BaseModel):
     start_date: Optional[str] = None
     target_date: Optional[str] = None
     budget: Optional[Decimal] = SchemaField(default=None, ge=0, max_digits=14, decimal_places=2)
+    project_type: str = "sogutma"
+    member_user_ids: list[UUID] = SchemaField(default_factory=list, max_length=100)
+
+
+class MembersSave(BaseModel):
+    user_ids: list[UUID] = SchemaField(default_factory=list, max_length=100)
+
+
+class ProductionNumberCreate(BaseModel):
+    number: str = SchemaField(min_length=1, max_length=80)
+    note: Optional[str] = SchemaField(default=None, max_length=255)
+
+
+class CostItem(BaseModel):
+    category: str
+    amount: Optional[Decimal] = SchemaField(default=None, ge=0, max_digits=14, decimal_places=2)
+    description: Optional[str] = SchemaField(default=None, max_length=500)
+
+
+class CostsSave(BaseModel):
+    kind: str  # "target" (hedeflenen) | "actual" (gerçekleşen)
+    items: list[CostItem] = SchemaField(default_factory=list, max_length=60)
 
 
 class ProjectUpdate(BaseModel):
+    project_type: Optional[str] = None
     name: Optional[str] = SchemaField(default=None, min_length=2, max_length=200)
     description: Optional[str] = SchemaField(default=None, max_length=4000)
     manager_user_id: Optional[UUID] = None
@@ -251,6 +422,20 @@ class ProjectUpdate(BaseModel):
     target_date: Optional[str] = None
     budget: Optional[Decimal] = SchemaField(default=None, ge=0, max_digits=14, decimal_places=2)
     status: Optional[str] = None  # yalnızca "cancelled" (iptal)
+
+
+class BillingSave(BaseModel):
+    sale_price: Optional[Decimal] = SchemaField(default=None, ge=0, max_digits=14, decimal_places=2)
+    sale_price_includes_vat: bool = False
+    vat_rate: Optional[Decimal] = SchemaField(default=None, ge=0, le=100, max_digits=5, decimal_places=2)
+    invoice_no: Optional[str] = SchemaField(default=None, max_length=40)
+    invoice_date: Optional[str] = None
+    invoice_due_date: Optional[str] = None
+    invoice_amount: Optional[Decimal] = SchemaField(default=None, ge=0, max_digits=14, decimal_places=2)
+    invoice_title: Optional[str] = SchemaField(default=None, max_length=200)
+    invoice_tax_office: Optional[str] = SchemaField(default=None, max_length=100)
+    invoice_tax_no: Optional[str] = SchemaField(default=None, max_length=30)
+    invoice_address: Optional[str] = SchemaField(default=None, max_length=500)
 
 
 class StageUpdate(BaseModel):
@@ -285,9 +470,15 @@ async def list_projects(
     status: Optional[str] = Query(None, description="active | completed | cancelled"),
     db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user),
 ) -> list[dict]:
-    _require_manager(user)
-    tenant_id = await _tenant_id(db, user)
-    query = select(InstallationProject).where(InstallationProject.tenant_id == tenant_id)
+    # Yönetici firmadaki tüm projeleri, saha kullanıcısı yalnızca atandığı projeleri görür.
+    if _is_manager(user):
+        tenant_id = await _tenant_id(db, user)
+        query = select(InstallationProject).where(InstallationProject.tenant_id == tenant_id)
+    else:
+        query = select(InstallationProject).where(
+            InstallationProject.tenant_id == user.tenant_id,
+            InstallationProject.id.in_(select(InstallationProjectMember.project_id).where(
+                InstallationProjectMember.user_id == user.id)))
     if status:
         query = query.where(InstallationProject.status == status)
     projects = (await db.execute(query.order_by(InstallationProject.created_at.desc()))).scalars().all()
@@ -302,6 +493,8 @@ async def list_projects(
         User.id.in_({p.manager_user_id for p in projects if p.manager_user_id})))).all()) if any(p.manager_user_id for p in projects) else {}
     wo_counts = dict((await db.execute(select(WorkOrder.installation_project_id, func.count()).where(
         WorkOrder.installation_project_id.in_(ids)).group_by(WorkOrder.installation_project_id))).all())
+    member_counts = dict((await db.execute(select(InstallationProjectMember.project_id, func.count()).where(
+        InstallationProjectMember.project_id.in_(ids)).group_by(InstallationProjectMember.project_id))).all())
     by_project: dict[UUID, list[InstallationProjectStage]] = {}
     for stage in stages:
         by_project.setdefault(stage.project_id, []).append(stage)
@@ -313,6 +506,8 @@ async def list_projects(
         store = stores.get(p.store_id)
         out.append({
             "id": p.id, "name": p.name, "status": p.status,
+            "project_type": p.project_type, "project_type_label": PROJECT_TYPES.get(p.project_type, p.project_type),
+            "member_count": member_counts.get(p.id, 0),
             "store_id": p.store_id, "store_name": store.name if store else None, "store_no": store.project_no if store else None,
             "manager_name": managers.get(p.manager_user_id), "target_date": _iso(p.target_date),
             "created_at": _iso(p.created_at), "completed_at": _iso(p.completed_at),
@@ -324,6 +519,99 @@ async def list_projects(
             "closing_pending": any(s.approval_requested_at and s.status != "completed" for s in st),
         })
     return out
+
+
+@router.get("/stats")
+async def project_stats(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
+    """İstatistik ekranı için proje ve maliyet özeti (yalnızca yönetici).
+
+    Para toplamlarına iptal edilen projeler katılmaz. "Hedefe oran" yalnızca hem hedeflenen
+    hem gerçekleşen maliyeti girilmiş projelerde hesaplanır.
+    """
+    _require_manager(user)
+    tenant_id = await _tenant_id(db, user)
+    projects = (await db.execute(select(InstallationProject).where(
+        InstallationProject.tenant_id == tenant_id).order_by(InstallationProject.created_at.desc()))).scalars().all()
+    ids = [p.id for p in projects]
+    stages = (await db.execute(select(InstallationProjectStage).where(
+        InstallationProjectStage.project_id.in_(ids)).order_by(InstallationProjectStage.stage_order))).scalars().all() if ids else []
+    costs = (await db.execute(select(InstallationProjectCost).where(
+        InstallationProjectCost.project_id.in_(ids)))).scalars().all() if ids else []
+
+    by_project: dict[UUID, list[InstallationProjectStage]] = {}
+    for stage in stages:
+        by_project.setdefault(stage.project_id, []).append(stage)
+    # proje -> tür (target/actual) -> toplam; girilmemişse anahtar hiç oluşmaz
+    cost_totals: dict[UUID, dict[str, float]] = {}
+    category_totals = {category: {"target": 0.0, "actual": 0.0} for category in COST_CATEGORIES}
+    live_ids = {p.id for p in projects if p.status != "cancelled"}
+    for cost in costs:
+        if cost.amount is None:
+            continue
+        amount = float(cost.amount)
+        entry = cost_totals.setdefault(cost.project_id, {})
+        entry[cost.kind] = entry.get(cost.kind, 0.0) + amount
+        if cost.project_id in live_ids and cost.category in category_totals and cost.kind in COST_KINDS:
+            category_totals[cost.category][cost.kind] += amount
+
+    today = utc_now().date()
+    counts = {"total": len(projects), "active": 0, "completed": 0, "cancelled": 0, "overdue": 0, "closing_pending": 0}
+    money = {"budget_total": 0.0, "target_total": 0.0, "actual_total": 0.0, "missing_target": 0, "over_target": 0}
+    by_type = {key: {"type": key, "label": label, "count": 0, "active": 0, "budget": 0.0, "target": 0.0, "actual": 0.0}
+               for key, label in PROJECT_TYPES.items()}
+    by_stage = {order: {"order": order, "name": name, "count": 0} for order, _code, name, *_rest in STAGE_TEMPLATE}
+    durations: list[float] = []
+    rows = []
+    for p in projects:
+        counts[p.status] = counts.get(p.status, 0) + 1
+        st = by_project.get(p.id, [])
+        current = next((s for s in st if s.status != "completed"), None)
+        totals = cost_totals.get(p.id, {})
+        target, actual = totals.get("target"), totals.get("actual")
+        budget = float(p.budget) if p.budget is not None else None
+        overdue = bool(p.status == "active" and p.target_date and p.target_date.date() < today)
+        type_row = by_type.get(p.project_type)
+        if type_row:
+            type_row["count"] += 1
+        if p.status == "cancelled":
+            continue
+        if p.status == "active":
+            counts["overdue"] += int(overdue)
+            counts["closing_pending"] += int(any(s.approval_requested_at and s.status != "completed" for s in st))
+            if current and current.stage_order in by_stage:
+                by_stage[current.stage_order]["count"] += 1
+            if target is None:
+                money["missing_target"] += 1
+            if type_row:
+                type_row["active"] += 1
+        if p.status == "completed" and p.completed_at and p.start_date:
+            durations.append(max((p.completed_at - p.start_date).total_seconds() / 86400, 0))
+        money["budget_total"] += budget or 0.0
+        money["target_total"] += target or 0.0
+        money["actual_total"] += actual or 0.0
+        if type_row:
+            type_row["budget"] += budget or 0.0
+            type_row["target"] += target or 0.0
+            type_row["actual"] += actual or 0.0
+        usage = round(actual / target * 100) if target and actual is not None else None
+        if usage is not None and usage > 100:
+            money["over_target"] += 1
+        rows.append({
+            "id": p.id, "name": p.name, "status": p.status,
+            "project_type_label": PROJECT_TYPES.get(p.project_type, p.project_type),
+            "stages_total": len(st), "stages_done": sum(1 for s in st if s.status == "completed"),
+            "current_stage": current.name if current else None, "overdue": overdue,
+            "budget": budget, "target": target, "actual": actual, "usage_pct": usage,
+        })
+    return {
+        "counts": counts,
+        "avg_completion_days": round(sum(durations) / len(durations), 1) if durations else None,
+        "money": money,
+        "by_type": list(by_type.values()),
+        "by_stage": list(by_stage.values()),
+        "by_category": [{"category": key, "label": label, **category_totals[key]} for key, label in COST_CATEGORIES.items()],
+        "projects": rows[:15],
+    }
 
 
 @router.get("/my-stages")
@@ -375,7 +663,11 @@ async def stage_task(stage_id: UUID, db: AsyncSession = Depends(get_db), user: U
                           "uploaded_at": _iso(d.uploaded_at), "url": url})
     return {
         "project": {"id": project.id, "name": project.name, "description": project.description, "status": project.status,
+                    "project_type": project.project_type,
+                    "project_type_label": PROJECT_TYPES.get(project.project_type, project.project_type),
+                    "is_member": _manager or await _is_member(db, project.id, user.id),
                     "store": {"name": store.name, "no": store.project_no} if store else None},
+        "production_numbers": await _production_numbers(db, project.id),
         "stage": {
             "id": stage.id, "order": stage.stage_order, "code": stage.code, "name": stage.name, "status": stage.status,
             "planned_end": _iso(stage.planned_end), "started_at": _iso(stage.started_at), "completed_at": _iso(stage.completed_at),
@@ -393,6 +685,25 @@ async def stage_task(stage_id: UUID, db: AsyncSession = Depends(get_db), user: U
     }
 
 
+async def _set_members(db: AsyncSession, project: InstallationProject, user_ids: list[UUID], actor: User) -> None:
+    """Projeye atanan kişileri verilen listeyle eşitler; yeni atananlara bildirim gider."""
+    wanted = set(user_ids)
+    for user_id in wanted:
+        person = await db.get(User, user_id)
+        if not person or person.tenant_id != project.tenant_id or not person.is_active:
+            raise HTTPException(400, "Projeye atanan kişiler bu firmada aktif kullanıcı olmalıdır.")
+    existing = {row.user_id: row for row in (await db.execute(select(InstallationProjectMember).where(
+        InstallationProjectMember.project_id == project.id))).scalars().all()}
+    for user_id, row in existing.items():
+        if user_id not in wanted:
+            await db.delete(row)
+    added = wanted - set(existing)
+    for user_id in added:
+        db.add(InstallationProjectMember(project_id=project.id, user_id=user_id, added_by=actor.id))
+    await _notify_many(db, added - {actor.id}, tenant_id=project.tenant_id, category="project_member_added",
+                       title="Projeye atandınız", body=f"{project.name} projesine atandınız.")
+
+
 @router.post("", status_code=201)
 async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
     _require_manager(user)
@@ -404,6 +715,8 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
         manager = await db.get(User, body.manager_user_id)
         if not manager or manager.tenant_id != tenant_id or not manager.is_active:
             raise HTTPException(400, "Proje sorumlusu bu firmada aktif bir kullanıcı olmalıdır.")
+    if body.project_type not in PROJECT_TYPES:
+        raise HTTPException(400, "Proje türü Market, Soğuk oda veya Soğutma olmalıdır.")
     depot = RetailDepot(tenant_id=tenant_id, kind="project", name=f"Proje · {body.name}"[:120], is_active=True)
     db.add(depot)
     await db.flush()
@@ -411,10 +724,11 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
         tenant_id=tenant_id, store_id=store.id, depot_id=depot.id, name=body.name.strip(),
         description=body.description, manager_user_id=body.manager_user_id or user.id,
         start_date=_parse_date(body.start_date) or utc_now(), target_date=_parse_date(body.target_date),
-        budget=body.budget, created_by=user.id,
+        budget=body.budget, project_type=body.project_type, created_by=user.id,
     )
     db.add(project)
     await db.flush()
+    await _set_members(db, project, body.member_user_ids, user)
     now = utc_now()
     for order, code, name, _docs, _rule, checklist in STAGE_TEMPLATE:
         stage = InstallationProjectStage(
@@ -432,7 +746,7 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
 
 @router.get("/{project_id}")
 async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
-    project = await _project(db, user, project_id)
+    project, manager = await _project_view(db, user, project_id)
     store = await db.get(Project, project.store_id)
     stages = await _stages(db, project.id)
     items = (await db.execute(select(InstallationProjectChecklistItem).where(
@@ -476,9 +790,21 @@ async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db), user
         })
     planned_cost = sum((row["planned_quantity"] * (row["unit_price"] or 0) for row in materials), Decimal("0"))
     used_cost = sum((row["used"] * (row["unit_price"] or 0) for row in materials), Decimal("0"))
+    if not manager:
+        # Saha kullanıcısı katalog birim fiyatını görmez (maliyet kalemlerini görür).
+        materials = [{**row, "unit_price": None} for row in materials]
+        planned_cost = used_cost = None
     return {
         "id": project.id, "name": project.name, "description": project.description, "status": project.status,
-        "store": {"id": store.id, "name": store.name, "no": store.project_no} if store else None,
+        "project_type": project.project_type,
+        "project_type_label": PROJECT_TYPES.get(project.project_type, project.project_type),
+        "project_types": PROJECT_TYPES,
+        "can_manage": manager,
+        "members": await _members(db, project.id),
+        "production_numbers": await _production_numbers(db, project.id),
+        "costs": await _costs(db, project.id),
+        "store": _store_card(store, await db.get(Region, store.region_id) if store else None),
+        "billing": await _billing(db, project, store),
         "depot_id": project.depot_id, "manager_user_id": project.manager_user_id,
         "manager_name": names.get(project.manager_user_id),
         "start_date": _iso(project.start_date), "target_date": _iso(project.target_date),
@@ -516,6 +842,10 @@ async def update_project(project_id: UUID, body: ProjectUpdate, db: AsyncSession
         if not manager or manager.tenant_id != project.tenant_id or not manager.is_active:
             raise HTTPException(400, "Proje sorumlusu bu firmada aktif bir kullanıcı olmalıdır.")
         project.manager_user_id = manager.id
+    if updates.get("project_type"):
+        if updates["project_type"] not in PROJECT_TYPES:
+            raise HTTPException(400, "Proje türü Market, Soğuk oda veya Soğutma olmalıdır.")
+        project.project_type = updates["project_type"]
     for key in ("name", "description", "budget"):
         if key in updates and updates[key] is not None:
             setattr(project, key, updates[key].strip() if isinstance(updates[key], str) else updates[key])
@@ -525,6 +855,33 @@ async def update_project(project_id: UUID, body: ProjectUpdate, db: AsyncSession
     project.updated_at = utc_now()
     await db.commit()
     return {"id": project.id, "status": project.status}
+
+
+@router.put("/{project_id}/billing")
+async def save_billing(project_id: UUID, body: BillingSave, db: AsyncSession = Depends(get_db),
+                       user: User = Depends(get_current_user)) -> dict:
+    """Satış fiyatı, KDV, fatura no / tarihi / vadesi / tutarı ve fatura tarafı. Yalnızca yönetici girer.
+
+    Fatura çoğu zaman proje kapandıktan sonra kesildiği için kapanmış projede de güncellenebilir;
+    yalnızca iptal edilmiş projede değiştirilemez.
+    """
+    project = await _project(db, user, project_id)
+    if project.status == "cancelled":
+        raise HTTPException(409, "İptal edilmiş projede değişiklik yapılamaz.")
+    invoice_date, due_date = _parse_date(body.invoice_date), _parse_date(body.invoice_due_date)
+    if invoice_date and due_date and due_date < invoice_date:
+        raise HTTPException(422, "Vade tarihi fatura tarihinden önce olamaz.")
+    project.sale_price = body.sale_price
+    project.sale_price_includes_vat = body.sale_price_includes_vat
+    project.vat_rate = body.vat_rate
+    project.invoice_no = (body.invoice_no or "").strip() or None
+    project.invoice_date, project.invoice_due_date = invoice_date, due_date
+    project.invoice_amount = body.invoice_amount
+    for field in INVOICE_PARTY_FIELDS:
+        setattr(project, field, (getattr(body, field) or "").strip() or None)
+    project.updated_at = utc_now()
+    await db.commit()
+    return await _billing(db, project, await db.get(Project, project.store_id))
 
 
 @router.patch("/stages/{stage_id}")
@@ -677,6 +1034,115 @@ async def save_materials(project_id: UUID, body: MaterialsSave, db: AsyncSession
     return await _material_status(db, project)
 
 
+@router.put("/{project_id}/members")
+async def save_members(project_id: UUID, body: MembersSave, db: AsyncSession = Depends(get_db),
+                       user: User = Depends(get_current_user)) -> list[dict]:
+    """Projeye atanan kişileri kaydeder (birden çok kişi). Yalnızca yönetici."""
+    project = await _project(db, user, project_id)
+    _require_active(project)
+    await _set_members(db, project, body.user_ids, user)
+    project.updated_at = utc_now()
+    await db.commit()
+    return await _members(db, project.id)
+
+
+@router.post("/{project_id}/production-numbers", status_code=201)
+async def add_production_number(project_id: UUID, body: ProductionNumberCreate, db: AsyncSession = Depends(get_db),
+                                user: User = Depends(get_current_user)) -> list[dict]:
+    project = await db.get(InstallationProject, project_id)
+    tenant_id = await _tenant_id(db, user) if _is_manager(user) else user.tenant_id
+    if not project or project.tenant_id != tenant_id:
+        raise HTTPException(404, "Proje bulunamadı.")
+    if not await _can_enter_production(db, user, project):
+        raise HTTPException(403, "Üretim no girmek için projeye atanmış olmalısınız.")
+    _require_active(project)
+    number = body.number.strip()
+    if not number:
+        raise HTTPException(422, "Üretim no boş olamaz.")
+    duplicate = (await db.execute(select(InstallationProjectProductionNumber.id).where(
+        InstallationProjectProductionNumber.project_id == project.id,
+        InstallationProjectProductionNumber.number == number).limit(1))).first()
+    if duplicate:
+        raise HTTPException(409, "Bu üretim no projede zaten kayıtlı.")
+    db.add(InstallationProjectProductionNumber(
+        project_id=project.id, number=number, note=(body.note or "").strip() or None,
+        created_by=user.id, created_by_name=user.full_name))
+    project.updated_at = utc_now()
+    await db.commit()
+    return await _production_numbers(db, project.id)
+
+
+@router.delete("/production-numbers/{number_id}")
+async def delete_production_number(number_id: UUID, db: AsyncSession = Depends(get_db),
+                                   user: User = Depends(get_current_user)) -> list[dict]:
+    row = await db.get(InstallationProjectProductionNumber, number_id)
+    project = await db.get(InstallationProject, row.project_id) if row else None
+    tenant_id = await _tenant_id(db, user) if _is_manager(user) else user.tenant_id
+    if not row or not project or project.tenant_id != tenant_id:
+        raise HTTPException(404, "Üretim no bulunamadı.")
+    if not await _can_enter_production(db, user, project):
+        raise HTTPException(403, "Üretim no silmek için projeye atanmış olmalısınız.")
+    _require_active(project)
+    remaining = (await db.execute(select(func.count()).where(
+        InstallationProjectProductionNumber.project_id == project.id))).scalar_one()
+    stage = (await db.execute(select(InstallationProjectStage).where(
+        InstallationProjectStage.project_id == project.id, InstallationProjectStage.code == "uretim"))).scalars().first()
+    if remaining <= 1 and stage and stage.status == "completed":
+        raise HTTPException(409, "Üretim aşaması tamamlandı; projede en az bir üretim no kalmalıdır.")
+    await db.delete(row)
+    project.updated_at = utc_now()
+    await db.commit()
+    return await _production_numbers(db, project.id)
+
+
+@router.put("/{project_id}/costs")
+async def save_costs(project_id: UUID, body: CostsSave, db: AsyncSession = Depends(get_db),
+                     user: User = Depends(get_current_user)) -> dict:
+    """Hedeflenen veya gerçekleşen maliyet kalemlerini kaydeder. Yönetici ve projeye atananlar girebilir."""
+    project, _manager = await _project_view(db, user, project_id)
+    _require_active(project)
+    if body.kind not in COST_KINDS:
+        raise HTTPException(400, "Maliyet türü hedeflenen veya gerçekleşen olmalıdır.")
+    current = (await db.execute(select(InstallationProjectCost).where(
+        InstallationProjectCost.project_id == project.id, InstallationProjectCost.kind == body.kind))).scalars().all()
+    existing = {row.category: row for row in current if row.category != EXTRA_COST}
+    seen: set[str] = set()
+    now = utc_now()
+    # Ek maliyetler gönderildiyse liste olduğu gibi yenilenir: eskiler silinir, gelenler sırayla yazılır.
+    if any(item.category == EXTRA_COST for item in body.items):
+        for row in current:
+            if row.category == EXTRA_COST:
+                await db.delete(row)
+        await db.flush()
+    extra_order = 0
+    for item in body.items:
+        description = (item.description or "").strip() or None
+        if item.category == EXTRA_COST:
+            if item.amount is None and not description:
+                continue
+            db.add(InstallationProjectCost(project_id=project.id, kind=body.kind, category=EXTRA_COST,
+                                           amount=item.amount or Decimal("0"), description=description,
+                                           sort_order=extra_order, updated_by=user.id))
+            extra_order += 1
+            continue
+        if item.category not in COST_CATEGORIES or item.category in seen:
+            raise HTTPException(400, "Geçersiz maliyet kalemi.")
+        seen.add(item.category)
+        row = existing.get(item.category)
+        if item.amount is None and not description:
+            if row:
+                await db.delete(row)
+            continue
+        if row:
+            row.amount, row.description, row.updated_by, row.updated_at = item.amount or Decimal("0"), description, user.id, now
+        else:
+            db.add(InstallationProjectCost(project_id=project.id, kind=body.kind, category=item.category,
+                                           amount=item.amount or Decimal("0"), description=description, updated_by=user.id))
+    project.updated_at = now
+    await db.commit()
+    return await _costs(db, project.id)
+
+
 @router.post("/{project_id}/documents", status_code=201)
 async def upload_document(
     project_id: UUID, doc_type: str = Form(...), stage_id: Optional[UUID] = Form(None),
@@ -690,7 +1156,9 @@ async def upload_document(
         _stage, project, _m = await _stage_context(db, user, stage_id)
         if project.id != project_id:
             raise HTTPException(400, "Aşama bu projeye ait değil.")
-    _require_active(project)
+    # Fatura çoğu zaman proje kapandıktan sonra kesilir: yönetici fatura belgesini kapanmış projeye de yükleyebilir.
+    if not (doc_type == INVOICE_DOC and _is_manager(user) and project.status == "completed"):
+        _require_active(project)
     if doc_type not in DOC_TYPES:
         raise HTTPException(400, "Geçersiz belge türü.")
     name = file.filename or "dosya"

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { daysUntilDue, isPastDue } from "@/lib/utils";
 
 import { useEffect, useMemo, useState } from "react";
@@ -75,7 +76,7 @@ export default function ManagerDashboardPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <header>
-        <div><h1 className="text-2xl font-bold tracking-tight text-slate-950">Genel Bakış</h1><p className="mt-1 text-sm text-slate-500">Operasyonun güncel durumu ve öncelikli aksiyonlar.</p></div>
+        <div><h1 className="text-2xl font-bold tracking-tight text-slate-950">Genel Bakış<InfoHint text="Operasyonun güncel durumu ve öncelikli aksiyonlar." /></h1></div>
       </header>
 
       <DocumentQuickSearch />
@@ -88,7 +89,7 @@ export default function ManagerDashboardPage() {
 
       <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <section className="erp-section-card">
-          <div className="border-b border-slate-100 px-4 py-4 sm:px-5"><h2 className="text-sm font-semibold text-slate-900">Termin ve aşama takibi</h2><p className="mt-1 text-xs text-slate-400">Atanmış işler önem derecesine göre sıralanır.</p></div>
+          <div className="border-b border-slate-100 px-4 py-4 sm:px-5"><h2 className="text-sm font-semibold text-slate-900">Termin ve aşama takibi<InfoHint text="Atanmış işler önem derecesine göre sıralanır." /></h2></div>
           {loading ? <div className="space-y-3 p-5"><Skeleton className="h-20" /><Skeleton className="h-20" /></div> : assignedOrders.length === 0 ? <div className="px-5 py-12 text-center"><CalendarClock className="mx-auto h-7 w-7 text-slate-300" /><p className="mt-2 text-sm text-slate-500">Atanmış iş bulunmuyor.</p></div> : <div className="max-h-[34rem] divide-y divide-slate-100 overflow-y-auto">{assignedOrders.map((order) => { const deadline = deadlineLabel(order, referenceTime); return <Link key={order.id} href={`/manager/is-emirleri/${order.id}`} className="group block px-4 py-4 transition-colors hover:bg-slate-50 sm:px-5"><div className="flex items-start gap-3"><span className={`mt-0.5 rounded-md border px-2 py-1 text-[10px] font-bold ${priorityClass[order.priority]}`}>{PRIORITY_LABEL[order.priority]}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-slate-900">{order.store_name} - {order.title}</p><p className="mt-1 truncate text-xs text-slate-500">{order.assigned_to_name}</p></div><ArrowRight className="mt-1 h-4 w-4 shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5" /></div><div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs sm:grid-cols-3"><span><span className="block text-[10px] text-slate-400">Termin</span><strong className="font-semibold text-slate-700">{order.due_date ? new Date(order.due_date).toLocaleDateString("tr-TR") : "—"}</strong></span><span><span className="block text-[10px] text-slate-400">Kalan süre</span><strong className={`font-semibold ${deadline.tone}`}>{deadline.label}</strong></span><span className="col-span-2 sm:col-span-1"><span className="block text-[10px] text-slate-400">Aşama</span><strong className="font-semibold text-blue-700">{STATUS_LABEL[order.status]}</strong></span></div></Link>; })}</div>}
         </section>
 

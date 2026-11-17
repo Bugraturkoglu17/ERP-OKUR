@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, Boxes, ClipboardList, FolderKanban, LayoutDashboard, Store, User } from "lucide-react";
+import { Archive, Boxes, ClipboardList, FolderKanban, LayoutDashboard, Store } from "lucide-react";
 import { CorporateShell, type CorporateNavItem } from "@/components/layout/corporate-shell";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -11,7 +11,6 @@ const NAV: CorporateNavItem[] = [
   { href: "/user/magaza-karti", label: "Mağaza Kartı", icon: Store },
   { href: "/user/depo-stok", label: "Depo & Stok", icon: Boxes },
   { href: "/user/genel-arsiv", label: "Genel Arşiv", icon: Archive },
-  { href: "/user/profile", label: "Profil", icon: User },
 ];
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {

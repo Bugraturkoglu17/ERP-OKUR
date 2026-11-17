@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FolderOpen, GitCommit, HardHat, Search, Store, Trash2 } from "lucide-react";
@@ -66,8 +67,7 @@ export default function TadilatSurecleriPage() {
           <GitCommit className="h-5 w-5 text-amber-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Tadilat Süreçleri</h1>
-          <p className="text-xs text-slate-500">Aktif tadilat işlerinin süreç adımlarını takip edin.</p>
+          <h1 className="text-lg font-bold text-slate-900">Tadilat Süreçleri<InfoHint text="Aktif tadilat işlerinin süreç adımlarını takip edin." /></h1>
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useMemo, useState } from "react";
 import { Edit3, Eye, EyeOff, Info, KeyRound, Loader2, Mail, Phone, Plus, Search, ShieldCheck, Trash2, UserCheck, UserX, X } from "lucide-react";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
@@ -158,7 +159,7 @@ export default function ManagerUsersPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Ekip yönetimi</p><h1 className="mt-1 text-2xl font-bold text-slate-950">Kullanıcılar</h1><p className="mt-1 text-sm text-slate-500">Kullanıcı ve yönetici hesaplarını, ilk girişlerini ve durumlarını yönetin.</p></div>
+        <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Ekip yönetimi</p><h1 className="mt-1 text-2xl font-bold text-slate-950">Kullanıcılar<InfoHint text="Kullanıcı ve yönetici hesaplarını, ilk girişlerini ve durumlarını yönetin." /></h1></div>
         <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"><Plus className="h-4 w-4" />Yeni Hesap</button>
       </div>
 

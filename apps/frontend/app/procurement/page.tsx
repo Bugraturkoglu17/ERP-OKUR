@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useState } from "react";
 import {
   ShoppingCart, Plus, Check, X, AlertTriangle, Truck, Building2,
@@ -227,10 +228,7 @@ export default function ProcurementPage() {
                   {pendingCount} bekliyor
                 </span>
               )}
-            </h2>
-            <p className="text-slate-300 mt-1.5 text-xs max-w-xl">
-              Malzeme taleplerini yönetin, satın alma siparişi oluşturun ve tedarikçilerinizi kayıt altına alın.
-            </p>
+            <InfoHint text="Malzeme taleplerini yönetin, satın alma siparişi oluşturun ve tedarikçilerinizi kayıt altına alın." /></h2>
           </div>
           <div className="flex gap-2.5 flex-wrap">
             {activeTab === "requests" && (

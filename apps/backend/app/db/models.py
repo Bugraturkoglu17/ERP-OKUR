@@ -17,9 +17,11 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     func,
+    Index,
     Numeric,
     String,
     Text,
+    text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import mapped_column, relationship, Mapped
@@ -1656,6 +1658,23 @@ class InstallationProject(SQLModel, table=True):
     start_date: Optional[datetime] = Field(default=None)
     target_date: Optional[datetime] = Field(default=None)
     budget: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(14, 2), nullable=True))
+    # Kapanış aşamasında girilen faturalandırma bilgileri (adres ve iletişim mağaza kartından okunur).
+    sale_price: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(14, 2), nullable=True))
+    invoice_no: Optional[str] = Field(default=None, max_length=40)
+    invoice_date: Optional[datetime] = Field(default=None)
+    # Satış fiyatı KDV dahil mi girildi; KDV oranı (%). Oran boşsa %20 kabul edilir.
+    sale_price_includes_vat: bool = Field(default=False, nullable=False)
+    vat_rate: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(5, 2), nullable=True))
+    # Kesilen faturanın KDV dahil tutarı (hakediş / kesinti nedeniyle satış fiyatından farklı olabilir).
+    invoice_amount: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(14, 2), nullable=True))
+    invoice_due_date: Optional[datetime] = Field(default=None)
+    # Faturanın kesildiği taraf. Boşsa müşteri firma kaydından / firmanın önceki projesinden önerilir.
+    invoice_title: Optional[str] = Field(default=None, max_length=200)
+    invoice_tax_office: Optional[str] = Field(default=None, max_length=100)
+    invoice_tax_no: Optional[str] = Field(default=None, max_length=30)
+    invoice_address: Optional[str] = Field(default=None, max_length=500)
+    # Proje türü: market | soguk_oda | sogutma (aşamalar şimdilik her türde aynıdır).
+    project_type: str = Field(default="sogutma", max_length=16, index=True)
     status: str = Field(default="active", max_length=16, index=True)
     created_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
@@ -1730,3 +1749,89 @@ class InstallationProjectMaterial(SQLModel, table=True):
     material_id: UUID = Field(foreign_key="retail_materials.id", index=True)
     planned_quantity: Decimal = Field(sa_column=Column(Numeric(14, 3), nullable=False))
     note: Optional[str] = Field(default=None, max_length=255)
+
+
+class InstallationProjectMember(SQLModel, table=True):
+    """Projeye atanan kişiler: atanan herkes projenin tüm aşamalarını görür."""
+
+    __tablename__ = "installation_project_members"
+    __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_installation_project_member"),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    project_id: UUID = Field(foreign_key="installation_projects.id", index=True)
+    user_id: UUID = Field(foreign_key="users.id", index=True)
+    added_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    added_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+class InstallationProjectProductionNumber(SQLModel, table=True):
+    """Üretim aşamasında girilen üretim numaraları (bir projede birden fazla olabilir)."""
+
+    __tablename__ = "installation_project_production_numbers"
+    __table_args__ = (UniqueConstraint("project_id", "number", name="uq_installation_production_number"),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    project_id: UUID = Field(foreign_key="installation_projects.id", index=True)
+    number: str = Field(max_length=80)
+    note: Optional[str] = Field(default=None, max_length=255)
+    created_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    created_by_name: Optional[str] = Field(default=None, max_length=255)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+class InstallationProjectCost(SQLModel, table=True):
+    """Hedeflenen / gerçekleşen maliyet kalemleri. Sistem kâr-zarar hesabı yapmaz.
+
+    Sabit kalemler (montaj, nakliye, ürün) proje ve tür başına tek satırdır; 'ek' kaleminde
+    birden fazla satır olabilir (her biri kendi açıklaması ve tutarıyla, sort_order sırasıyla).
+    """
+
+    __tablename__ = "installation_project_costs"
+    __table_args__ = (
+        Index("uq_installation_project_cost_fixed", "project_id", "kind", "category", unique=True,
+              postgresql_where=text("category <> 'ek'")),
+        CheckConstraint("kind IN ('target', 'actual')", name="ck_installation_cost_kind"),
+        CheckConstraint("category IN ('montaj_iscilik', 'nakliye', 'urun', 'ek')", name="ck_installation_cost_category"),
+        CheckConstraint("amount >= 0", name="ck_installation_cost_amount"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    project_id: UUID = Field(foreign_key="installation_projects.id", index=True)
+    kind: str = Field(max_length=8)
+    category: str = Field(max_length=16)
+    amount: Decimal = Field(sa_column=Column(Numeric(14, 2), nullable=False))
+    description: Optional[str] = Field(default=None, max_length=500)
+    sort_order: int = Field(default=0, nullable=False)
+    updated_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+# ── Taşeron kartları ────────────────────────────────────────────────────────
+
+class Subcontractor(SQLModel, table=True):
+    __tablename__ = "subcontractors"
+    __table_args__ = (
+        CheckConstraint("competency IS NULL OR competency IN ('yesil', 'sari', 'kirmizi')", name="ck_subcontractor_competency"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(foreign_key="tenants.id", index=True)
+    company_name: str = Field(max_length=255)
+    tax_office: Optional[str] = Field(default=None, max_length=120)
+    tax_number: Optional[str] = Field(default=None, max_length=32)
+    address: Optional[str] = Field(default=None, max_length=500)
+    city: Optional[str] = Field(default=None, max_length=80)
+    phone: Optional[str] = Field(default=None, max_length=40)
+    email: Optional[str] = Field(default=None, max_length=255)
+    iban: Optional[str] = Field(default=None, max_length=40)
+    contact_name: Optional[str] = Field(default=None, max_length=255)
+    contact_title: Optional[str] = Field(default=None, max_length=120)
+    contact_phone: Optional[str] = Field(default=None, max_length=40)
+    contact_email: Optional[str] = Field(default=None, max_length=255)
+    # Yetkinlik göstergesi: rengi yönetici atar; anlamı firmanın kendi içinde bilinir.
+    competency: Optional[str] = Field(default=None, max_length=16)
+    notes: Optional[str] = Field(default=None)
+    is_active: bool = Field(default=True)
+    created_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)

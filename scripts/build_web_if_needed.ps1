@@ -2,6 +2,7 @@
 # degismediyse hicbir sey yapmaz. Derleme apps/frontend/.next-prod altina yazilir
 # (gelistirme modunun .next klasoruyle karismaz) ve node ile calisan bagimsiz
 # sunucu (standalone) icin statik dosyalar yerine kopyalanir.
+param([switch]$CheckOnly)  # -CheckOnly: derlemez; arayuz guncelse 0, eskiyse 2 dondurur.
 $ErrorActionPreference = "Stop"
 $frontend = Join-Path $PSScriptRoot "..\apps\frontend" | Resolve-Path
 $dist = Join-Path $frontend ".next-prod"
@@ -17,9 +18,10 @@ $files += @("package.json", "package-lock.json", "next.config.js", "tailwind.con
 $newest = ($files | Measure-Object -Property LastWriteTimeUtc -Maximum).Maximum
 
 if ((Test-Path $stamp) -and (Test-Path (Join-Path $standalone "server.js")) -and ((Get-Item $stamp).LastWriteTimeUtc -ge $newest)) {
-    Write-Host "Arayuz guncel; derleme gerekmiyor."
+    if (-not $CheckOnly) { Write-Host "Arayuz guncel; derleme gerekmiyor." }
     exit 0
 }
+if ($CheckOnly) { exit 2 }
 
 Write-Host "Arayuz derleniyor (kod degisti). Bu islem birkac dakika surebilir..."
 Push-Location $frontend

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -189,8 +190,7 @@ function FaturaModal({ state, onClose, onSuccess }: {
         {/* Başlık */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Hakkedişe Bağlı Fatura Yükle</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Sadece Migros onaylı hakkedişler faturalandırılabilir</p>
+            <h2 className="text-sm font-bold text-slate-900">Hakkedişe Bağlı Fatura Yükle<InfoHint text="Sadece Migros onaylı hakkedişler faturalandırılabilir" /></h2>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
             <X className="h-4 w-4" />
@@ -424,8 +424,7 @@ function OnayPage() {
             <CheckCircle2 className="h-5 w-5 text-green-600" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">Onay Süreçleri</h1>
-            <p className="text-xs text-slate-500">Hakkediş, fatura, proje ve teklif onayları</p>
+            <h1 className="text-lg font-bold text-slate-900">Onay Süreçleri<InfoHint text="Hakkediş, fatura, proje ve teklif onayları" /></h1>
           </div>
         </div>
 

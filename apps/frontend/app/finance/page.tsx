@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useState, useEffect } from "react";
 import { apiGet, apiPost } from "@/lib/api";
 import { openFileInNewTab } from "@/lib/download";
@@ -304,10 +305,7 @@ export default function FinancePage() {
       <div className="corp-header">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Finansal Akış & İcmal Yönetimi</h2>
-            <p className="text-slate-300 mt-1.5 text-xs max-w-xl">
-              Projelerinizin hakediş (icmal) süreçlerini, şantiye giderlerini ve nakit akışını anlık takip edin.
-            </p>
+            <h2 className="text-2xl font-bold tracking-tight">Finansal Akış & İcmal Yönetimi<InfoHint text="Projelerinizin hakediş (icmal) süreçlerini, şantiye giderlerini ve nakit akışını anlık takip edin." /></h2>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button 
@@ -708,8 +706,7 @@ export default function FinancePage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden border border-slate-200 my-8">
             <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Dönem Hakediş İcmali Oluştur</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Müşteri ve projelere ait fatura kesim aracı</p>
+                <h3 className="text-base font-bold text-slate-900">Dönem Hakediş İcmali Oluştur<InfoHint text="Müşteri ve projelere ait fatura kesim aracı" /></h3>
               </div>
               <button onClick={() => setIsInvoiceModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
                 <X className="w-5 h-5" />
@@ -909,8 +906,7 @@ export default function FinancePage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
             <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Masraf / Gider Girişi</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Şantiye malzeme, taşeron veya nakliye masrafları</p>
+                <h3 className="text-base font-bold text-slate-900">Masraf / Gider Girişi<InfoHint text="Şantiye malzeme, taşeron veya nakliye masrafları" /></h3>
               </div>
               <button onClick={() => setIsExpenseModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
                 <X className="w-5 h-5" />
@@ -1010,8 +1006,7 @@ export default function FinancePage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
             <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Tahsilat / Ödeme Girişi</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Hakediş tahsilatı veya tedarikçi cari ödemesi</p>
+                <h3 className="text-base font-bold text-slate-900">Tahsilat / Ödeme Girişi<InfoHint text="Hakediş tahsilatı veya tedarikçi cari ödemesi" /></h3>
               </div>
               <button onClick={() => setIsPaymentModalOpen(false)} className="text-slate-400 hover:text-slate-650 p-1 rounded-lg hover:bg-slate-100 transition-colors">
                 <X className="w-5 h-5" />
@@ -1110,8 +1105,7 @@ export default function FinancePage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
             <div className="p-6 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Masraf / Gider Detayı</h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Harcama kaydı ayrıntılı bilgileri</p>
+                <h3 className="text-base font-bold text-slate-900">Masraf / Gider Detayı<InfoHint text="Harcama kaydı ayrıntılı bilgileri" /></h3>
               </div>
               <button 
                 onClick={() => setSelectedExpense(null)} 

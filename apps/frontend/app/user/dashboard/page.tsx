@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Ban, CheckCircle2, CircleDashed, Clock3, History, Loader2 } from "lucide-react";
@@ -105,8 +106,7 @@ export default function UserDashboardPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Genel Bakış</h1>
-        <p className="mt-1 text-sm text-slate-500">Atanan işlerin güncel durumu ve son hareketleri</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Genel Bakış<InfoHint text="Atanan işlerin güncel durumu ve son hareketleri" /></h1>
       </header>
 
       <DocumentQuickSearch />
@@ -125,7 +125,7 @@ export default function UserDashboardPage() {
         <section className="grid gap-4 xl:grid-cols-2">
           <div className="erp-section-card">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div><h2 className="text-sm font-semibold text-slate-800">Yeni gelen işler</h2><p className="mt-0.5 text-xs text-slate-400">Süreci başlatılmayı bekleyen iş emirleri</p></div>
+              <div><h2 className="text-sm font-semibold text-slate-800">Yeni gelen işler<InfoHint text="Süreci başlatılmayı bekleyen iş emirleri" /></h2></div>
               <span className="text-sm font-bold tabular-nums text-blue-700">{planned.length}</span>
             </div>
             <OrderList orders={planned} emptyText="Planlanacak iş emri yok." />
@@ -133,7 +133,7 @@ export default function UserDashboardPage() {
 
           <div className="erp-section-card">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div><h2 className="text-sm font-semibold text-slate-800">Aktif işlerim</h2><p className="mt-0.5 text-xs text-slate-400">Sahada devam eden iş emirleri</p></div>
+              <div><h2 className="text-sm font-semibold text-slate-800">Aktif işlerim<InfoHint text="Sahada devam eden iş emirleri" /></h2></div>
               <Link href="/user/islerim" className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-800">Tümünü gör <ArrowRight className="h-3.5 w-3.5" /></Link>
             </div>
             <OrderList orders={active} emptyText="Aktif iş emri yok." />
@@ -144,7 +144,7 @@ export default function UserDashboardPage() {
       <section className="erp-section-card">
         <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
           <History className="h-4 w-4 text-slate-400" />
-          <div><h2 className="text-sm font-semibold text-slate-800">Son hareketler</h2><p className="mt-0.5 text-xs text-slate-400">İş emirlerindeki en son durum değişiklikleri</p></div>
+          <div><h2 className="text-sm font-semibold text-slate-800">Son hareketler<InfoHint text="İş emirlerindeki en son durum değişiklikleri" /></h2></div>
         </div>
         {!loading && recent.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-slate-400">Henüz hareket bulunmuyor.</p>

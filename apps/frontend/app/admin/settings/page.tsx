@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useState } from "react";
 import { Building2, Loader2, Settings, ShieldCheck } from "lucide-react";
 import { apiGet } from "@/lib/api";
@@ -24,8 +25,7 @@ export default function AdminSettingsPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Sistem Ayarları</h1>
-        <p className="mt-1 text-sm text-slate-500">Canlı sistem yapılandırmasını ve güvenlik ilkelerini görüntüleyin.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Sistem Ayarları<InfoHint text="Canlı sistem yapılandırmasını ve güvenlik ilkelerini görüntüleyin." /></h1>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

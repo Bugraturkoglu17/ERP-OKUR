@@ -1,18 +1,21 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowRight, FolderKanban, Loader2 } from "lucide-react";
 import { formatServerDate } from "@/lib/utils";
-import { getMyStages, type MyStage } from "@/services/installationProjects";
+import { getMyStages, listProjects, type MyStage, type ProjectSummary } from "@/services/installationProjects";
 
 export default function ProjectTasksPage() {
   const [items, setItems] = useState<MyStage[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getMyStages().then(setItems).catch(() => setError("Proje görevleri yüklenemedi.")).finally(() => setLoading(false));
+    Promise.all([getMyStages().then(setItems), listProjects("active").then(setProjects)])
+      .catch(() => setError("Proje görevleri yüklenemedi.")).finally(() => setLoading(false));
   }, []);
 
   const active = items.filter((i) => i.status === "in_progress");
@@ -21,9 +24,28 @@ export default function ProjectTasksPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Proje Görevlerim</h1>
-        <p className="mt-1 text-sm text-slate-500">Sorumlusu olduğunuz kurulum projesi aşamaları. Sırası gelen aşamayı buradan yürütüp tamamlarsınız.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Proje Görevlerim<InfoHint text="Atandığınız projeler ve sorumlusu olduğunuz aşamalar. Sırası gelen aşamayı buradan yürütüp tamamlarsınız." /></h1>
       </header>
+
+      {!loading && projects.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Atandığım projeler ({projects.length})</h2>
+          <ul className="space-y-2">
+            {projects.map((p) => (
+              <li key={p.id}>
+                <Link href={`/user/projeler/${p.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 transition hover:border-slate-300">
+                  <FolderKanban className="h-5 w-5 shrink-0 text-blue-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex min-w-0 items-center gap-2"><span className="truncate text-sm font-semibold text-slate-900">{p.name}</span><span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">{p.project_type_label}</span></p>
+                    <p className="truncate text-xs text-slate-500">{p.store_name ?? "Yer bilgisi yok"}{p.current_stage ? ` · Şu an: ${p.current_stage}` : ""} · {p.stages_done}/{p.stages_total} aşama</p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="h-4 w-4" />{error}</div>}
 
@@ -31,8 +53,8 @@ export default function ProjectTasksPage() {
         : items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
             <FolderKanban className="mx-auto h-8 w-8 text-slate-300" />
-            <p className="mt-3 font-semibold text-slate-700">Size atanmış proje görevi yok</p>
-            <p className="mt-1 text-sm text-slate-500">Yönetici bir proje aşamasına sizi sorumlu yaptığında burada görünür.</p>
+            <p className="mt-3 font-semibold text-slate-700">{projects.length > 0 ? "Sorumlusu olduğunuz aşama yok" : "Size atanmış proje veya görev yok"}</p>
+            <p className="mt-1 text-sm text-slate-500">Yönetici sizi bir projeye atadığında ya da bir aşamanın sorumlusu yaptığında burada görünür.</p>
           </div>
         ) : (
           <>

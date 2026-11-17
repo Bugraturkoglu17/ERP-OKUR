@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -700,8 +701,7 @@ export default function YeniYapimPage() {
             <Building2 className="h-5 w-5 text-emerald-600" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">Yeni Yapım</h1>
-            <p className="text-xs text-slate-500">Yeni açılacak mağazalar için proje, süreç ve onay takibi.</p>
+            <h1 className="text-lg font-bold text-slate-900">Yeni Yapım<InfoHint text="Yeni açılacak mağazalar için proje, süreç ve onay takibi." /></h1>
           </div>
         </div>
         <button onClick={() => setWizard(true)}

@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, KeyRound, Loader2, Lock, Unlock, UserPlus, Users, XCircle } from "lucide-react";
 import { apiGet, apiPatch, apiPost } from "@/lib/api";
@@ -145,8 +146,7 @@ export default function KullanicilarPage() {
 
       {/* Başlık */}
       <div>
-        <h1 className="text-xl font-bold text-slate-900">Kullanıcılar</h1>
-        <p className="mt-1 text-sm text-slate-500">Firma yöneticilerini oluşturun, düzenleyin ve şifrelerini sıfırlayın.</p>
+        <h1 className="text-xl font-bold text-slate-900">Kullanıcılar<InfoHint text="Firma yöneticilerini oluşturun, düzenleyin ve şifrelerini sıfırlayın." /></h1>
       </div>
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -171,9 +171,8 @@ export default function KullanicilarPage() {
           {/* Yönetici Ekle */}
           <form onSubmit={handleCreate} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <UserPlus className="h-4 w-4 text-slate-500" /> Yönetici Ekle
+              <UserPlus className="h-4 w-4 text-slate-500" /> Yönetici Ekle<InfoHint text={`${selectedTenant?.name ?? ""} firmasına yeni yönetici oluşturun.`} />
             </h2>
-            <p className="text-xs text-slate-400">{selectedTenant?.name} firmasına yeni yönetici oluşturun.</p>
 
             <div>
               <label className="text-xs font-medium text-slate-600 block mb-1">Ad Soyad</label>
@@ -207,8 +206,7 @@ export default function KullanicilarPage() {
           <form onSubmit={handleReset} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <KeyRound className="h-4 w-4 text-slate-500" /> Şifre Sıfırla
-            </h2>
-            <p className="text-xs text-slate-400">Seçili yöneticinin şifresini sıfırlayın.</p>
+            <InfoHint text="Seçili yöneticinin şifresini sıfırlayın." /></h2>
 
             <div>
               <label className="text-xs font-medium text-slate-600 block mb-1">Yönetici</label>

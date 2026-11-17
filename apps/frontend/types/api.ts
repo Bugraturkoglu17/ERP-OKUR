@@ -791,6 +791,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/retail-stock/materials/{material_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Material
+         * @description Stok kartının kritik stok eşiği; 0 = kritik stok uyarısı kapalı.
+         */
+        patch: operations["update_material_api_v1_retail_stock_materials__material_id__patch"];
+        trace?: never;
+    };
     "/api/v1/retail-stock/stock": {
         parameters: {
             query?: never;
@@ -862,6 +882,316 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Projects */
+        get: operations["list_projects_api_v1_installation_projects_get"];
+        put?: never;
+        /** Create Project */
+        post: operations["create_project_api_v1_installation_projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Stats
+         * @description İstatistik ekranı için proje ve maliyet özeti (yalnızca yönetici).
+         *
+         *     Para toplamlarına iptal edilen projeler katılmaz. "Hedefe oran" yalnızca hem hedeflenen
+         *     hem gerçekleşen maliyeti girilmiş projelerde hesaplanır.
+         */
+        get: operations["project_stats_api_v1_installation_projects_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/my-stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Stages
+         * @description Kullanıcının sorumlusu olduğu, kapanmamış proje aşamaları ("Proje Görevlerim").
+         */
+        get: operations["my_stages_api_v1_installation_projects_my_stages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/stages/{stage_id}/task": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stage Task
+         * @description Aşama sorumlusunun görev ekranı: projenin bütçe ve maliyet bilgileri olmadan.
+         */
+        get: operations["stage_task_api_v1_installation_projects_stages__stage_id__task_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project */
+        get: operations["get_project_api_v1_installation_projects__project_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Project */
+        patch: operations["update_project_api_v1_installation_projects__project_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/installation-projects/stages/{stage_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Stage */
+        patch: operations["update_stage_api_v1_installation_projects_stages__stage_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/installation-projects/stages/{stage_id}/checklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Checklist Item */
+        post: operations["add_checklist_item_api_v1_installation_projects_stages__stage_id__checklist_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/checklist/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Checklist Item */
+        patch: operations["update_checklist_item_api_v1_installation_projects_checklist__item_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/installation-projects/{project_id}/materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Materials */
+        put: operations["save_materials_api_v1_installation_projects__project_id__materials_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/{project_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Members
+         * @description Projeye atanan kişileri kaydeder (birden çok kişi). Yalnızca yönetici.
+         */
+        put: operations["save_members_api_v1_installation_projects__project_id__members_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/{project_id}/production-numbers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Production Number */
+        post: operations["add_production_number_api_v1_installation_projects__project_id__production_numbers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/production-numbers/{number_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Production Number */
+        delete: operations["delete_production_number_api_v1_installation_projects_production_numbers__number_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/{project_id}/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Costs
+         * @description Hedeflenen veya gerçekleşen maliyet kalemlerini kaydeder. Yönetici ve projeye atananlar girebilir.
+         */
+        put: operations["save_costs_api_v1_installation_projects__project_id__costs_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/{project_id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Document */
+        post: operations["upload_document_api_v1_installation_projects__project_id__documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/installation-projects/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Document */
+        delete: operations["delete_document_api_v1_installation_projects_documents__document_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subcontractors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Subcontractors */
+        get: operations["list_subcontractors_api_v1_subcontractors_get"];
+        put?: never;
+        /** Create Subcontractor */
+        post: operations["create_subcontractor_api_v1_subcontractors_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subcontractors/{subcontractor_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Subcontractor */
+        patch: operations["update_subcontractor_api_v1_subcontractors__subcontractor_id__patch"];
         trace?: never;
     };
     "/api/v1/finance/dashboard/profitability/{project_id}": {
@@ -3075,6 +3405,18 @@ export interface components {
              */
             file: string;
         };
+        /** Body_upload_document_api_v1_installation_projects__project_id__documents_post */
+        Body_upload_document_api_v1_installation_projects__project_id__documents_post: {
+            /** Doc Type */
+            doc_type: string;
+            /** Stage Id */
+            stage_id?: string | null;
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+        };
         /** Body_upload_document_version_api_v1_documents__doc_id__version_post */
         Body_upload_document_version_api_v1_documents__doc_id__version_post: {
             /** Revision Note */
@@ -3158,6 +3500,16 @@ export interface components {
             /** Chain Name */
             chain_name: string;
         };
+        /** ChecklistCreate */
+        ChecklistCreate: {
+            /** Label */
+            label: string;
+        };
+        /** ChecklistUpdate */
+        ChecklistUpdate: {
+            /** Is Done */
+            is_done: boolean;
+        };
         /** CompletePasswordResetRequest */
         CompletePasswordResetRequest: {
             /** Email */
@@ -3189,6 +3541,22 @@ export interface components {
             process_title: string;
             /** Completed At */
             completed_at?: string | null;
+        };
+        /** CostItem */
+        CostItem: {
+            /** Category */
+            category: string;
+            /** Amount */
+            amount?: number | string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /** CostsSave */
+        CostsSave: {
+            /** Kind */
+            kind: string;
+            /** Items */
+            items?: components["schemas"]["CostItem"][];
         };
         /** CustomerCreate */
         CustomerCreate: {
@@ -3976,6 +4344,18 @@ export interface components {
             /** Initial Quantity */
             initial_quantity?: number | null;
         };
+        /** MaterialLine */
+        MaterialLine: {
+            /**
+             * Material Id
+             * Format: uuid
+             */
+            material_id: string;
+            /** Planned Quantity */
+            planned_quantity: number | string;
+            /** Note */
+            note?: string | null;
+        };
         /** MaterialRead */
         MaterialRead: {
             /**
@@ -4005,24 +4385,15 @@ export interface components {
              */
             created_at: string;
         };
-        /** MaterialUpdate */
-        MaterialUpdate: {
-            /** Sku */
-            sku?: string | null;
-            /** Name */
-            name?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Unit */
-            unit?: string | null;
-            /** Barcode */
-            barcode?: string | null;
-            /** Unit Cost */
-            unit_cost?: number | null;
-            /** Min Stock Level */
-            min_stock_level?: number | null;
-            /** Is Active */
-            is_active?: boolean | null;
+        /** MaterialsSave */
+        MaterialsSave: {
+            /** Materials */
+            materials?: components["schemas"]["MaterialLine"][];
+        };
+        /** MembersSave */
+        MembersSave: {
+            /** User Ids */
+            user_ids?: string[];
         };
         /** MessageResponse */
         MessageResponse: {
@@ -4240,6 +4611,13 @@ export interface components {
              */
             created_at: string;
         };
+        /** ProductionNumberCreate */
+        ProductionNumberCreate: {
+            /** Number */
+            number: string;
+            /** Note */
+            note?: string | null;
+        };
         /** ProgressPaymentCreate */
         ProgressPaymentCreate: {
             /** Payment Type */
@@ -4381,37 +4759,6 @@ export interface components {
             /** Unassigned At */
             unassigned_at: string | null;
         };
-        /** ProjectCreate */
-        ProjectCreate: {
-            /** Customer Id */
-            customer_id?: string | null;
-            /** Region Id */
-            region_id?: string | null;
-            /** Branch Id */
-            branch_id?: string | null;
-            /** Name */
-            name: string;
-            /** Project No */
-            project_no?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Start Date */
-            start_date?: string | null;
-            /** Due Date */
-            due_date?: string | null;
-            /**
-             * Scope Codes
-             * @default []
-             */
-            scope_codes: string[];
-            /** Contract Value */
-            contract_value?: number | null;
-            /**
-             * Status
-             * @default inquiry
-             */
-            status: string;
-        };
         /** ProjectRead */
         ProjectRead: {
             /** Customer Id */
@@ -4465,25 +4812,6 @@ export interface components {
          * @enum {string}
          */
         ProjectStatus: "inquiry" | "offer_sent" | "approved" | "in_progress" | "invoice_pend" | "completed" | "cancelled";
-        /** ProjectUpdate */
-        ProjectUpdate: {
-            /** Name */
-            name?: string | null;
-            /** Project No */
-            project_no?: string | null;
-            /** Description */
-            description?: string | null;
-            /** Start Date */
-            start_date?: string | null;
-            /** Due Date */
-            due_date?: string | null;
-            /** Scope Codes */
-            scope_codes?: string[] | null;
-            /** Status */
-            status?: string | null;
-            /** Contract Value */
-            contract_value?: number | null;
-        };
         /** PublicSubmit */
         PublicSubmit: {
             /** Status */
@@ -4864,6 +5192,17 @@ export interface components {
              */
             created_at: string;
         };
+        /** StageUpdate */
+        StageUpdate: {
+            /** Responsible User Id */
+            responsible_user_id?: string | null;
+            /** Planned End */
+            planned_end?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Action */
+            action?: string | null;
+        };
         /** StockEntry */
         StockEntry: {
             /**
@@ -5166,6 +5505,39 @@ export interface components {
             progress_percent?: number | null;
             /** Completed At */
             completed_at?: string | null;
+        };
+        /** SubcontractorBody */
+        SubcontractorBody: {
+            /** Company Name */
+            company_name?: string | null;
+            /** Tax Office */
+            tax_office?: string | null;
+            /** Tax Number */
+            tax_number?: string | null;
+            /** Address */
+            address?: string | null;
+            /** City */
+            city?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Email */
+            email?: string | null;
+            /** Iban */
+            iban?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Contact Title */
+            contact_title?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
+            /** Contact Email */
+            contact_email?: string | null;
+            /** Competency */
+            competency?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
         };
         /** SupplierCreate */
         SupplierCreate: {
@@ -5849,6 +6221,8 @@ export interface components {
             location_url?: string | null;
             /** Due Date */
             due_date?: string | null;
+            /** Installation Project Id */
+            installation_project_id?: string | null;
         };
         /** WorkOrderMaterialLine */
         WorkOrderMaterialLine: {
@@ -6020,6 +6394,10 @@ export interface components {
              * @default false
              */
             has_critical_report: boolean;
+            /** Installation Project Id */
+            installation_project_id?: string | null;
+            /** Installation Project Name */
+            installation_project_name?: string | null;
             /** Public Token */
             public_token?: string | null;
         };
@@ -6174,6 +6552,126 @@ export interface components {
             due_date?: string | null;
             /** Status */
             status?: string | null;
+        };
+        /** ProjectCreate */
+        app__api__v1__routes__installation_projects__ProjectCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Store Id
+             * Format: uuid
+             */
+            store_id: string;
+            /** Description */
+            description?: string | null;
+            /** Manager User Id */
+            manager_user_id?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Target Date */
+            target_date?: string | null;
+            /** Budget */
+            budget?: number | string | null;
+            /**
+             * Project Type
+             * @default sogutma
+             */
+            project_type: string;
+            /** Member User Ids */
+            member_user_ids?: string[];
+        };
+        /** ProjectUpdate */
+        app__api__v1__routes__installation_projects__ProjectUpdate: {
+            /** Project Type */
+            project_type?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Manager User Id */
+            manager_user_id?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Target Date */
+            target_date?: string | null;
+            /** Budget */
+            budget?: number | string | null;
+            /** Status */
+            status?: string | null;
+        };
+        /** MaterialUpdate */
+        app__api__v1__routes__retail_stock__MaterialUpdate: {
+            /** Min Stock */
+            min_stock: number | string;
+        };
+        /** MaterialUpdate */
+        app__db__schemas__MaterialUpdate: {
+            /** Sku */
+            sku?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Barcode */
+            barcode?: string | null;
+            /** Unit Cost */
+            unit_cost?: number | null;
+            /** Min Stock Level */
+            min_stock_level?: number | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
+        /** ProjectCreate */
+        app__db__schemas__ProjectCreate: {
+            /** Customer Id */
+            customer_id?: string | null;
+            /** Region Id */
+            region_id?: string | null;
+            /** Branch Id */
+            branch_id?: string | null;
+            /** Name */
+            name: string;
+            /** Project No */
+            project_no?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Due Date */
+            due_date?: string | null;
+            /**
+             * Scope Codes
+             * @default []
+             */
+            scope_codes: string[];
+            /** Contract Value */
+            contract_value?: number | null;
+            /**
+             * Status
+             * @default inquiry
+             */
+            status: string;
+        };
+        /** ProjectUpdate */
+        app__db__schemas__ProjectUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Project No */
+            project_no?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** Due Date */
+            due_date?: string | null;
+            /** Scope Codes */
+            scope_codes?: string[] | null;
+            /** Status */
+            status?: string | null;
+            /** Contract Value */
+            contract_value?: number | null;
         };
     };
     responses: never;
@@ -7052,7 +7550,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ProjectCreate"];
+                "application/json": components["schemas"]["app__db__schemas__ProjectCreate"];
             };
         };
         responses: {
@@ -7147,7 +7645,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ProjectUpdate"];
+                "application/json": components["schemas"]["app__db__schemas__ProjectUpdate"];
             };
         };
         responses: {
@@ -7639,7 +8137,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MaterialUpdate"];
+                "application/json": components["schemas"]["app__db__schemas__MaterialUpdate"];
             };
         };
         responses: {
@@ -8064,6 +8562,41 @@ export interface operations {
             };
         };
     };
+    update_material_api_v1_retail_stock_materials__material_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__routes__retail_stock__MaterialUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_stock_api_v1_retail_stock_stock_get: {
         parameters: {
             query: {
@@ -8180,6 +8713,647 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_projects_api_v1_installation_projects_get: {
+        parameters: {
+            query?: {
+                /** @description active | completed | cancelled */
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_project_api_v1_installation_projects_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__routes__installation_projects__ProjectCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_stats_api_v1_installation_projects_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    my_stages_api_v1_installation_projects_my_stages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+        };
+    };
+    stage_task_api_v1_installation_projects_stages__stage_id__task_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stage_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_api_v1_installation_projects__project_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_project_api_v1_installation_projects__project_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__routes__installation_projects__ProjectUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_stage_api_v1_installation_projects_stages__stage_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stage_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StageUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_checklist_item_api_v1_installation_projects_stages__stage_id__checklist_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stage_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_checklist_item_api_v1_installation_projects_checklist__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_materials_api_v1_installation_projects__project_id__materials_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterialsSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_members_api_v1_installation_projects__project_id__members_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MembersSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_production_number_api_v1_installation_projects__project_id__production_numbers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductionNumberCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_production_number_api_v1_installation_projects_production_numbers__number_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                number_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_costs_api_v1_installation_projects__project_id__costs_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostsSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_document_api_v1_installation_projects__project_id__documents_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_document_api_v1_installation_projects__project_id__documents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_document_api_v1_installation_projects_documents__document_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_subcontractors_api_v1_subcontractors_get: {
+        parameters: {
+            query?: {
+                include_inactive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_subcontractor_api_v1_subcontractors_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubcontractorBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_subcontractor_api_v1_subcontractors__subcontractor_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subcontractor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubcontractorBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
             /** @description Validation Error */
@@ -10885,6 +12059,9 @@ export interface operations {
                 project_id?: string | null;
                 status?: string | null;
                 work_type?: string | null;
+                /** @description Sayfa boyutu; verilmezse tüm kayıtlar */
+                limit?: number | null;
+                offset?: number;
             };
             header?: never;
             path?: never;

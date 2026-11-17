@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { Building2, FileText, FolderOpen } from "lucide-react";
 
@@ -11,8 +12,7 @@ export default function YeniYapimTekliflerPage() {
           <FileText className="h-5 w-5 text-emerald-600" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Teklifler</h1>
-          <p className="text-xs text-slate-500">Yeni yapım projelerine ait teklif dosyaları ve onay durumları.</p>
+          <h1 className="text-lg font-bold text-slate-900">Teklifler<InfoHint text="Yeni yapım projelerine ait teklif dosyaları ve onay durumları." /></h1>
         </div>
       </div>
 

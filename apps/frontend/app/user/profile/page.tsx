@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { apiGet, apiPatch } from "@/lib/api";
@@ -80,8 +81,7 @@ export default function UserProfilePage() {
   return (
     <div className="max-w-md space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Profilim</h1>
-        <p className="mt-1 text-sm text-slate-500">Kişisel bilgileriniz</p>
+        <h1 className="text-2xl font-bold text-slate-900">Profilim<InfoHint text="Kişisel bilgileriniz" /></h1>
       </div>
 
       <div className="flex items-center gap-4 rounded-xl bg-white border border-slate-200 p-5">
