@@ -11,9 +11,12 @@ rem Portlarda baska bir kopya, gelistirme sunucusu ya da eski kodla calisan API 
 rem boylece asagida her zaman bu klasordeki guncel surum baslar.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\ensure_own_servers.ps1"
 
-rem PostgreSQL
-"%PGBIN%\pg_ctl.exe" status -D "%ROOT%\local-data\pgdata" >nul 2>&1
-if errorlevel 1 "%PGBIN%\pg_ctl.exe" start -D "%ROOT%\local-data\pgdata" -l "%ROOT%\local-data\postgres.log" -o "-p 5433 -c listen_addresses=127.0.0.1" -w
+rem PostgreSQL: bu pencereden bagimsiz baslatilir (pencere kapaninca veritabani kapanmasin).
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%\scripts\start_postgres.ps1"
+if errorlevel 1 (
+    if not defined NOWIN pause
+    exit /b 1
+)
 
 rem API
 netstat -ano | findstr /r /c:"127.0.0.1:8001 .*LISTENING" >nul
