@@ -27,6 +27,7 @@ export function TransferDialog({ depots, manager, initialSourceId, staffNames = 
   const depotLabel = (depot: TransferDepot) => {
     if (depot.kind === "main") return `Ana depo · ${depot.name}`;
     if (depot.kind === "project") return depot.name;
+    if (!manager) return `${depot.plate} · ${depot.name}`;
     const owner = depot.assigned_user_id ? staffNames[depot.assigned_user_id] : null;
     return `${depot.plate} · ${depot.name} — ${owner ?? (depot.assigned_user_id ? "atanmış" : "çalışan atanmamış")}`;
   };
@@ -47,9 +48,12 @@ export function TransferDialog({ depots, manager, initialSourceId, staffNames = 
     return options.length === 1 ? options[0].id : "";
   };
 
-  const firstSource = sources.find((depot) => depot.id === initialSourceId) ?? sources[0];
+  // Yönetici her zaman "Ana depo → araç" ile başlar (en sık işlem); stok ekranında bir araç
+  // seçiliyse hedef o araç olur. Çalışan yalnızca kendi aracından ana depoya iade eder.
+  const pickedVehicle = manager ? vehicles.find((depot) => depot.id === initialSourceId) : undefined;
+  const firstSource = manager && main ? main : (sources.find((depot) => depot.id === initialSourceId) ?? sources[0]);
   const [sourceId, setSourceId] = useState(firstSource?.id ?? "");
-  const [targetId, setTargetId] = useState(() => defaultTarget(firstSource?.id ?? ""));
+  const [targetId, setTargetId] = useState(() => pickedVehicle?.id ?? defaultTarget(firstSource?.id ?? ""));
   const [rows, setRows] = useState<SourceRow[]>([]);
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
@@ -188,8 +192,8 @@ export function TransferDialog({ depots, manager, initialSourceId, staffNames = 
                       </div>
                       <input inputMode="decimal" autoComplete="off" value={quantities[row.material_id] ?? ""} placeholder="Miktar" aria-label={`${row.name} aktarılacak miktar`}
                         onChange={(event) => setQuantity(row.material_id, sanitizeQuantityInput(event.target.value))}
-                        className="w-16 shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-right text-base outline-none focus:border-[#d90070] sm:text-xs" />
-                      <button type="button" onClick={() => setFull(row)} className="shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-semibold text-slate-600 hover:border-[#d90070]/40">Tümü</button>
+                        className="h-9 w-16 shrink-0 rounded-lg border border-slate-200 bg-white px-2 text-right text-base outline-none focus:border-[#d90070] sm:text-xs" />
+                      <button type="button" onClick={() => setFull(row)} className="h-9 w-16 shrink-0 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:border-[#d90070]/40">Tümü</button>
                       {chosen && <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-label="Seçildi" />}
                     </div>
                     {problem && <p className="mt-1 text-[11px] font-medium text-red-700">{problem}</p>}
