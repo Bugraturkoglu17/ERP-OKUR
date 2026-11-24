@@ -13,12 +13,12 @@ import { uploadFormData } from "@/lib/upload";
 import { formatQuantity } from "@/lib/quantity";
 import { formatServerDate, formatServerDateTime } from "@/lib/utils";
 import { MaterialPicker, MaterialTitle } from "@/components/retail-stock/material-picker";
-import { BillingCard, CostsCard, MembersCard, ProductionNumbersCard, ProjectTypeSwitch } from "@/components/installation-projects/project-extras";
+import { BillingCard, BudgetCard, CostsCard, MembersCard, ProductionNumbersCard, ProjectTypeBadge, TargetCostsCard } from "@/components/installation-projects/project-extras";
 import { STATUS_LABEL, normalizeStatus } from "@/services/managerWorkOrders";
 import {
   PROJECT_STATUS_LABEL, addChecklistItem, deleteProjectDocument, getProject, projectDocumentUrl,
   saveProjectMaterials, setChecklistItem, updateProject, updateStage,
-  type ProjectDetail, type ProjectMaterial, type ProjectStage, type ProjectType,
+  type ProjectDetail, type ProjectMaterial, type ProjectStage,
 } from "@/services/installationProjects";
 
 type UserRow = { id: string; full_name: string; email: string; is_active: boolean };
@@ -31,7 +31,7 @@ const qty = (value: string | number) => formatQuantity(value);
 
 function StageStepper({ stages, selectedId, onSelect }: { stages: ProjectStage[]; selectedId: string; onSelect: (id: string) => void }) {
   return (
-    <ol className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 lg:grid-cols-9">
+    <ol className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-7">
       {stages.map((stage) => {
         const done = stage.status === "completed";
         const active = stage.status === "in_progress";
@@ -315,7 +315,6 @@ export default function ProjectDetailPage() {
   const id = params.id;
   // Aynı ekran yönetici panelinde (tam yetki) ve kullanıcı panelinde (projeye atananlar) açılır.
   const inUserPanel = usePathname().startsWith("/user");
-  const [typeBusy, setTypeBusy] = useState(false);
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
@@ -345,12 +344,6 @@ export default function ProjectDetailPage() {
     if (!project || !window.confirm("Proje iptal edilsin mi? İptal edilen proje yeniden açılamaz.")) return;
     setError("");
     try { await updateProject(project.id, { status: "cancelled" }); await refresh(); } catch (reason) { setError(getRequestErrorMessage(reason, "Proje iptal edilemedi.")); }
-  }
-
-  async function changeType(next: ProjectType) {
-    if (!project) return;
-    setTypeBusy(true); setError("");
-    try { await updateProject(project.id, { project_type: next }); await refresh(); } catch (reason) { setError(getRequestErrorMessage(reason, "Proje türü değiştirilemedi.")); } finally { setTypeBusy(false); }
   }
 
   if (loading) return <div className="flex items-center justify-center gap-2 py-24 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Proje yükleniyor</div>;
@@ -384,7 +377,7 @@ export default function ProjectDetailPage() {
 
       <div>
         <p className="mb-1.5 text-xs font-semibold text-slate-500">Proje türü</p>
-        <ProjectTypeSwitch value={project.project_type} editable={editable} busy={typeBusy} onChange={(next) => void changeType(next)} />
+        <ProjectTypeBadge value={project.project_type} />
       </div>
 
       <section className={`grid grid-cols-2 gap-2 ${project.planned_cost === null ? "sm:grid-cols-4" : "sm:grid-cols-5"}`}>
@@ -408,7 +401,15 @@ export default function ProjectDetailPage() {
 
       <StagePanel stage={selected} total={total} users={users} editable={editable} onChanged={refresh} onError={setError} />
 
-      {selected.code === "uretim" && <ProductionNumbersCard projectId={project.id} numbers={project.production_numbers} canEnter={active} onChanged={refresh} onError={setError} />}
+      {/* Teklif, hedeflenen maliyet ve tahmini kâr aynı aşamada: teklif maliyete bakılarak verilir. */}
+      {selected.code === "teklif" && (
+        <div className="grid gap-5 xl:grid-cols-2">
+          <TargetCostsCard projectId={project.id} costs={project.costs} canEnter={active} onChanged={refresh} onError={setError} />
+          <BudgetCard projectId={project.id} budget={project.budget} targetTotal={project.costs.target.total} editable={editable} onChanged={refresh} onError={setError} />
+        </div>
+      )}
+
+      {selected.code === "uretim_montaj" && <ProductionNumbersCard projectId={project.id} numbers={project.production_numbers} canEnter={active} onChanged={refresh} onError={setError} />}
 
       {selected.code === "kapanis" && <BillingCard projectId={project.id} billing={project.billing} store={project.store}
         storeHref={project.store ? `${inUserPanel ? "/user" : "/manager"}/magaza-karti/${project.store.id}` : null}
@@ -416,11 +417,12 @@ export default function ProjectDetailPage() {
 
       {selected.code === "kapanis" && <CostsCard projectId={project.id} costs={project.costs} canEnter={active} onChanged={refresh} onError={setError} />}
 
-      <MembersCard projectId={project.id} members={project.members} users={users} editable={editable} onChanged={refresh} onError={setError} />
+      {/* Projeye atanan kişiler yalnızca "Keşif" aşamasında gösterilir. */}
+      {selected.code === "kesif" && <MembersCard projectId={project.id} members={project.members} users={users} editable={editable} onChanged={refresh} onError={setError} />}
 
-      {/* Malzeme listesi yalnızca "Malzeme hazırlığı" aşamasında gösterilir. */}
-      <div className={`grid gap-5 ${selected.code === "malzeme" ? "xl:grid-cols-2" : ""}`}>
-        {selected.code === "malzeme" && <MaterialsCard project={project} catalog={catalog} editable={editable} onChanged={refresh} onError={setError} />}
+      {/* Malzeme listesi yalnızca "Üretim ve montaj" aşamasında gösterilir. */}
+      <div className={`grid gap-5 ${selected.code === "uretim_montaj" ? "xl:grid-cols-2" : ""}`}>
+        {selected.code === "uretim_montaj" && <MaterialsCard project={project} catalog={catalog} editable={editable} onChanged={refresh} onError={setError} />}
         <section className="erp-section-card">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
             <div><h2 className="text-sm font-semibold text-slate-900">İş emirleri<InfoHint text={`Montaj ve test işleri; teknisyenler bunları normal iş emri ekranından yürütür.${openWorkOrders ? ` ${openWorkOrders} açık iş.` : ""}`} /></h2></div>

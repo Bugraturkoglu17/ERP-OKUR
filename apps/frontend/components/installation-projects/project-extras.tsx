@@ -8,7 +8,7 @@ import { MoneyInput, moneyInputFromNumber, parseMoneyInput } from "@/components/
 import { getRequestErrorMessage } from "@/lib/api";
 import { formatServerDate, formatServerDateTime } from "@/lib/utils";
 import {
-  PROJECT_TYPES, PROJECT_TYPE_LABEL, addProductionNumber, deleteProductionNumber, saveProjectBilling, saveProjectCosts, saveProjectMembers,
+  PROJECT_TYPE_LABEL, addProductionNumber, deleteProductionNumber, saveProjectBilling, saveProjectCosts, saveProjectMembers, updateProject,
   type CostCategory, type CostKind, type ProductionNumber, type ProjectBilling, type ProjectCosts, type ProjectDetail, type ProjectMember, type ProjectType,
 } from "@/services/installationProjects";
 
@@ -17,23 +17,12 @@ type Handlers = { onChanged: () => Promise<void>; onError: (message: string) => 
 
 const money = (value?: string | number | null) => Number(value ?? 0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** Proje türü: Market / Soğuk oda / Soğutma. Yönetici değiştirebilir; diğerleri yalnızca görür. */
-export function ProjectTypeSwitch({ value, editable, busy = false, onChange }: {
-  value: ProjectType; editable: boolean; busy?: boolean; onChange?: (next: ProjectType) => void;
-}) {
+/** Proje türü: Mağaza / Soğuk oda / Soğutma. Proje oluşturulurken seçilir; proje içinde yalnızca bilgi olarak gösterilir. */
+export function ProjectTypeBadge({ value }: { value: ProjectType }) {
   return (
-    <div role="radiogroup" aria-label="Proje türü" className="inline-grid grid-cols-3 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-      {PROJECT_TYPES.map((type) => {
-        const active = type === value;
-        return (
-          <button key={type} type="button" role="radio" aria-checked={active} disabled={busy || (!editable && !active)}
-            onClick={() => { if (editable && !active) onChange?.(type); }}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${active ? "bg-slate-950 text-white shadow-sm" : editable ? "text-slate-600 hover:bg-white" : "text-slate-300"} ${!editable ? "cursor-default" : ""}`}>
-            {PROJECT_TYPE_LABEL[type]}
-          </button>
-        );
-      })}
-    </div>
+    <span className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-900">
+      {PROJECT_TYPE_LABEL[value] ?? value}
+    </span>
   );
 }
 
@@ -148,7 +137,91 @@ export function ProductionNumbersCard({ projectId, numbers, canEnter, onChanged,
   );
 }
 
-const KIND_LABEL: Record<CostKind, string> = { target: "Hedeflenen maliyet", actual: "Gerçekleşen maliyet" };
+/** Marjın bu oranın altında kalması "düşük marj" uyarısı verir. */
+const LOW_MARGIN_PERCENT = 10;
+
+/**
+ * Bütçe / teklif tutarı ve tahmini kâr. Proje oluşturulurken sorulmaz; "Projelendirme ve teklif"
+ * aşamasında girilir. Kâr = teklif − hedeflenen maliyet; marj = kâr / teklif. Yazarken anlık hesaplanır.
+ */
+export function BudgetCard({ projectId, budget, targetTotal, editable, onChanged, onError }: {
+  projectId: string; budget: string | null; targetTotal: string; editable: boolean;
+} & Handlers) {
+  const [value, setValue] = useState(() => moneyInputFromNumber(budget));
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const dirty = value !== moneyInputFromNumber(budget);
+  const typed = parseMoneyInput(value);
+  const quote = editable ? (typed ? Number(typed) : null) : (budget ? Number(budget) : null);
+  const cost = Number(targetTotal || 0);
+
+  async function save() {
+    const amount = parseMoneyInput(value);
+    if (amount === undefined) { onError("Bütçe sayı olmalı (örn. 250000 veya 250.000,50)."); return; }
+    setBusy(true); setSaved(false); onError("");
+    try {
+      await updateProject(projectId, { budget: amount });
+      await onChanged();
+      setValue(moneyInputFromNumber(amount));
+      setSaved(true);
+    } catch (reason) {
+      onError(getRequestErrorMessage(reason, "Bütçe kaydedilemedi."));
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <section className="erp-section-card">
+      <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
+        <Wallet className="h-4 w-4 text-slate-400" />
+        <div><h2 className="text-sm font-semibold text-slate-900">Bütçe / teklif<InfoHint text="Müşteriye verilen teklif tutarı. Kâr hesabının doğru çıkması için teklif ve maliyetleri aynı şekilde (KDV hariç) girin." /></h2></div>
+      </div>
+      <div className="space-y-4 p-5">
+        {editable ? (
+          <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+            <div className="relative min-w-0 flex-1 basis-48">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">₺</span>
+              <MoneyInput value={value} onValueChange={(next) => { setValue(next); setSaved(false); }} placeholder="Teklif tutarı" aria-label="Bütçe / teklif tutarı" className="w-full rounded-lg border border-slate-200 py-2 pl-7 pr-3 text-sm" />
+            </div>
+            <button type="submit" disabled={busy || !dirty} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">{busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Kaydet</button>
+            {saved && !dirty && <span className="text-xs font-medium text-emerald-700">Kaydedildi</span>}
+          </form>
+        ) : (
+          <p className="text-sm font-semibold tabular-nums text-slate-900">{budget ? `₺${money(budget)}` : "Henüz girilmedi."}</p>
+        )}
+        <MarginSummary quote={quote} cost={cost} />
+      </div>
+    </section>
+  );
+}
+
+function MarginSummary({ quote, cost }: { quote: number | null; cost: number }) {
+  if (!quote || quote <= 0 || cost <= 0) {
+    return <p className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-500">Kâr ve marj, teklif tutarı ve hedeflenen maliyet girilince hesaplanır.</p>;
+  }
+  const profit = quote - cost;
+  const margin = (profit / quote) * 100;
+  const tone = profit < 0 ? "loss" : margin < LOW_MARGIN_PERCENT ? "low" : "ok";
+  const box = { loss: "border-red-200 bg-red-50", low: "border-amber-200 bg-amber-50", ok: "border-emerald-200 bg-emerald-50" }[tone];
+  const text = { loss: "text-red-700", low: "text-amber-800", ok: "text-emerald-700" }[tone];
+  // Zararda başlık zaten "Zarar" der; yüzde işaretsiz gösterilir.
+  const percent = Math.abs(margin).toLocaleString("tr-TR", { maximumFractionDigits: 1 });
+  return (
+    <div className={`rounded-xl border p-4 ${box}`}>
+      <dl className="grid grid-cols-3 gap-3 text-sm">
+        <div><dt className="text-[11px] font-medium text-slate-500">Teklif</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate-900">₺{money(quote)}</dd></div>
+        <div><dt className="text-[11px] font-medium text-slate-500">Hedeflenen maliyet</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate-900">₺{money(cost)}</dd></div>
+        <div><dt className="text-[11px] font-medium text-slate-500">{profit < 0 ? "Zarar" : "Tahmini kâr"}</dt><dd className={`mt-0.5 font-bold tabular-nums ${text}`}>₺{money(Math.abs(profit))} <span className="font-semibold">(%{percent})</span></dd></div>
+      </dl>
+      {tone !== "ok" && (
+        <p className={`mt-3 text-xs font-medium ${text}`}>
+          {tone === "loss" ? "Teklif, hedeflenen maliyetin altında: bu fiyatla proje zarar eder." : `Marj %${LOW_MARGIN_PERCENT}'un altında. Teklifi veya maliyetleri gözden geçirin.`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const KIND_LABEL: Record<CostKind, string> ={ target: "Hedeflenen maliyet", actual: "Gerçekleşen maliyet" };
 type ExtraDraft = { key: number; amount: string; description: string };
 type CostDraft = { fixed: Record<string, string>; extras: ExtraDraft[] };
 let extraKey = 0;
@@ -258,6 +331,24 @@ function CostColumn({ projectId, kind, costs, canEnter, onChanged, onError }: {
   );
 }
 
+/** "Projelendirme ve teklif" aşamasında hedeflenen maliyet girişi. */
+export function TargetCostsCard({ projectId, costs, canEnter, onChanged, onError }: {
+  projectId: string; costs: ProjectCosts; canEnter: boolean;
+} & Handlers) {
+  return (
+    <section className="erp-section-card">
+      <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
+        <Wallet className="h-4 w-4 text-slate-400" />
+        <div><h2 className="text-sm font-semibold text-slate-900">Maliyet hesabı<InfoHint text="Teklif bu maliyetlere göre verilir. Kapanışta gerçekleşen maliyet aynı kalemlerle girilip bununla karşılaştırılır." /></h2></div>
+      </div>
+      <div className="p-5">
+        <CostColumn projectId={projectId} kind="target" costs={costs} canEnter={canEnter} onChanged={onChanged} onError={onError} />
+      </div>
+    </section>
+  );
+}
+
+/** Kapanış aşamasında maliyet karşılaştırması: hedeflenen yalnızca gösterilir, gerçekleşen girilir. */
 export function CostsCard({ projectId, costs, canEnter, onChanged, onError }: {
   projectId: string; costs: ProjectCosts; canEnter: boolean;
 } & Handlers) {
@@ -265,10 +356,10 @@ export function CostsCard({ projectId, costs, canEnter, onChanged, onError }: {
     <section className="erp-section-card">
       <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
         <Wallet className="h-4 w-4 text-slate-400" />
-        <div><h2 className="text-sm font-semibold text-slate-900">Maliyet<InfoHint text="Hedeflenen ve gerçekleşen maliyet aynı kalemlerle girilir; karşılaştırmayı siz yaparsınız." /></h2></div>
+        <div><h2 className="text-sm font-semibold text-slate-900">Maliyet<InfoHint text="Hedeflenen maliyet Projelendirme ve teklif aşamasında girilir; burada gerçekleşen maliyet aynı kalemlerle girilip karşılaştırılır." /></h2></div>
       </div>
       <div className="grid gap-4 p-5 lg:grid-cols-2">
-        <CostColumn projectId={projectId} kind="target" costs={costs} canEnter={canEnter} onChanged={onChanged} onError={onError} />
+        <CostColumn projectId={projectId} kind="target" costs={costs} canEnter={false} onChanged={onChanged} onError={onError} />
         <CostColumn projectId={projectId} kind="actual" costs={costs} canEnter={canEnter} onChanged={onChanged} onError={onError} />
       </div>
     </section>

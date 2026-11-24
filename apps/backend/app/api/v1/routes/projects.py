@@ -383,10 +383,43 @@ async def create_project(
     """
     Yeni şantiye projesi oluşturur.
     branch_id verilmişse hiyerarşi doğrulaması yapılır.
-    Verilmemişse tenant'ın ilk branch'i otomatik kullanılır (wizard akışı için).
+    branch_id yok ama region_id varsa mağazaya özel yeni bir şube (konum) açılır:
+    her mağaza kendi şubesine bağlıdır, yeni mağaza başka mağazanın şubesine eklenmez.
+    İkisi de yoksa tenant'ın ilk branch'i otomatik kullanılır (wizard akışı için).
     """
+    if project_in.branch_id is None and project_in.region_id is not None:
+        region = await crud_region.get(db, project_in.region_id)
+        if not region:
+            raise NotFoundError(detail="Bölge bulunamadı.")
+        if _tenant_mismatch(user, region.tenant_id):
+            raise HTTPException(status_code=403, detail="Bu bölge üzerinde yetkiniz yok.")
+        if project_in.customer_id is not None and region.customer_id != project_in.customer_id:
+            raise HTTPException(status_code=400, detail="Bölge / müşteri uyumsuzluğu.")
+
+        address = None
+        try:
+            parsed = json.loads(project_in.description or "{}")
+            if isinstance(parsed, dict) and isinstance(parsed.get("adres"), str):
+                address = parsed["adres"].strip()[:500] or None
+        except (ValueError, TypeError):
+            pass
+
+        branch = Branch(
+            tenant_id=region.tenant_id,
+            region_id=region.id,
+            name=project_in.name.strip()[:200],
+            code=(project_in.project_no or "").strip()[:30] or None,
+            address=address,
+        )
+        db.add(branch)
+        # Şube, proje ile aynı commit'te kaydedilir; proje kaydı başarısız olursa şube de oluşmaz.
+        await db.flush()
+        resolved_branch_id   = branch.id
+        resolved_region_id   = region.id
+        resolved_customer_id = region.customer_id
+        resolved_tenant_id   = region.tenant_id
     # branch_id verilmemişse tenant'ın ilk branch'ini otomatik kullan (wizard akışı)
-    if project_in.branch_id is None:
+    elif project_in.branch_id is None:
         auto_res = await db.execute(
             select(Branch).where(Branch.tenant_id == user.tenant_id).limit(1)
         )

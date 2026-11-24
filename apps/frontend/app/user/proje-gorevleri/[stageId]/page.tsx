@@ -95,7 +95,7 @@ export default function ProjectTaskPage() {
       {error && <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
       {success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
 
-      {stage.code === "uretim" && (
+      {stage.code === "uretim_montaj" && (
         <ProductionNumbersCard projectId={project.id} numbers={task.production_numbers} canEnter={project.status === "active"}
           onChanged={load} onError={setError} />
       )}
@@ -148,7 +148,7 @@ export default function ProjectTaskPage() {
         </div>
       </section>
 
-      {(stage.code === "malzeme" || stage.code === "kapanis") && planned.length > 0 && (
+      {(stage.code === "uretim_montaj" || stage.code === "kapanis") && planned.length > 0 && (
         <section className="erp-section-card">
           <div className="border-b border-slate-100 px-5 py-4"><h2 className="text-sm font-semibold text-slate-900">Malzeme durumu<InfoHint text="Malzemeyi proje deposuna aktarma ve iade işlemlerini yönetici yapar." /></h2></div>
           <div className="overflow-x-auto p-5"><table className="w-full min-w-[480px] text-sm">
@@ -160,7 +160,7 @@ export default function ProjectTaskPage() {
         </section>
       )}
 
-      {stage.code === "montaj" && task.work_orders.length > 0 && (
+      {stage.code === "uretim_montaj" && task.work_orders.length > 0 && (
         <section className="erp-section-card">
           <div className="border-b border-slate-100 px-5 py-4"><h2 className="text-sm font-semibold text-slate-900">Montaj iş emirleri</h2></div>
           <ul className="divide-y divide-slate-100">{task.work_orders.map((wo) => (

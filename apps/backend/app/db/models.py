@@ -1765,7 +1765,7 @@ class InstallationProjectMember(SQLModel, table=True):
 
 
 class InstallationProjectProductionNumber(SQLModel, table=True):
-    """Üretim aşamasında girilen üretim numaraları (bir projede birden fazla olabilir)."""
+    """Üretim ve montaj aşamasında girilen üretim numaraları (bir projede birden fazla olabilir)."""
 
     __tablename__ = "installation_project_production_numbers"
     __table_args__ = (UniqueConstraint("project_id", "number", name="uq_installation_production_number"),)

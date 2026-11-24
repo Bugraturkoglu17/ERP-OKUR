@@ -38,16 +38,16 @@ JOBS = {
 }
 ORDER_PLAN = [("completed", 20), ("started", 11), ("planned", 10), ("cancelled", 4)]
 
-# (ad, tür, tamamlanan aşama sayısı 0-9, başlangıç kaç gün önce, bütçe)
+# (ad, tür, tamamlanan aşama sayısı 0-7, başlangıç kaç gün önce, bütçe)
 PROJECTS = [
     ("Yeni mağaza soğutma kurulumu", "market", 0, 4, "1850000"),
     ("Şarküteri reyonu yenileme", "market", 2, 18, "640000"),
     ("Donuk muhafaza odası", "soguk_oda", 3, 26, "920000"),
     ("Meyve sebze soğuk odası", "soguk_oda", 4, 35, "715000"),
-    ("Merkezi soğutma grubu değişimi", "sogutma", 5, 44, "2400000"),
-    ("Depo soğutma sistemi", "sogutma", 6, 58, "1320000"),
-    ("Et reyonu soğuk oda kurulumu", "soguk_oda", 8, 72, "560000"),
-    ("Market açılış soğutma projesi", "market", 9, 96, "1980000"),
+    ("Merkezi soğutma grubu değişimi", "sogutma", 4, 44, "2400000"),
+    ("Depo soğutma sistemi", "sogutma", 5, 58, "1320000"),
+    ("Et reyonu soğuk oda kurulumu", "soguk_oda", 6, 72, "560000"),
+    ("Market açılış soğutma projesi", "market", 7, 96, "1980000"),
 ]
 COST_CATEGORIES = ["montaj_iscilik", "nakliye", "urun", "ek"]
 COST_SHARE = {"montaj_iscilik": 0.18, "nakliye": 0.04, "urun": 0.55, "ek": 0.03}
@@ -122,12 +122,12 @@ def main() -> None:
         base = float(budget)
         call("PUT", f"/installation-projects/{project_id}/costs", {"kind": "target", "items": [
             {"category": c, "amount": str(round(base * COST_SHARE[c], -2)), "description": "Vinç ve iskele" if c == "ek" else None} for c in COST_CATEGORIES]})
-        if done >= 4:
+        if done >= 3:
             for index in range(rng.randint(1, 3)):
                 call("POST", f"/installation-projects/{project_id}/production-numbers", {"number": f"UR-2026-{rng.randint(1000, 9999)}-{index + 1}"})
-        if done >= 5:
+        if done >= 4:
             call("PUT", f"/installation-projects/{project_id}/costs", {"kind": "actual", "items": [
-                {"category": c, "amount": str(round(base * COST_SHARE[c] * rng.uniform(0.85, 1.2) * min(done / 8, 1), -2)),
+                {"category": c, "amount": str(round(base * COST_SHARE[c] * rng.uniform(0.85, 1.2) * min(done / 6, 1), -2)),
                  "description": "Vinç kiralama" if c == "ek" else None} for c in COST_CATEGORIES]})
         project_updates.append((project_id, done, start, rng.choice(field_users)))
 
@@ -148,7 +148,7 @@ def main() -> None:
             finished = start + span * done
             cur.execute("update installation_projects set start_date = %s, created_at = %s, updated_at = %s where id = %s and name like %s",
                         (start, start, min(finished, now), project_id, PREFIX + "%"))
-            for order in range(1, 10):
+            for order in range(1, 8):
                 begin = start + span * (order - 1)
                 if order <= done:
                     values = ("completed", begin, begin + span, begin + span)
@@ -166,7 +166,7 @@ def main() -> None:
                 " where installation_project_checklist_items.stage_id = s.id and s.project_id = %s and s.status = 'completed'",
                 (project_id,),
             )
-            if done >= 9:
+            if done >= 7:
                 cur.execute("update installation_projects set status = 'completed', completed_at = %s where id = %s", (min(finished, now), project_id))
     print(f"{len(order_updates)} iş emri ve {len(project_updates)} proje eklendi.")
 

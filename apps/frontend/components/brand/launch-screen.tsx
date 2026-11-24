@@ -11,7 +11,7 @@ import { OkurWordmark } from "@/components/brand/okur-wordmark";
  * Akış (RoleGuard yönetir):
  *  - İçerik (children) bu ekran görünürken ARKA PLANDA mount olur, güncel
  *    verisini çeker.
- *  - Açılış animasyonu (logo girişi + ışık hüzmesi, ~3,1 sn) TAMAMLANMADAN
+ *  - Açılış animasyonu (logo girişi + ışık hüzmesi, ~4,1 sn) TAMAMLANMADAN
  *    içeriğe geçilmez.
  *  - Animasyon bitince RoleGuard `leaving` verir → ekran 380 ms'de fade olur
  *    ve ardından ağaçtan kaldırılır (sert kesme yok).

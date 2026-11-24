@@ -9,7 +9,7 @@ export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
 export type ProjectType = "market" | "soguk_oda" | "sogutma";
 
 export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
-  market: "Market", soguk_oda: "Soğuk oda", sogutma: "Soğutma",
+  market: "Mağaza", soguk_oda: "Soğuk oda", sogutma: "Soğutma",
 };
 export const PROJECT_TYPES = Object.keys(PROJECT_TYPE_LABEL) as ProjectType[];
 

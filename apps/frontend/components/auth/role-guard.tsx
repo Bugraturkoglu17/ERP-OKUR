@@ -8,10 +8,10 @@ import type { BrandTone } from "@/components/brand/brand-mark";
 import { LaunchScreen } from "@/components/brand/launch-screen";
 
 // Açılış ekranı en az bu kadar görünür: OKUR girişi (~0,7 sn) + logonun
-// üzerinden geçen ışık hüzmesi (0,45 sn gecikme + 2,6 sn = 3,05 sn). Yani
+// üzerinden geçen ışık hüzmesi (0,45 sn gecikme + 3,6 sn = 4,05 sn). Yani
 // "animasyon tamamlanmadan içeriğe geçme" kuralı — yapay bir bekleme değil,
 // açılış animasyonunun gerçek süresidir.
-const INTRO_ANIMATION_MS = 3100;
+const INTRO_ANIMATION_MS = 4100;
 // Ekranın opacity 0'a fade süresi (globals.css .erp-launch-screen transition ile eş).
 const FADE_OUT_MS = 380;
 

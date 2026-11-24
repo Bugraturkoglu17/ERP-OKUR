@@ -82,11 +82,13 @@ body > div {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Yalnızca ışık bandı (arka plan) kayar; harf maskesi yerinde kalır, böylece
+   parlama OKUR harflerinin dışına taşmaz. */
 @keyframes okur-logo-sheen {
-  0%, 7% { transform: translateX(-125%) skewX(-17deg); opacity: 0; }
+  0%, 7% { background-position: 100% 0; opacity: 0; }
   17% { opacity: 0.85; }
   76% { opacity: 0.85; }
-  100% { transform: translateX(125%) skewX(-17deg); opacity: 0; }
+  100% { background-position: 0% 0; opacity: 0; }
 }
 
 @keyframes launch-wordmark-in {
@@ -313,15 +315,15 @@ body > div {
   /* A single restrained white reflection travels through OKUR, not across
      the surrounding page or the handwritten subtitle. */
   .okur-wordmark__sheen {
-    background: linear-gradient(90deg,
-      transparent 37%,
-      rgb(255 255 255 / 0.06) 43%,
+    background: linear-gradient(105deg,
+      transparent 44%,
+      rgb(255 255 255 / 0.06) 47%,
       rgb(255 255 255 / 0.88) 50%,
-      rgb(255 255 255 / 0.06) 57%,
-      transparent 63%);
+      rgb(255 255 255 / 0.06) 53%,
+      transparent 56%) 100% 0 / 300% 100% no-repeat;
     clip-path: inset(0 0 41% 0);
     opacity: 0;
-    animation: okur-logo-sheen 2.6s cubic-bezier(0.38, 0, 0.22, 1) 0.45s both;
+    animation: okur-logo-sheen 3.6s cubic-bezier(0.38, 0, 0.22, 1) 0.45s both;
   }
 
   .erp-brand-mark--animated {

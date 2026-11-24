@@ -9,6 +9,7 @@ import {
   Check, CheckCircle2, FileUp, FolderKanban, Loader2, Plus, Truck, UserRound, X,
 } from "lucide-react";
 import { StorePicker, parseAdres, parseBolge, type StoreOption } from "@/components/store/store-picker";
+import { StoreFormModal, defaultStoreForm } from "@/components/store/store-form-modal";
 import { getStoreById } from "@/services/stores";
 import { getProject, type ProjectDetail } from "@/services/installationProjects";
 import {
@@ -51,17 +52,10 @@ export default function NewWorkOrderPage() {
   const [createdId, setCreatedId] = useState<string | null>(null);
   // ?proje=<id>: projenin içinden açılan montaj/test iş emri; mağaza ve depo projeden gelir.
   const [project, setProject] = useState<ProjectDetail | null>(null);
+  const [storeFormOpen, setStoreFormOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("manager_work_order_draft");
-    if (stored) {
-      try {
-        // Çalışan/depo/malzeme seçimi taslağa alınmaz: stok durumu değişmiş olabilir.
-        const { assigneeId: _a, depotId: _d, ...draft } = JSON.parse(stored);
-        setForm((current) => ({ ...current, ...draft, store: null }));
-      } catch { /* Geçersiz taslak yok sayılır. */ }
-    }
     Promise.all([getTeamUsers(), getManagerWorkOrders(), getCepDepots()])
       .then(([team, orders, cepDepots]) => {
         setUsers(team);
@@ -137,13 +131,6 @@ export default function NewWorkOrderPage() {
     setStep((current) => Math.min(2, current + 1));
   }
 
-  function openStoreCreation() {
-    sessionStorage.setItem("manager_work_order_draft", JSON.stringify({
-      category: form.category, priority: form.priority, title: form.title,
-      description: form.description, dueDate: form.dueDate,
-    }));
-  }
-
   async function uploadAttachment(workOrderId: string) {
     if (!attachment) return;
     const body = new FormData();
@@ -170,7 +157,6 @@ export default function NewWorkOrderPage() {
         installation_project_id: project?.id ?? null,
       });
       setCreatedId(created.id);
-      sessionStorage.removeItem("manager_work_order_draft");
       try { await uploadAttachment(created.id); } catch {
         // İş emri ve stok çıkışı tamamlandı; yalnızca ek yüklenemedi.
         setError("İş emri oluşturuldu, ancak başlangıç eki yüklenemedi. Detay sayfasından tekrar ekleyebilirsiniz.");
@@ -238,7 +224,7 @@ export default function NewWorkOrderPage() {
               <p className="mt-1 text-xs text-slate-500">Mağaza adı veya koduyla arayın.</p>
               {!project && <div className="mt-2"><StorePicker value={form.store} onChange={(store) => setForm((current) => ({ ...current, store }))} /></div>}
               {form.store && <div className="mt-3 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-[auto_1fr]"><Building2 className="h-5 w-5 text-blue-600" /><div><p className="font-semibold text-slate-900">{form.store.name}</p><p className="mt-1 text-xs text-slate-500">Kod: {form.store.project_no ?? "Kayıtlı değil"}{parseBolge(form.store.description) ? ` | ${parseBolge(form.store.description)}` : ""}</p>{parseAdres(form.store.description) && <p className="mt-1 text-xs text-slate-500">{parseAdres(form.store.description)}</p>}</div></div>}
-              {!project && !form.store && <Link onClick={openStoreCreation} href="/manager/magaza-karti" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"><Plus className="h-4 w-4" />Yeni Mağaza Kartı Oluştur</Link>}
+              {!project && !form.store && <button type="button" onClick={() => setStoreFormOpen(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"><Plus className="h-4 w-4" />Yeni Mağaza Kartı Oluştur</button>}
             </div>
           </div>
         )}
@@ -316,6 +302,12 @@ export default function NewWorkOrderPage() {
           {step < 2 ? <button type="button" onClick={nextStep} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">Devam Et <ArrowRight className="h-4 w-4" /></button> : <button type="button" onClick={submit} disabled={saving || users.length === 0} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}İş Emrini Oluştur</button>}
         </footer>
       </main>
+
+      {storeFormOpen && (
+        <StoreFormModal mode="create" initial={defaultStoreForm()}
+          onClose={() => setStoreFormOpen(false)}
+          onDone={(created) => { setForm((current) => ({ ...current, store: created })); setError(""); }} />
+      )}
     </div>
   );
 }

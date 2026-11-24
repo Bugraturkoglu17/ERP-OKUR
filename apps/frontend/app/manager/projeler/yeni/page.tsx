@@ -6,14 +6,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, Building2, Loader2, Plus } from "lucide-react";
 import { StorePicker, parseAdres, type StoreOption } from "@/components/store/store-picker";
+import { StoreFormModal, defaultStoreForm } from "@/components/store/store-form-modal";
 import { apiGet, getRequestErrorMessage } from "@/lib/api";
-import { MoneyInput, parseMoneyInput } from "@/components/form/money-input";
 import { MemberChecklist } from "@/components/installation-projects/project-extras";
-import { createProject, type ProjectType } from "@/services/installationProjects";
+import { createProject, PROJECT_TYPE_LABEL, type ProjectType } from "@/services/installationProjects";
 
 type UserRow = { id: string; full_name: string; email: string; is_active: boolean; default_role?: string | null };
 
-const STAGES = ["Keşif", "Projelendirme ve teklif", "Müşteri onayı", "Üretim", "Malzeme hazırlığı", "Montaj", "Devreye alma ve test", "Teslim", "Kapanış"];
+/** Bugünün tarihi, yerel saat diliminde YYYY-AA-GG (date input değeri). */
+function todayInput(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+const STAGES = ["Keşif", "Projelendirme ve teklif", "Müşteri onayı", "Üretim ve montaj", "Devreye alma ve test", "Teslim", "Kapanış"];
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -21,10 +27,11 @@ export default function NewProjectPage() {
   const [projectType, setProjectType] = useState<ProjectType | null>(null);
   const [memberIds, setMemberIds] = useState<Set<string>>(new Set());
   const [store, setStore] = useState<StoreOption | null>(null);
+  const [storeFormOpen, setStoreFormOpen] = useState(false);
   const [description, setDescription] = useState("");
   const [managerId, setManagerId] = useState("");
+  const [startDate, setStartDate] = useState(todayInput);
   const [targetDate, setTargetDate] = useState("");
-  const [budget, setBudget] = useState("");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -34,16 +41,16 @@ export default function NewProjectPage() {
   }, []);
 
   async function submit() {
-    if (!projectType) { setError("Proje türünü seçin: Market, Soğuk oda veya Soğutma."); return; }
+    if (!projectType) { setError("Proje türünü seçin: Mağaza, Soğuk oda veya Soğutma."); return; }
     if (name.trim().length < 2) { setError("Proje adını yazın."); return; }
     if (!store) { setError("Kurulumun yapılacağı mağazayı / yeri seçin."); return; }
-    const amount = parseMoneyInput(budget);
-    if (amount === undefined) { setError("Bütçe sayı olmalı (örn. 250000 veya 250.000,50)."); return; }
+    if (!startDate) { setError("Başlangıç tarihini seçin."); return; }
+    if (targetDate && targetDate < startDate) { setError("Hedef bitiş, başlangıç tarihinden önce olamaz."); return; }
     setSaving(true); setError("");
     try {
       const created = await createProject({
         name: name.trim(), store_id: store.id, description: description.trim() || null,
-        manager_user_id: managerId || null, target_date: targetDate || null, budget: amount,
+        manager_user_id: managerId || null, start_date: startDate, target_date: targetDate || null,
         project_type: projectType, member_user_ids: Array.from(memberIds),
       });
       router.push(`/manager/projeler/${created.id}`);
@@ -57,19 +64,19 @@ export default function NewProjectPage() {
     <div className="mx-auto max-w-3xl space-y-5">
       <Link href="/manager/projeler" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"><ArrowLeft className="h-4 w-4" />Projeler</Link>
       <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Yeni Proje<InfoHint text="Proje açılınca 9 aşama, kontrol listeleri ve projeye özel bir depo otomatik oluşturulur." /></h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Yeni Proje<InfoHint text="Proje açılınca 7 aşama, kontrol listeleri ve projeye özel bir depo otomatik oluşturulur." /></h1>
       </header>
 
       <main className="space-y-5 rounded-xl border border-slate-200 bg-white p-5 sm:p-7">
         <div>
           <span className="text-sm font-semibold text-slate-800">Proje türü</span>
-          <p className="mt-1 text-xs text-slate-500">Aşamalar her türde aynıdır; tür sonradan değiştirilebilir.</p>
+          <p className="mt-1 text-xs text-slate-500">Aşamalar her türde aynıdır. Tür proje oluşturulduktan sonra değiştirilemez.</p>
           <div className="mt-2">
             <div role="radiogroup" aria-label="Proje türü" className="grid gap-2 sm:grid-cols-3">
               {(["market", "soguk_oda", "sogutma"] as ProjectType[]).map((type) => (
                 <button key={type} type="button" role="radio" aria-checked={projectType === type} onClick={() => setProjectType(type)}
                   className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${projectType === type ? "border-blue-600 bg-blue-50 text-blue-800 ring-1 ring-blue-600" : "border-slate-200 text-slate-700 hover:border-slate-300"}`}>
-                  {{ market: "Market", soguk_oda: "Soğuk oda", sogutma: "Soğutma" }[type]}
+                  {PROJECT_TYPE_LABEL[type]}
                 </button>
               ))}
             </div>
@@ -81,10 +88,10 @@ export default function NewProjectPage() {
 
         <div>
           <span className="text-sm font-semibold text-slate-800">Mağaza / yer</span>
-          <p className="mt-1 text-xs text-slate-500">Mağaza adı veya koduyla arayın. Listede yoksa önce Mağaza Kartı&apos;ndan yeni kayıt açın.</p>
+          <p className="mt-1 text-xs text-slate-500">Mağaza adı veya koduyla arayın. Listede yoksa bu ekrandan ayrılmadan yeni mağaza ekleyebilirsiniz.</p>
           <div className="mt-2"><StorePicker value={store} onChange={setStore} /></div>
           {store && <div className="mt-3 flex gap-3 rounded-xl bg-slate-50 p-4"><Building2 className="h-5 w-5 shrink-0 text-blue-600" /><div><p className="font-semibold text-slate-900">{store.name}</p><p className="mt-1 text-xs text-slate-500">Kod: {store.project_no ?? "—"}{parseAdres(store.description) ? ` · ${parseAdres(store.description)}` : ""}</p></div></div>}
-          {!store && <Link href="/manager/magaza-karti" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"><Plus className="h-4 w-4" />Yeni mağaza / yer kaydı oluştur</Link>}
+          {!store && <button type="button" onClick={() => setStoreFormOpen(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-800"><Plus className="h-4 w-4" />Yeni mağaza / yer kaydı oluştur</button>}
         </div>
 
         <label className="block"><span className="text-sm font-semibold text-slate-800">Açıklama <span className="font-normal text-slate-400">(isteğe bağlı)</span></span>
@@ -96,10 +103,10 @@ export default function NewProjectPage() {
               <option value="">Ben</option>
               {users.map((u) => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
             </select></label>
+          <label className="block"><span className="text-sm font-semibold text-slate-800">Başlangıç tarihi</span>
+            <input type="date" required min="2000-01-01" max="2100-12-31" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
           <label className="block"><span className="text-sm font-semibold text-slate-800">Hedef bitiş</span>
-            <input type="date" min="2000-01-01" max="2100-12-31" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
-          <label className="block"><span className="text-sm font-semibold text-slate-800">Bütçe / teklif (₺)</span>
-            <MoneyInput value={budget} onValueChange={setBudget} placeholder="isteğe bağlı" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+            <input type="date" min={startDate || "2000-01-01"} max="2100-12-31" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
         </div>
 
         <div>
@@ -120,6 +127,12 @@ export default function NewProjectPage() {
           </button>
         </div>
       </main>
+
+      {storeFormOpen && (
+        <StoreFormModal mode="create" initial={defaultStoreForm()}
+          onClose={() => setStoreFormOpen(false)}
+          onDone={(created) => { setStore(created); setError(""); }} />
+      )}
     </div>
   );
 }

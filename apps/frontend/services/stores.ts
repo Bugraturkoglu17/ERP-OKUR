@@ -124,7 +124,8 @@ export type StoreCreateInput = {
   status?: string;
   customer_id: string;
   region_id: string;
-  branch_id: string;
+  /** Verilmezse API mağazaya özel yeni bir şube açar. */
+  branch_id?: string;
   scope_codes?: string[];
   contract_value?: number | null;
   start_date?: string;

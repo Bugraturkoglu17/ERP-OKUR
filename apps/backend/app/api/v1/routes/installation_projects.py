@@ -1,6 +1,6 @@
 """Kurulum projeleri ("Proje" iş tipi).
 
-Yeni bir kurulum (tür: market / soğuk oda / soğutma) keşiften kapanışa kadar sabit 9 aşamadan
+Yeni bir kurulum (tür: market / soğuk oda / soğutma) keşiften kapanışa kadar sabit 7 aşamadan
 geçer. Her aşamanın bir kontrol listesi ve kapanma şartları vardır (gerekli belge, üretim no,
 malzeme hazırlığı, montaj iş emirlerinin bitmesi vb.); aşamalar sırayla kapanır. Her projenin
 kendi deposu (kind='project') vardır: malzeme ana depodan buraya aktarılır, projeye bağlı iş
@@ -60,30 +60,32 @@ INVOICE_DOC = "fatura"  # Proje kapandıktan sonra da yüklenebilen tek belge t�
 DEFAULT_VAT_RATE = Decimal("20")
 INVOICE_PARTY_FIELDS = ("invoice_title", "invoice_tax_office", "invoice_tax_no", "invoice_address")
 
-# (sıra, kod, ad, gerekli belge türleri, ek kural, varsayılan kontrol listesi)
-STAGE_TEMPLATE: list[tuple[int, str, str, list[str], Optional[str], list[str]]] = [
-    (1, "kesif", "Keşif", ["kesif_raporu", "fotograf"], None,
+# Üretim no, malzeme listesi ve montaj iş emirlerinin yönetildiği aşama.
+PRODUCTION_STAGE = "uretim_montaj"
+
+# (sıra, kod, ad, gerekli belge türleri, ek kurallar, varsayılan kontrol listesi)
+STAGE_TEMPLATE: list[tuple[int, str, str, list[str], tuple[str, ...], list[str]]] = [
+    (1, "kesif", "Keşif", ["kesif_raporu", "fotograf"], (),
      ["Yer ölçüleri alındı", "Mevcut durum fotoğraflandı", "Müşteri ihtiyacı not edildi"]),
-    # Malzeme listesi artık yalnızca "Malzeme hazırlığı" aşamasında girildiği için bu aşamada
-    # "malzeme listesi girilmiş olmalı" şartı aranmaz; liste şartı 5. aşamadaki materials_ready içindedir.
-    (2, "teklif", "Projelendirme ve teklif", ["teklif"], None,
+    # Malzeme listesi "Üretim ve montaj" aşamasında girildiği için bu aşamada "malzeme listesi
+    # girilmiş olmalı" şartı aranmaz; liste şartı 4. aşamadaki materials_ready içindedir.
+    (2, "teklif", "Projelendirme ve teklif", ["teklif"], (),
      ["Soğutma ihtiyacı hesaplandı", "Çizim hazırlandı", "Malzeme listesi çıkarıldı", "Teklif hazırlandı"]),
-    (3, "onay", "Müşteri onayı", ["sozlesme"], None,
+    (3, "onay", "Müşteri onayı", ["sozlesme"], (),
      ["Teklif müşteriye iletildi", "Müşteri onayı alındı", "Avans (varsa) alındı"]),
-    (4, "uretim", "Üretim", [], "production_number", []),
-    (5, "malzeme", "Malzeme hazırlığı", [], "materials_ready",
-     ["Eksik malzemeler belirlendi", "Malzemeler proje deposuna aktarıldı"]),
-    (6, "montaj", "Montaj", [], "work_orders_done",
-     ["Ekip ve tarihler planlandı", "Montaj tamamlandı"]),
-    (7, "test", "Devreye alma ve test", ["test_formu"], None, []),
-    (8, "teslim", "Teslim", ["kabul_tutanagi"], None,
+    # Üretim, malzeme hazırlığı ve montaj tek aşamadır; üçünün şartları birlikte aranır.
+    (4, PRODUCTION_STAGE, "Üretim ve montaj", [], ("production_number", "materials_ready", "work_orders_done"),
+     ["Eksik malzemeler belirlendi", "Malzemeler proje deposuna aktarıldı",
+      "Ekip ve tarihler planlandı", "Montaj tamamlandı"]),
+    (5, "test", "Devreye alma ve test", ["test_formu"], (), []),
+    (6, "teslim", "Teslim", ["kabul_tutanagi"], (),
      ["Kullanıcı eğitimi verildi", "Son çizimler teslim edildi"]),
-    (9, "kapanis", "Kapanış", [], "depot_empty",
+    (7, "kapanis", "Kapanış", [], ("depot_empty",),
      ["Teklif ile gerçekleşen maliyet karşılaştırıldı", "Hakediş / fatura kesildi"]),
 ]
-STAGE_BY_CODE = {code: (docs, rule) for _, code, _, docs, rule, _ in STAGE_TEMPLATE}
+STAGE_BY_CODE = {code: (docs, rules) for _, code, _, docs, rules, _ in STAGE_TEMPLATE}
 
-PROJECT_TYPES = {"market": "Market", "soguk_oda": "Soğuk oda", "sogutma": "Soğutma"}
+PROJECT_TYPES = {"market": "Mağaza", "soguk_oda": "Soğuk oda", "sogutma": "Soğutma"}
 COST_KINDS = {"target": "Hedeflenen", "actual": "Gerçekleşen"}
 COST_CATEGORIES = {
     "montaj_iscilik": "Montaj işçilik bedeli",
@@ -245,11 +247,11 @@ async def _billing(db: AsyncSession, project: InstallationProject, store: Option
 
 
 async def _can_enter_production(db: AsyncSession, user: User, project: InstallationProject) -> bool:
-    """Üretim no girebilenler: yönetici, projeye atanan kişi veya Üretim aşamasının sorumlusu."""
+    """Üretim no girebilenler: yönetici, projeye atanan kişi veya "Üretim ve montaj" aşamasının sorumlusu."""
     if _is_manager(user) or await _is_member(db, project.id, user.id):
         return True
     return (await db.execute(select(InstallationProjectStage.id).where(
-        InstallationProjectStage.project_id == project.id, InstallationProjectStage.code == "uretim",
+        InstallationProjectStage.project_id == project.id, InstallationProjectStage.code == PRODUCTION_STAGE,
         InstallationProjectStage.responsible_user_id == user.id).limit(1))).first() is not None
 
 
@@ -350,28 +352,29 @@ async def _requirements(db: AsyncSession, project: InstallationProject, stage: I
                         checklist: list[InstallationProjectChecklistItem], doc_types: set[str],
                         materials: list[dict], work_orders: list[WorkOrder]) -> list[dict]:
     """Aşamanın kapanma şartları ve her birinin karşılanıp karşılanmadığı."""
-    docs, rule = STAGE_BY_CODE.get(stage.code, ([], None))
+    docs, rules = STAGE_BY_CODE.get(stage.code, ([], ()))
     # Kontrol listesi boş olan aşamada (ör. Devreye alma ve test) bu şart gösterilmez.
     reqs = [{"label": "Kontrol listesi tamamlanmış olmalı", "ok": all(item.is_done for item in checklist)}] if checklist else []
     for doc in docs:
         reqs.append({"label": f"{DOC_TYPES[doc]} yüklenmiş olmalı", "ok": doc in doc_types})
-    if rule == "production_number":
-        has_number = (await db.execute(select(InstallationProjectProductionNumber.id).where(
-            InstallationProjectProductionNumber.project_id == project.id).limit(1))).first()
-        reqs.append({"label": RULE_LABELS[rule], "ok": has_number is not None})
-    elif rule == "materials_listed":
-        reqs.append({"label": RULE_LABELS[rule], "ok": any(row["planned_quantity"] > 0 for row in materials)})
-    elif rule == "materials_ready":
-        planned = [row for row in materials if row["planned_quantity"] > 0]
-        reqs.append({"label": RULE_LABELS[rule], "ok": bool(planned) and all(row["missing"] == 0 for row in planned)})
-    elif rule == "work_orders_done":
-        done = [wo for wo in work_orders if _status_value(wo.status) in ("completed", "approved")]
-        open_ = [wo for wo in work_orders if _status_value(wo.status) not in CLOSED_WORK_ORDER]
-        reqs.append({"label": RULE_LABELS[rule], "ok": bool(done) and not open_})
-    elif rule == "depot_empty":
-        left = (await db.execute(select(RetailBalance.material_id).where(
-            RetailBalance.depot_id == project.depot_id, RetailBalance.quantity > 0).limit(1))).first()
-        reqs.append({"label": RULE_LABELS[rule], "ok": left is None})
+    for rule in rules:
+        if rule == "production_number":
+            has_number = (await db.execute(select(InstallationProjectProductionNumber.id).where(
+                InstallationProjectProductionNumber.project_id == project.id).limit(1))).first()
+            reqs.append({"label": RULE_LABELS[rule], "ok": has_number is not None})
+        elif rule == "materials_listed":
+            reqs.append({"label": RULE_LABELS[rule], "ok": any(row["planned_quantity"] > 0 for row in materials)})
+        elif rule == "materials_ready":
+            planned = [row for row in materials if row["planned_quantity"] > 0]
+            reqs.append({"label": RULE_LABELS[rule], "ok": bool(planned) and all(row["missing"] == 0 for row in planned)})
+        elif rule == "work_orders_done":
+            done = [wo for wo in work_orders if _status_value(wo.status) in ("completed", "approved")]
+            open_ = [wo for wo in work_orders if _status_value(wo.status) not in CLOSED_WORK_ORDER]
+            reqs.append({"label": RULE_LABELS[rule], "ok": bool(done) and not open_})
+        elif rule == "depot_empty":
+            left = (await db.execute(select(RetailBalance.material_id).where(
+                RetailBalance.depot_id == project.depot_id, RetailBalance.quantity > 0).limit(1))).first()
+            reqs.append({"label": RULE_LABELS[rule], "ok": left is None})
     return reqs
 
 
@@ -716,7 +719,7 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
         if not manager or manager.tenant_id != tenant_id or not manager.is_active:
             raise HTTPException(400, "Proje sorumlusu bu firmada aktif bir kullanıcı olmalıdır.")
     if body.project_type not in PROJECT_TYPES:
-        raise HTTPException(400, "Proje türü Market, Soğuk oda veya Soğutma olmalıdır.")
+        raise HTTPException(400, "Proje türü Mağaza, Soğuk oda veya Soğutma olmalıdır.")
     depot = RetailDepot(tenant_id=tenant_id, kind="project", name=f"Proje · {body.name}"[:120], is_active=True)
     db.add(depot)
     await db.flush()
@@ -730,7 +733,7 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
     await db.flush()
     await _set_members(db, project, body.member_user_ids, user)
     now = utc_now()
-    for order, code, name, _docs, _rule, checklist in STAGE_TEMPLATE:
+    for order, code, name, _docs, _rules, checklist in STAGE_TEMPLATE:
         stage = InstallationProjectStage(
             project_id=project.id, stage_order=order, code=code, name=name,
             status="in_progress" if order == 1 else "planned", started_at=now if order == 1 else None,
@@ -844,9 +847,12 @@ async def update_project(project_id: UUID, body: ProjectUpdate, db: AsyncSession
         project.manager_user_id = manager.id
     if updates.get("project_type"):
         if updates["project_type"] not in PROJECT_TYPES:
-            raise HTTPException(400, "Proje türü Market, Soğuk oda veya Soğutma olmalıdır.")
+            raise HTTPException(400, "Proje türü Mağaza, Soğuk oda veya Soğutma olmalıdır.")
         project.project_type = updates["project_type"]
-    for key in ("name", "description", "budget"):
+    # Bütçe / teklif "Projelendirme ve teklif" aşamasında girilir; boş gönderilirse silinir.
+    if "budget" in updates:
+        project.budget = updates["budget"]
+    for key in ("name", "description"):
         if key in updates and updates[key] is not None:
             setattr(project, key, updates[key].strip() if isinstance(updates[key], str) else updates[key])
     for key in ("start_date", "target_date"):
@@ -1086,9 +1092,9 @@ async def delete_production_number(number_id: UUID, db: AsyncSession = Depends(g
     remaining = (await db.execute(select(func.count()).where(
         InstallationProjectProductionNumber.project_id == project.id))).scalar_one()
     stage = (await db.execute(select(InstallationProjectStage).where(
-        InstallationProjectStage.project_id == project.id, InstallationProjectStage.code == "uretim"))).scalars().first()
+        InstallationProjectStage.project_id == project.id, InstallationProjectStage.code == PRODUCTION_STAGE))).scalars().first()
     if remaining <= 1 and stage and stage.status == "completed":
-        raise HTTPException(409, "Üretim aşaması tamamlandı; projede en az bir üretim no kalmalıdır.")
+        raise HTTPException(409, "Üretim ve montaj aşaması tamamlandı; projede en az bir üretim no kalmalıdır.")
     await db.delete(row)
     project.updated_at = utc_now()
     await db.commit()
