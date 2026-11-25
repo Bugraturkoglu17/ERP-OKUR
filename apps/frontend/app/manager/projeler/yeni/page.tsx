@@ -111,8 +111,8 @@ export default function NewProjectPage() {
 
         <div>
           <span className="text-sm font-semibold text-slate-800">Projeye atanacak kişiler <span className="font-normal text-slate-400">(isteğe bağlı, birden çok seçilebilir)</span></span>
-          <p className="mb-2 mt-1 text-xs text-slate-500">Atanan herkes projenin tüm aşamalarını ve maliyetlerini görür. Sonradan değiştirilebilir.</p>
-          <MemberChecklist users={users} selected={memberIds} onToggle={(id) => setMemberIds((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} />
+          <p className="mb-2 mt-1 text-xs text-slate-500">Atanan herkes projenin tüm aşamalarını ve maliyetlerini görür. Proje sorumlusu otomatik olarak atanır. Sonradan değiştirilebilir.</p>
+          <MemberChecklist users={users} selected={memberIds} lockedId={managerId || null} onToggle={(id) => setMemberIds((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} />
         </div>
 
         <div className="rounded-xl bg-slate-50 p-4">

@@ -9,7 +9,7 @@ import { getRequestErrorMessage } from "@/lib/api";
 import { formatServerDate, formatServerDateTime } from "@/lib/utils";
 import {
   PROJECT_TYPE_LABEL, addProductionNumber, deleteProductionNumber, saveProjectBilling, saveProjectCosts, saveProjectMembers, updateProject,
-  type CostCategory, type CostKind, type ProductionNumber, type ProjectBilling, type ProjectCosts, type ProjectDetail, type ProjectMember, type ProjectType,
+  type CostCategory, type CostKind, type ProductionNumber, type ProjectBilling, type ProjectBillingPayload, type ProjectCosts, type ProjectDetail, type ProjectMember, type ProjectType,
 } from "@/services/installationProjects";
 
 type UserOption = { id: string; full_name: string; email: string };
@@ -26,25 +26,33 @@ export function ProjectTypeBadge({ value }: { value: ProjectType }) {
   );
 }
 
-/** Kullanıcı listesinden çoklu seçim (yeni proje formu ve atama düzenleme için ortak). */
-export function MemberChecklist({ users, selected, onToggle }: { users: UserOption[]; selected: Set<string>; onToggle: (id: string) => void }) {
+/**
+ * Kullanıcı listesinden çoklu seçim (yeni proje formu ve atama düzenleme için ortak).
+ * lockedId: proje sorumlusu; her zaman atanmış sayılır, işareti kaldırılamaz.
+ */
+export function MemberChecklist({ users, selected, onToggle, lockedId }: { users: UserOption[]; selected: Set<string>; onToggle: (id: string) => void; lockedId?: string | null }) {
   if (users.length === 0) return <p className="text-sm text-slate-500">Kullanıcı bulunamadı.</p>;
   return (
     <ul className="grid max-h-56 gap-1.5 overflow-y-auto sm:grid-cols-2">
-      {users.map((u) => (
-        <li key={u.id}>
-          <label className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2 text-sm ${selected.has(u.id) ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"}`}>
-            <input type="checkbox" checked={selected.has(u.id)} onChange={() => onToggle(u.id)} className="h-4 w-4 accent-blue-600" />
-            <span className="min-w-0 truncate text-slate-800">{u.full_name || u.email}</span>
-          </label>
-        </li>
-      ))}
+      {users.map((u) => {
+        const locked = u.id === lockedId;
+        const checked = locked || selected.has(u.id);
+        return (
+          <li key={u.id}>
+            <label className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm ${locked ? "cursor-default" : "cursor-pointer"} ${checked ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"}`}>
+              <input type="checkbox" checked={checked} disabled={locked} onChange={() => onToggle(u.id)} className="h-4 w-4 accent-blue-600" />
+              <span className="min-w-0 truncate text-slate-800">{u.full_name || u.email}</span>
+              {locked && <span className="ml-auto shrink-0 text-[11px] font-medium text-blue-700">Proje sorumlusu</span>}
+            </label>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
-export function MembersCard({ projectId, members, users, editable, onChanged, onError }: {
-  projectId: string; members: ProjectMember[]; users: UserOption[]; editable: boolean;
+export function MembersCard({ projectId, members, users, managerId, editable, onChanged, onError }: {
+  projectId: string; members: ProjectMember[]; users: UserOption[]; managerId: string | null; editable: boolean;
 } & Handlers) {
   const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -65,16 +73,16 @@ export function MembersCard({ projectId, members, users, editable, onChanged, on
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div className="flex items-center gap-2.5">
           <Users className="h-4 w-4 text-slate-400" />
-          <div><h2 className="text-sm font-semibold text-slate-900">Projeye atananlar<InfoHint text="Atanan herkes projenin tüm aşamalarını ve maliyetlerini görür." /></h2></div>
+          <div><h2 className="text-sm font-semibold text-slate-900">Projeye atananlar<InfoHint text="Atanan herkes projenin tüm aşamalarını ve maliyetlerini görür. Proje sorumlusu otomatik olarak atanır." /></h2></div>
         </div>
         {editable && !editing && <button type="button" onClick={start} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Kişileri düzenle</button>}
       </div>
       <div className="p-5">
         {editing ? (
           <div className="space-y-3">
-            <MemberChecklist users={users} selected={selected} onToggle={toggle} />
+            <MemberChecklist users={users} selected={selected} onToggle={toggle} lockedId={managerId} />
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-slate-500">{selected.size} kişi seçili</span>
+              <span className="text-xs text-slate-500">{selected.size + (managerId && !selected.has(managerId) ? 1 : 0)} kişi seçili</span>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setEditing(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500">Vazgeç</button>
                 <button type="button" disabled={saving} onClick={() => void save()} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Kaydet</button>
@@ -85,7 +93,7 @@ export function MembersCard({ projectId, members, users, editable, onChanged, on
           <p className="text-sm text-slate-500">Henüz kimse atanmadı.{editable ? " \"Kişileri düzenle\" ile birden çok kişi atayabilirsiniz." : ""}</p>
         ) : (
           <ul className="flex flex-wrap gap-2">
-            {members.map((m) => <li key={m.id} className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">{m.name}</li>)}
+            {members.map((m) => <li key={m.id} className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">{m.name}{m.id === managerId && <span className="ml-1.5 text-xs font-normal text-blue-700">· sorumlu</span>}</li>)}
           </ul>
         )}
       </div>
@@ -194,9 +202,17 @@ export function BudgetCard({ projectId, budget, targetTotal, editable, onChanged
   );
 }
 
-function MarginSummary({ quote, cost }: { quote: number | null; cost: number }) {
+type MarginLabels = { price: string; cost: string; profit: string; empty: string; loss: string; low: string };
+const QUOTE_LABELS: MarginLabels = {
+  price: "Teklif", cost: "Hedeflenen maliyet", profit: "Tahmini kâr",
+  empty: "Kâr ve marj, teklif tutarı ve hedeflenen maliyet girilince hesaplanır.",
+  loss: "Teklif, hedeflenen maliyetin altında: bu fiyatla proje zarar eder.",
+  low: "Teklifi veya maliyetleri gözden geçirin.",
+};
+
+function MarginSummary({ quote, cost, labels = QUOTE_LABELS }: { quote: number | null; cost: number; labels?: MarginLabels }) {
   if (!quote || quote <= 0 || cost <= 0) {
-    return <p className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-500">Kâr ve marj, teklif tutarı ve hedeflenen maliyet girilince hesaplanır.</p>;
+    return <p className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-500">{labels.empty}</p>;
   }
   const profit = quote - cost;
   const margin = (profit / quote) * 100;
@@ -208,16 +224,150 @@ function MarginSummary({ quote, cost }: { quote: number | null; cost: number }) 
   return (
     <div className={`rounded-xl border p-4 ${box}`}>
       <dl className="grid grid-cols-3 gap-3 text-sm">
-        <div><dt className="text-[11px] font-medium text-slate-500">Teklif</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate-900">₺{money(quote)}</dd></div>
-        <div><dt className="text-[11px] font-medium text-slate-500">Hedeflenen maliyet</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate-900">₺{money(cost)}</dd></div>
-        <div><dt className="text-[11px] font-medium text-slate-500">{profit < 0 ? "Zarar" : "Tahmini kâr"}</dt><dd className={`mt-0.5 font-bold tabular-nums ${text}`}>₺{money(Math.abs(profit))} <span className="font-semibold">(%{percent})</span></dd></div>
+        <div><dt className="text-[11px] font-medium text-slate-500">{labels.price}</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate-900">₺{money(quote)}</dd></div>
+        <div><dt className="text-[11px] font-medium text-slate-500">{labels.cost}</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate-900">₺{money(cost)}</dd></div>
+        <div><dt className="text-[11px] font-medium text-slate-500">{profit < 0 ? "Zarar" : labels.profit}</dt><dd className={`mt-0.5 font-bold tabular-nums ${text}`}>₺{money(Math.abs(profit))} <span className="font-semibold">(%{percent})</span></dd></div>
       </dl>
       {tone !== "ok" && (
         <p className={`mt-3 text-xs font-medium ${text}`}>
-          {tone === "loss" ? "Teklif, hedeflenen maliyetin altında: bu fiyatla proje zarar eder." : `Marj %${LOW_MARGIN_PERCENT}'un altında. Teklifi veya maliyetleri gözden geçirin.`}
+          {tone === "loss" ? labels.loss : `Marj %${LOW_MARGIN_PERCENT}'un altında. ${labels.low}`}
         </p>
       )}
     </div>
+  );
+}
+
+/** Fatura kaydının tamamı; yalnızca verilen alanlar değiştirilir (diğerleri korunur). */
+function billingPayload(billing: ProjectBilling, changes: Partial<ProjectBillingPayload>): ProjectBillingPayload {
+  const { defaults: _defaults, ...current } = billing;
+  return { ...current, ...changes };
+}
+
+/**
+ * Müşteri onayı aşamasında satış fiyatı: müşterinin onayladığı tutar, KDV dahil / hariç ve KDV oranı.
+ * Fiyat henüz girilmediyse teklif tutarıyla dolu gelir. Tekliften farkı (indirim) ve hedeflenen
+ * maliyete göre beklenen kâr anlık gösterilir.
+ */
+export function SalePriceCard({ projectId, billing, budget, targetTotal, editable, onChanged, onError }: {
+  projectId: string; billing: ProjectBilling; budget: string | null; targetTotal: string; editable: boolean;
+} & Handlers) {
+  const initial = () => ({
+    price: moneyInputFromNumber(billing.sale_price ?? budget),
+    includesVat: billing.sale_price_includes_vat,
+    vatRate: String(Number(billing.vat_rate)).replace(".", ","),
+  });
+  const [draft, setDraft] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const base = initial();
+  const dirty = billing.sale_price === null || draft.price !== base.price || draft.includesVat !== base.includesVat || draft.vatRate !== base.vatRate;
+  const patch = (changes: Partial<typeof draft>) => { setDraft((cur) => ({ ...cur, ...changes })); setSaved(false); };
+
+  const typedRate = Number(draft.vatRate.trim().replace(",", "."));
+  const rateValid = draft.vatRate.trim() !== "" && Number.isFinite(typedRate) && typedRate >= 0 && typedRate <= 100;
+  const typed = editable ? parseMoneyInput(draft.price) : billing.sale_price;
+  const price = typed ? Number(typed) : null;
+  const rate = editable ? (rateValid ? typedRate : 0) : Number(billing.vat_rate);
+  const includesVat = editable ? draft.includesVat : billing.sale_price_includes_vat;
+  const totals = price === null ? null : vatBreakdown(price, rate, includesVat);
+  const quote = budget ? Number(budget) : null;
+  const diff = totals && quote ? totals.net - quote : null;
+
+  async function save() {
+    const amount = parseMoneyInput(draft.price);
+    if (amount === undefined || amount === null) { onError("Satış fiyatını girin (örn. 250000 veya 250.000,50)."); return; }
+    if (!rateValid) { onError("KDV oranı 0 ile 100 arasında bir sayı olmalı (örn. 20)."); return; }
+    setBusy(true); setSaved(false); onError("");
+    try {
+      await saveProjectBilling(projectId, billingPayload(billing, { sale_price: amount, sale_price_includes_vat: draft.includesVat, vat_rate: typedRate.toFixed(2) }));
+      await onChanged();
+      setSaved(true);
+    } catch (reason) {
+      onError(getRequestErrorMessage(reason, "Satış fiyatı kaydedilemedi."));
+    } finally { setBusy(false); }
+  }
+
+  const inputClass = "w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm";
+  const empty = <span className="text-slate-300">—</span>;
+  return (
+    <section className="erp-section-card">
+      <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
+        <ReceiptText className="h-4 w-4 text-slate-400" />
+        <h2 className="text-sm font-semibold text-slate-900">Satış fiyatı<InfoHint text="Müşterinin onayladığı tutar. Teklif tutarıyla dolu gelir; pazarlıkta değiştiyse düzeltin. Fatura ve gerçek kâr bu fiyat üzerinden hesaplanır." /></h2>
+      </div>
+      <div className="space-y-4 p-5">
+        <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-5">
+          <BillingField label="Satış fiyatı (₺)" className="sm:col-span-2">
+            {editable ? (
+              <div className="flex gap-2">
+                <MoneyInput value={draft.price} placeholder="0,00" aria-label="Satış fiyatı (₺)" onValueChange={(next) => patch({ price: next })} className={`${inputClass} min-w-0 flex-1 text-right tabular-nums`} />
+                <select value={draft.includesVat ? "dahil" : "haric"} aria-label="Satış fiyatı KDV dahil mi" onChange={(e) => patch({ includesVat: e.target.value === "dahil" })} className="shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm">
+                  <option value="haric">KDV hariç</option>
+                  <option value="dahil">KDV dahil</option>
+                </select>
+              </div>
+            ) : billing.sale_price === null ? empty : <span className="font-semibold tabular-nums">₺{money(billing.sale_price)} <span className="text-xs font-normal text-slate-500">{billing.sale_price_includes_vat ? "KDV dahil" : "KDV hariç"}</span></span>}
+          </BillingField>
+          <BillingField label="KDV oranı (%)">
+            {editable ? <input value={draft.vatRate} inputMode="decimal" maxLength={6} placeholder="20" aria-label="KDV oranı (%)" onChange={(e) => patch({ vatRate: e.target.value })} className={`${inputClass} text-right tabular-nums`} />
+              : <span className="font-semibold tabular-nums">%{rate.toLocaleString("tr-TR")}</span>}
+          </BillingField>
+          <BillingField label="KDV tutarı">{totals ? <span className="tabular-nums">₺{money(totals.vat)}</span> : empty}</BillingField>
+          <BillingField label="KDV dahil toplam">{totals ? <span className="font-semibold tabular-nums">₺{money(totals.gross)}</span> : empty}</BillingField>
+        </div>
+
+        {editable && (
+          <div className="flex items-center justify-end gap-3">
+            {billing.sale_price === null && <span className="text-xs text-slate-500">Henüz kaydedilmedi.</span>}
+            {saved && !dirty && <span className="text-xs font-medium text-emerald-700">Kaydedildi</span>}
+            <button type="button" disabled={busy || !dirty} onClick={() => void save()} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">{busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Kaydet</button>
+          </div>
+        )}
+
+        {diff !== null && Math.abs(diff) >= 0.01 && quote && (
+          <p className={`rounded-lg px-3 py-2.5 text-xs font-medium ${diff < 0 ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>
+            {diff < 0
+              ? `Teklife göre ₺${money(-diff)} indirim (%${(-diff / quote * 100).toLocaleString("tr-TR", { maximumFractionDigits: 1 })}). Teklif: ₺${money(quote)}, KDV hariç satış fiyatı: ₺${money(totals!.net)}.`
+              : `Satış fiyatı tekliften ₺${money(diff)} fazla. Teklif: ₺${money(quote)}, KDV hariç satış fiyatı: ₺${money(totals!.net)}.`}
+          </p>
+        )}
+
+        <MarginSummary quote={totals ? totals.net : null} cost={Number(targetTotal || 0)} labels={{
+          price: "Satış fiyatı (KDV hariç)", cost: "Hedeflenen maliyet", profit: "Beklenen kâr",
+          empty: "Beklenen kâr, satış fiyatı ve hedeflenen maliyet girilince hesaplanır.",
+          loss: "Satış fiyatı hedeflenen maliyetin altında: bu fiyatla proje zarar eder.",
+          low: "Fiyatı veya maliyetleri gözden geçirin.",
+        }} />
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Kapanış aşamasında gerçek kâr: KDV hariç gelir − gerçekleşen maliyet. Gelir, fatura tutarı
+ * girildiyse faturadan (ek iş vb. dahil), girilmediyse onaylanan satış fiyatından alınır.
+ */
+export function RealProfitCard({ billing, actualTotal }: { billing: ProjectBilling; actualTotal: string }) {
+  const rate = Number(billing.vat_rate || 0);
+  const fromInvoice = billing.invoice_amount !== null && Number(billing.invoice_amount) > 0;
+  const net = fromInvoice
+    ? vatBreakdown(Number(billing.invoice_amount), rate, true).net
+    : billing.sale_price ? vatBreakdown(Number(billing.sale_price), rate, billing.sale_price_includes_vat).net : null;
+  return (
+    <section className="erp-section-card">
+      <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
+        <Wallet className="h-4 w-4 text-slate-400" />
+        <div><h2 className="text-sm font-semibold text-slate-900">Gerçek kâr<InfoHint text="KDV hariç gelirden gerçekleşen maliyet düşülür. Gelir, fatura tutarı girildiyse faturadan, girilmediyse Müşteri onayı aşamasındaki satış fiyatından alınır." /></h2></div>
+      </div>
+      <div className="p-5">
+        <MarginSummary quote={net} cost={Number(actualTotal || 0)} labels={{
+          price: fromInvoice ? "Fatura tutarı (KDV hariç)" : "Satış fiyatı (KDV hariç)", cost: "Gerçekleşen maliyet", profit: "Gerçek kâr",
+          empty: "Gerçek kâr, satış fiyatı ve gerçekleşen maliyet girilince hesaplanır.",
+          loss: "Gerçekleşen maliyet satış fiyatını aşmış: proje zarar etti.",
+          low: "Gerçek kâr düşük kaldı.",
+        }} />
+      </div>
+    </section>
   );
 }
 
@@ -376,7 +526,7 @@ function BillingField({ label, children, className = "" }: { label: string; chil
 }
 
 type PartyField = keyof ProjectBilling["defaults"];
-type BillingDraft = { price: string; includesVat: boolean; vatRate: string; no: string; date: string; dueDate: string; amount: string } & Record<PartyField, string>;
+type BillingDraft = { no: string; date: string; dueDate: string; amount: string } & Record<PartyField, string>;
 const PARTY_FIELDS: { field: PartyField; label: string; max: number; wide?: boolean }[] = [
   { field: "invoice_title", label: "Fatura unvanı", max: 200 },
   { field: "invoice_tax_office", label: "Vergi dairesi", max: 100 },
@@ -392,8 +542,9 @@ function vatBreakdown(price: number, rate: number, includesVat: boolean) {
 }
 
 /**
- * Kapanış aşamasındaki fatura bilgileri. Satış fiyatı, KDV, fatura no / tarihi / vadesi / tutarı ve
- * fatura tarafını yönetici girer. Fatura tarafı boşken müşteri firmadan gelen öneri gösterilir.
+ * Kapanış aşamasındaki fatura bilgileri. Fatura no / tarihi / vadesi / tutarı ve fatura tarafını
+ * yönetici girer. Satış fiyatı ve KDV Müşteri onayı aşamasında girilir; burada yalnızca gösterilir.
+ * Fatura tutarı boşsa onaylanan fiyatın KDV dahil toplamıyla dolu gelir; farklıysa fark gösterilir. Fatura tarafı boşken müşteri firmadan gelen öneri gösterilir.
  * Mağaza adresi ve iletişim bilgileri mağaza kartından okunur, burada değiştirilmez.
  */
 export function BillingCard({ projectId, billing, store, storeHref, editable, onChanged, onError }: {
@@ -406,10 +557,8 @@ export function BillingCard({ projectId, billing, store, storeHref, editable, on
 
   function start() {
     setDraft({
-      price: moneyInputFromNumber(billing.sale_price), includesVat: billing.sale_price_includes_vat,
-      vatRate: String(Number(billing.vat_rate)).replace(".", ","),
       no: billing.invoice_no ?? "", date: billing.invoice_date?.slice(0, 10) ?? "", dueDate: billing.invoice_due_date?.slice(0, 10) ?? "",
-      amount: moneyInputFromNumber(billing.invoice_amount),
+      amount: moneyInputFromNumber(billing.invoice_amount ?? (totals ? totals.gross.toFixed(2) : null)),
       // Fatura tarafı boşsa müşteri firmadan gelen öneriyle doldurulur; kaydedilince projeye yazılır.
       ...Object.fromEntries(PARTY_FIELDS.map(({ field }) => [field, billing[field] ?? billing.defaults[field] ?? ""])) as Record<PartyField, string>,
     });
@@ -417,21 +566,16 @@ export function BillingCard({ projectId, billing, store, storeHref, editable, on
 
   async function save() {
     if (!draft) return;
-    const price = parseMoneyInput(draft.price);
-    if (price === undefined) { onError("Proje satış fiyatı sayı olmalı (örn. 15000 veya 15.000,50)."); return; }
     const amount = parseMoneyInput(draft.amount);
     if (amount === undefined) { onError("Fatura tutarı sayı olmalı (örn. 15000 veya 15.000,50)."); return; }
-    const rate = Number(draft.vatRate.trim().replace(",", "."));
-    if (draft.vatRate.trim() === "" || !Number.isFinite(rate) || rate < 0 || rate > 100) { onError("KDV oranı 0 ile 100 arasında bir sayı olmalı (örn. 20)."); return; }
     if (draft.date && draft.dueDate && draft.dueDate < draft.date) { onError("Vade tarihi fatura tarihinden önce olamaz."); return; }
     setSaving(true); onError("");
     try {
-      await saveProjectBilling(projectId, {
-        sale_price: price, sale_price_includes_vat: draft.includesVat, vat_rate: rate.toFixed(2),
+      await saveProjectBilling(projectId, billingPayload(billing, {
         invoice_no: draft.no.trim() || null, invoice_date: draft.date || null, invoice_due_date: draft.dueDate || null, invoice_amount: amount,
         invoice_title: draft.invoice_title.trim() || null, invoice_tax_office: draft.invoice_tax_office.trim() || null,
         invoice_tax_no: draft.invoice_tax_no.trim() || null, invoice_address: draft.invoice_address.trim() || null,
-      });
+      }));
       setDraft(null); await onChanged();
     } catch (reason) { onError(getRequestErrorMessage(reason, "Fatura bilgileri kaydedilemedi.")); } finally { setSaving(false); }
   }
@@ -440,6 +584,7 @@ export function BillingCard({ projectId, billing, store, storeHref, editable, on
   const empty = <span className="text-slate-300">—</span>;
   const rate = Number(billing.vat_rate);
   const totals = billing.sale_price === null ? null : vatBreakdown(Number(billing.sale_price), rate, billing.sale_price_includes_vat);
+  const invoiceDiff = totals && billing.invoice_amount !== null ? Number(billing.invoice_amount) - totals.gross : null;
   const dateInput = (key: "date" | "dueDate", label: string) => draft && (
     <input type="date" value={draft[key]} min="2000-01-01" max="2100-12-31" aria-label={label} onChange={(e) => patch({ [key]: e.target.value })} className={inputClass} />
   );
@@ -448,27 +593,17 @@ export function BillingCard({ projectId, billing, store, storeHref, editable, on
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div className="flex items-center gap-2.5">
           <ReceiptText className="h-4 w-4 text-slate-400" />
-          <h2 className="text-sm font-semibold text-slate-900">Fatura bilgileri<InfoHint text="Satış fiyatı, KDV, fatura no, tarih, vade, tutar ve fatura tarafı burada girilir. Mağaza adresi ve iletişim bilgileri mağaza kartından gelir. Fatura belgesini aşağıdaki Belgeler bölümünden 'Fatura' türüyle yükleyin." /></h2>
+          <h2 className="text-sm font-semibold text-slate-900">Fatura bilgileri<InfoHint text="Fatura no, tarih, vade, tutar ve fatura tarafı burada girilir. Satış fiyatı ve KDV Müşteri onayı aşamasında girilir; ek iş yapıldıysa fatura tutarını farklı girin, gerçek kâr fatura tutarından hesaplanır. Mağaza adresi ve iletişim bilgileri mağaza kartından gelir. Fatura belgesini aşağıdaki Belgeler bölümünden 'Fatura' türüyle yükleyin." /></h2>
         </div>
         {editable && !draft && <button type="button" onClick={start} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Düzenle</button>}
       </div>
 
       <div className="grid gap-x-6 gap-y-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
-        <BillingField label="Proje satış fiyatı (₺)">
-          {draft ? (
-            <div className="flex gap-2">
-              <MoneyInput value={draft.price} placeholder="0,00" aria-label="Proje satış fiyatı (₺)" onValueChange={(price) => patch({ price })} className={`${inputClass} min-w-0 flex-1 text-right tabular-nums`} />
-              <select value={draft.includesVat ? "dahil" : "haric"} aria-label="Satış fiyatı KDV dahil mi" onChange={(e) => patch({ includesVat: e.target.value === "dahil" })} className="shrink-0 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm">
-                <option value="haric">KDV hariç</option>
-                <option value="dahil">KDV dahil</option>
-              </select>
-            </div>
-          ) : billing.sale_price === null ? empty : <span className="font-semibold tabular-nums">₺{money(billing.sale_price)} <span className="text-xs font-normal text-slate-500">{billing.sale_price_includes_vat ? "KDV dahil" : "KDV hariç"}</span></span>}
+        <BillingField label="Onaylanan satış fiyatı">
+          {billing.sale_price === null ? <span className="text-slate-400">Müşteri onayı aşamasında girilir.</span>
+            : <span className="font-semibold tabular-nums">₺{money(billing.sale_price)} <span className="text-xs font-normal text-slate-500">{billing.sale_price_includes_vat ? "KDV dahil" : "KDV hariç"}</span></span>}
         </BillingField>
-        <BillingField label="KDV oranı (%)">
-          {draft ? <input value={draft.vatRate} inputMode="decimal" maxLength={6} placeholder="20" aria-label="KDV oranı (%)" onChange={(e) => patch({ vatRate: e.target.value })} className={`${inputClass} text-right tabular-nums`} />
-            : <span className="font-semibold tabular-nums">%{rate.toLocaleString("tr-TR")}</span>}
-        </BillingField>
+        <BillingField label="KDV oranı"><span className="font-semibold tabular-nums">%{rate.toLocaleString("tr-TR")}</span></BillingField>
         <BillingField label="KDV tutarı">{totals ? <span className="tabular-nums">₺{money(totals.vat)}</span> : empty}</BillingField>
         <BillingField label="KDV dahil toplam">{totals ? <span className="font-semibold tabular-nums">₺{money(totals.gross)}</span> : empty}</BillingField>
 
@@ -487,6 +622,12 @@ export function BillingCard({ projectId, billing, store, storeHref, editable, on
             : billing.invoice_amount === null ? empty : <span className="font-semibold tabular-nums">₺{money(billing.invoice_amount)}</span>}
         </BillingField>
       </div>
+
+      {!draft && invoiceDiff !== null && Math.abs(invoiceDiff) >= 0.01 && (
+        <p className={`mx-5 mb-5 rounded-lg px-3 py-2.5 text-xs font-medium ${invoiceDiff < 0 ? "bg-amber-50 text-amber-800" : "bg-blue-50 text-blue-800"}`}>
+          Fatura tutarı onaylanan satış fiyatından (KDV dahil ₺{money(totals!.gross)}) ₺{money(Math.abs(invoiceDiff))} {invoiceDiff < 0 ? "düşük" : "fazla"}{invoiceDiff > 0 ? " (ek iş vb.)" : ""}. Gerçek kâr fatura tutarından hesaplanır.
+        </p>
+      )}
 
       <div className="grid gap-x-6 gap-y-4 border-t border-slate-100 p-5 sm:grid-cols-2 lg:grid-cols-4">
         {PARTY_FIELDS.map(({ field, label, max, wide }) => {

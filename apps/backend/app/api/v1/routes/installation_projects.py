@@ -71,7 +71,8 @@ STAGE_TEMPLATE: list[tuple[int, str, str, list[str], tuple[str, ...], list[str]]
     # girilmiş olmalı" şartı aranmaz; liste şartı 4. aşamadaki materials_ready içindedir.
     (2, "teklif", "Projelendirme ve teklif", ["teklif"], (),
      ["Soğutma ihtiyacı hesaplandı", "Çizim hazırlandı", "Malzeme listesi çıkarıldı", "Teklif hazırlandı"]),
-    (3, "onay", "Müşteri onayı", ["sozlesme"], (),
+    # Satış fiyatı (müşterinin onayladığı tutar) ve KDV bu aşamada girilir.
+    (3, "onay", "Müşteri onayı", ["sozlesme"], ("sale_price_set",),
      ["Teklif müşteriye iletildi", "Müşteri onayı alındı", "Avans (varsa) alındı"]),
     # Üretim, malzeme hazırlığı ve montaj tek aşamadır; üçünün şartları birlikte aranır.
     (4, PRODUCTION_STAGE, "Üretim ve montaj", [], ("production_number", "materials_ready", "work_orders_done"),
@@ -80,7 +81,8 @@ STAGE_TEMPLATE: list[tuple[int, str, str, list[str], tuple[str, ...], list[str]]
     (5, "test", "Devreye alma ve test", ["test_formu"], (), []),
     (6, "teslim", "Teslim", ["kabul_tutanagi"], (),
      ["Kullanıcı eğitimi verildi", "Son çizimler teslim edildi"]),
-    (7, "kapanis", "Kapanış", [], ("depot_empty",),
+    # Kapanış: açık iş kalmamalı, fatura ve gerçekleşen maliyet girilmiş olmalı (gerçek kâr bunlardan hesaplanır).
+    (7, "kapanis", "Kapanış", [], ("no_open_work_orders", "invoice_set", "actual_costs_set", "depot_empty"),
      ["Teklif ile gerçekleşen maliyet karşılaştırıldı", "Hakediş / fatura kesildi"]),
 ]
 STAGE_BY_CODE = {code: (docs, rules) for _, code, _, docs, rules, _ in STAGE_TEMPLATE}
@@ -101,6 +103,10 @@ RULE_LABELS = {
     "materials_ready": "Listedeki tüm malzemeler proje deposunda hazır olmalı",
     "work_orders_done": "En az bir montaj iş emri tamamlanmış ve açık iş emri kalmamış olmalı",
     "depot_empty": "Proje deposunda malzeme kalmamalı (kalan malzeme ana depoya iade edilmeli)",
+    "no_open_work_orders": "Projede açık iş emri kalmamalı (tamamlanmalı veya iptal edilmeli)",
+    "sale_price_set": "Satış fiyatı girilmiş olmalı",
+    "invoice_set": "Fatura no ve fatura tarihi girilmiş olmalı",
+    "actual_costs_set": "Gerçekleşen maliyet girilmiş olmalı",
 }
 
 
@@ -371,6 +377,18 @@ async def _requirements(db: AsyncSession, project: InstallationProject, stage: I
             done = [wo for wo in work_orders if _status_value(wo.status) in ("completed", "approved")]
             open_ = [wo for wo in work_orders if _status_value(wo.status) not in CLOSED_WORK_ORDER]
             reqs.append({"label": RULE_LABELS[rule], "ok": bool(done) and not open_})
+        elif rule == "no_open_work_orders":
+            open_ = [wo for wo in work_orders if _status_value(wo.status) not in CLOSED_WORK_ORDER]
+            reqs.append({"label": RULE_LABELS[rule], "ok": not open_})
+        elif rule == "sale_price_set":
+            reqs.append({"label": RULE_LABELS[rule], "ok": project.sale_price is not None and project.sale_price > 0})
+        elif rule == "invoice_set":
+            reqs.append({"label": RULE_LABELS[rule], "ok": bool((project.invoice_no or "").strip()) and project.invoice_date is not None})
+        elif rule == "actual_costs_set":
+            has_actual = (await db.execute(select(InstallationProjectCost.id).where(
+                InstallationProjectCost.project_id == project.id, InstallationProjectCost.kind == "actual",
+                InstallationProjectCost.amount > 0).limit(1))).first()
+            reqs.append({"label": RULE_LABELS[rule], "ok": has_actual is not None})
         elif rule == "depot_empty":
             left = (await db.execute(select(RetailBalance.material_id).where(
                 RetailBalance.depot_id == project.depot_id, RetailBalance.quantity > 0).limit(1))).first()
@@ -689,8 +707,11 @@ async def stage_task(stage_id: UUID, db: AsyncSession = Depends(get_db), user: U
 
 
 async def _set_members(db: AsyncSession, project: InstallationProject, user_ids: list[UUID], actor: User) -> None:
-    """Projeye atanan kişileri verilen listeyle eşitler; yeni atananlara bildirim gider."""
-    wanted = set(user_ids)
+    """Projeye atanan kişileri verilen listeyle eşitler; yeni atananlara bildirim gider.
+
+    Proje sorumlusu her zaman projeye atanmış sayılır; listede olmasa da eklenir, çıkarılamaz.
+    """
+    wanted = set(user_ids) | ({project.manager_user_id} if project.manager_user_id else set())
     for user_id in wanted:
         person = await db.get(User, user_id)
         if not person or person.tenant_id != project.tenant_id or not person.is_active:
@@ -845,6 +866,12 @@ async def update_project(project_id: UUID, body: ProjectUpdate, db: AsyncSession
         if not manager or manager.tenant_id != project.tenant_id or not manager.is_active:
             raise HTTPException(400, "Proje sorumlusu bu firmada aktif bir kullanıcı olmalıdır.")
         project.manager_user_id = manager.id
+        # Yeni proje sorumlusu projeye otomatik atanır (önceki sorumlu atanmış olarak kalır).
+        if not await _is_member(db, project.id, manager.id):
+            db.add(InstallationProjectMember(project_id=project.id, user_id=manager.id, added_by=user.id))
+            if manager.id != user.id:
+                await _notify_many(db, {manager.id}, tenant_id=project.tenant_id, category="project_member_added",
+                                   title="Projeye atandınız", body=f"{project.name} projesinin sorumlusu olarak atandınız.")
     if updates.get("project_type"):
         if updates["project_type"] not in PROJECT_TYPES:
             raise HTTPException(400, "Proje türü Mağaza, Soğuk oda veya Soğutma olmalıdır.")

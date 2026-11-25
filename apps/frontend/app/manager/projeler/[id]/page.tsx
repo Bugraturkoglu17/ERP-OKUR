@@ -13,7 +13,7 @@ import { uploadFormData } from "@/lib/upload";
 import { formatQuantity } from "@/lib/quantity";
 import { formatServerDate, formatServerDateTime } from "@/lib/utils";
 import { MaterialPicker, MaterialTitle } from "@/components/retail-stock/material-picker";
-import { BillingCard, BudgetCard, CostsCard, MembersCard, ProductionNumbersCard, ProjectTypeBadge, TargetCostsCard } from "@/components/installation-projects/project-extras";
+import { BillingCard, BudgetCard, CostsCard, MembersCard, ProductionNumbersCard, ProjectTypeBadge, RealProfitCard, SalePriceCard, TargetCostsCard } from "@/components/installation-projects/project-extras";
 import { STATUS_LABEL, normalizeStatus } from "@/services/managerWorkOrders";
 import {
   PROJECT_STATUS_LABEL, addChecklistItem, deleteProjectDocument, getProject, projectDocumentUrl,
@@ -409,16 +409,22 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
+      {/* Müşterinin onayladığı satış fiyatı ve KDV; teklif tutarıyla dolu gelir, beklenen kâr gösterilir. */}
+      {selected.code === "onay" && <SalePriceCard projectId={project.id} billing={project.billing} budget={project.budget}
+        targetTotal={project.costs.target.total} editable={project.can_manage && project.status !== "cancelled"} onChanged={refresh} onError={setError} />}
+
       {selected.code === "uretim_montaj" && <ProductionNumbersCard projectId={project.id} numbers={project.production_numbers} canEnter={active} onChanged={refresh} onError={setError} />}
 
       {selected.code === "kapanis" && <BillingCard projectId={project.id} billing={project.billing} store={project.store}
         storeHref={project.store ? `${inUserPanel ? "/user" : "/manager"}/magaza-karti/${project.store.id}` : null}
         editable={project.can_manage && project.status !== "cancelled"} onChanged={refresh} onError={setError} />}
 
+      {selected.code === "kapanis" && <RealProfitCard billing={project.billing} actualTotal={project.costs.actual.total} />}
+
       {selected.code === "kapanis" && <CostsCard projectId={project.id} costs={project.costs} canEnter={active} onChanged={refresh} onError={setError} />}
 
       {/* Projeye atanan kişiler yalnızca "Keşif" aşamasında gösterilir. */}
-      {selected.code === "kesif" && <MembersCard projectId={project.id} members={project.members} users={users} editable={editable} onChanged={refresh} onError={setError} />}
+      {selected.code === "kesif" && <MembersCard projectId={project.id} members={project.members} users={users} managerId={project.manager_user_id} editable={editable} onChanged={refresh} onError={setError} />}
 
       {/* Malzeme listesi yalnızca "Üretim ve montaj" aşamasında gösterilir. */}
       <div className={`grid gap-5 ${selected.code === "uretim_montaj" ? "xl:grid-cols-2" : ""}`}>
