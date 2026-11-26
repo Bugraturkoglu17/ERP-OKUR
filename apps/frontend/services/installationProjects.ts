@@ -158,7 +158,11 @@ export const getStageTask = (stageId: string) => apiGet<StageTask>(`${BASE}/stag
 export type ProjectStats = {
   counts: { total: number; active: number; completed: number; cancelled: number; overdue: number; closing_pending: number };
   avg_completion_days: number | null;
-  money: { budget_total: number; target_total: number; actual_total: number; missing_target: number; over_target: number };
+  money: { budget_total: number; target_total: number; actual_total: number; missing_target: number; over_target: number;
+    /** KDV hariç onaylanan satış toplamı ve girildiği proje sayısı. */
+    sale_total: number; sale_count: number;
+    /** Tamamlanan projelerde KDV hariç gelir (fatura, yoksa satış fiyatı), gerçekleşen maliyet ve gerçek kâr. */
+    realized_revenue: number; realized_cost: number; realized_profit: number; realized_count: number };
   by_type: { type: ProjectType; label: string; count: number; active: number; budget: number; target: number; actual: number }[];
   by_stage: { order: number; name: string; count: number }[];
   by_category: { category: CostCategory; label: string; target: number; actual: number }[];
@@ -166,6 +170,8 @@ export type ProjectStats = {
     id: string; name: string; status: ProjectStatus; project_type_label: string;
     stages_total: number; stages_done: number; current_stage: string | null; overdue: boolean;
     budget: number | null; target: number | null; actual: number | null; usage_pct: number | null;
+    /** KDV hariç onaylanan satış fiyatı; gerçek kâr yalnızca tamamlanan projede dolu. */
+    sale: number | null; profit: number | null;
   }[];
 };
 

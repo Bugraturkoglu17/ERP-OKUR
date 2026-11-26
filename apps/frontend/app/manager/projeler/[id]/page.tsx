@@ -411,7 +411,8 @@ export default function ProjectDetailPage() {
 
       {/* Müşterinin onayladığı satış fiyatı ve KDV; teklif tutarıyla dolu gelir, beklenen kâr gösterilir. */}
       {selected.code === "onay" && <SalePriceCard projectId={project.id} billing={project.billing} budget={project.budget}
-        targetTotal={project.costs.target.total} editable={project.can_manage && project.status !== "cancelled"} onChanged={refresh} onError={setError} />}
+        targetTotal={project.costs.target.total} editable={project.can_manage && project.status !== "cancelled"}
+        locked={selected.status === "completed"} onChanged={refresh} onError={setError} />}
 
       {selected.code === "uretim_montaj" && <ProductionNumbersCard projectId={project.id} numbers={project.production_numbers} canEnter={active} onChanged={refresh} onError={setError} />}
 

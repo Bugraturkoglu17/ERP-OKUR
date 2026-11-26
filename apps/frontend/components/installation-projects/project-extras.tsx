@@ -248,9 +248,12 @@ function billingPayload(billing: ProjectBilling, changes: Partial<ProjectBilling
  * Fiyat henüz girilmediyse teklif tutarıyla dolu gelir. Tekliften farkı (indirim) ve hedeflenen
  * maliyete göre beklenen kâr anlık gösterilir.
  */
-export function SalePriceCard({ projectId, billing, budget, targetTotal, editable, onChanged, onError }: {
+export function SalePriceCard({ projectId, billing, budget, targetTotal, editable: canEdit, locked, onChanged, onError }: {
   projectId: string; billing: ProjectBilling; budget: string | null; targetTotal: string; editable: boolean;
+  /** Müşteri onayı tamamlandıysa fiyat ve KDV kilitlenir; fark fatura tutarına yansıtılır. */
+  locked: boolean;
 } & Handlers) {
+  const editable = canEdit && !locked;
   const initial = () => ({
     price: moneyInputFromNumber(billing.sale_price ?? budget),
     includesVat: billing.sale_price_includes_vat,
@@ -293,7 +296,8 @@ export function SalePriceCard({ projectId, billing, budget, targetTotal, editabl
     <section className="erp-section-card">
       <div className="flex items-center gap-2.5 border-b border-slate-100 px-5 py-4">
         <ReceiptText className="h-4 w-4 text-slate-400" />
-        <h2 className="text-sm font-semibold text-slate-900">Satış fiyatı<InfoHint text="Müşterinin onayladığı tutar. Teklif tutarıyla dolu gelir; pazarlıkta değiştiyse düzeltin. Fatura ve gerçek kâr bu fiyat üzerinden hesaplanır." /></h2>
+        <h2 className="text-sm font-semibold text-slate-900">Satış fiyatı<InfoHint text="Müşterinin onayladığı tutar. Teklif tutarıyla dolu gelir; pazarlıkta değiştiyse düzeltin. Müşteri onayı tamamlanınca kilitlenir. Fatura ve gerçek kâr bu fiyat üzerinden hesaplanır." /></h2>
+        {locked && <span className="ml-auto rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">Onaylandı · kilitli</span>}
       </div>
       <div className="space-y-4 p-5">
         <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-5">

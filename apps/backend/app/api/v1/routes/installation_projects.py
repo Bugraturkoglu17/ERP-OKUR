@@ -69,7 +69,7 @@ STAGE_TEMPLATE: list[tuple[int, str, str, list[str], tuple[str, ...], list[str]]
      ["Yer ölçüleri alındı", "Mevcut durum fotoğraflandı", "Müşteri ihtiyacı not edildi"]),
     # Malzeme listesi "Üretim ve montaj" aşamasında girildiği için bu aşamada "malzeme listesi
     # girilmiş olmalı" şartı aranmaz; liste şartı 4. aşamadaki materials_ready içindedir.
-    (2, "teklif", "Projelendirme ve teklif", ["teklif"], (),
+    (2, "teklif", "Projelendirme ve teklif", ["teklif"], ("budget_set", "target_costs_set"),
      ["Soğutma ihtiyacı hesaplandı", "Çizim hazırlandı", "Malzeme listesi çıkarıldı", "Teklif hazırlandı"]),
     # Satış fiyatı (müşterinin onayladığı tutar) ve KDV bu aşamada girilir.
     (3, "onay", "Müşteri onayı", ["sozlesme"], ("sale_price_set",),
@@ -104,8 +104,10 @@ RULE_LABELS = {
     "work_orders_done": "En az bir montaj iş emri tamamlanmış ve açık iş emri kalmamış olmalı",
     "depot_empty": "Proje deposunda malzeme kalmamalı (kalan malzeme ana depoya iade edilmeli)",
     "no_open_work_orders": "Projede açık iş emri kalmamalı (tamamlanmalı veya iptal edilmeli)",
+    "budget_set": "Teklif tutarı girilmiş olmalı",
+    "target_costs_set": "Hedeflenen maliyet girilmiş olmalı",
     "sale_price_set": "Satış fiyatı girilmiş olmalı",
-    "invoice_set": "Fatura no ve fatura tarihi girilmiş olmalı",
+    "invoice_set": "Fatura no, fatura tarihi ve fatura tutarı girilmiş olmalı",
     "actual_costs_set": "Gerçekleşen maliyet girilmiş olmalı",
 }
 
@@ -383,12 +385,16 @@ async def _requirements(db: AsyncSession, project: InstallationProject, stage: I
         elif rule == "sale_price_set":
             reqs.append({"label": RULE_LABELS[rule], "ok": project.sale_price is not None and project.sale_price > 0})
         elif rule == "invoice_set":
-            reqs.append({"label": RULE_LABELS[rule], "ok": bool((project.invoice_no or "").strip()) and project.invoice_date is not None})
-        elif rule == "actual_costs_set":
-            has_actual = (await db.execute(select(InstallationProjectCost.id).where(
-                InstallationProjectCost.project_id == project.id, InstallationProjectCost.kind == "actual",
+            reqs.append({"label": RULE_LABELS[rule], "ok": bool((project.invoice_no or "").strip()) and project.invoice_date is not None
+                         and project.invoice_amount is not None and project.invoice_amount > 0})
+        elif rule == "budget_set":
+            reqs.append({"label": RULE_LABELS[rule], "ok": project.budget is not None and project.budget > 0})
+        elif rule in ("actual_costs_set", "target_costs_set"):
+            kind = "actual" if rule == "actual_costs_set" else "target"
+            has_cost = (await db.execute(select(InstallationProjectCost.id).where(
+                InstallationProjectCost.project_id == project.id, InstallationProjectCost.kind == kind,
                 InstallationProjectCost.amount > 0).limit(1))).first()
-            reqs.append({"label": RULE_LABELS[rule], "ok": has_actual is not None})
+            reqs.append({"label": RULE_LABELS[rule], "ok": has_cost is not None})
         elif rule == "depot_empty":
             left = (await db.execute(select(RetailBalance.material_id).where(
                 RetailBalance.depot_id == project.depot_id, RetailBalance.quantity > 0).limit(1))).first()
@@ -542,12 +548,21 @@ async def list_projects(
     return out
 
 
+def _net_amount(amount: Optional[Decimal], vat_rate: Optional[Decimal], includes_vat: bool) -> Optional[float]:
+    """Tutarın KDV hariç karşılığı (KDV dahil girildiyse KDV ayrılır)."""
+    if amount is None or amount <= 0:
+        return None
+    rate = float(vat_rate if vat_rate is not None else DEFAULT_VAT_RATE)
+    return float(amount) / (1 + rate / 100) if includes_vat else float(amount)
+
+
 @router.get("/stats")
 async def project_stats(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
     """İstatistik ekranı için proje ve maliyet özeti (yalnızca yönetici).
 
     Para toplamlarına iptal edilen projeler katılmaz. "Hedefe oran" yalnızca hem hedeflenen
-    hem gerçekleşen maliyeti girilmiş projelerde hesaplanır.
+    hem gerçekleşen maliyeti girilmiş projelerde hesaplanır. Satış tutarları KDV hariçtir.
+    Gerçek kâr yalnızca tamamlanan projelerde hesaplanır: fatura tutarı (yoksa satış fiyatı) − gerçekleşen maliyet.
     """
     _require_manager(user)
     tenant_id = await _tenant_id(db, user)
@@ -577,7 +592,9 @@ async def project_stats(db: AsyncSession = Depends(get_db), user: User = Depends
 
     today = utc_now().date()
     counts = {"total": len(projects), "active": 0, "completed": 0, "cancelled": 0, "overdue": 0, "closing_pending": 0}
-    money = {"budget_total": 0.0, "target_total": 0.0, "actual_total": 0.0, "missing_target": 0, "over_target": 0}
+    money = {"budget_total": 0.0, "target_total": 0.0, "actual_total": 0.0, "missing_target": 0, "over_target": 0,
+             "sale_total": 0.0, "sale_count": 0, "realized_revenue": 0.0, "realized_cost": 0.0, "realized_profit": 0.0,
+             "realized_count": 0}
     by_type = {key: {"type": key, "label": label, "count": 0, "active": 0, "budget": 0.0, "target": 0.0, "actual": 0.0}
                for key, label in PROJECT_TYPES.items()}
     by_stage = {order: {"order": order, "name": name, "count": 0} for order, _code, name, *_rest in STAGE_TEMPLATE}
@@ -590,6 +607,9 @@ async def project_stats(db: AsyncSession = Depends(get_db), user: User = Depends
         totals = cost_totals.get(p.id, {})
         target, actual = totals.get("target"), totals.get("actual")
         budget = float(p.budget) if p.budget is not None else None
+        sale = _net_amount(p.sale_price, p.vat_rate, p.sale_price_includes_vat)
+        revenue = _net_amount(p.invoice_amount, p.vat_rate, True) or sale
+        profit = revenue - actual if p.status == "completed" and revenue is not None and actual is not None else None
         overdue = bool(p.status == "active" and p.target_date and p.target_date.date() < today)
         type_row = by_type.get(p.project_type)
         if type_row:
@@ -610,6 +630,14 @@ async def project_stats(db: AsyncSession = Depends(get_db), user: User = Depends
         money["budget_total"] += budget or 0.0
         money["target_total"] += target or 0.0
         money["actual_total"] += actual or 0.0
+        if sale is not None:
+            money["sale_total"] += sale
+            money["sale_count"] += 1
+        if profit is not None:
+            money["realized_revenue"] += revenue
+            money["realized_cost"] += actual
+            money["realized_profit"] += profit
+            money["realized_count"] += 1
         if type_row:
             type_row["budget"] += budget or 0.0
             type_row["target"] += target or 0.0
@@ -623,6 +651,7 @@ async def project_stats(db: AsyncSession = Depends(get_db), user: User = Depends
             "stages_total": len(st), "stages_done": sum(1 for s in st if s.status == "completed"),
             "current_stage": current.name if current else None, "overdue": overdue,
             "budget": budget, "target": target, "actual": actual, "usage_pct": usage,
+            "sale": sale, "profit": profit,
         })
     return {
         "counts": counts,
@@ -901,6 +930,16 @@ async def save_billing(project_id: UUID, body: BillingSave, db: AsyncSession = D
     project = await _project(db, user, project_id)
     if project.status == "cancelled":
         raise HTTPException(409, "İptal edilmiş projede değişiklik yapılamaz.")
+    # Satış fiyatı ve KDV müşterinin onayladığı tutardır: Müşteri onayı tamamlanınca değiştirilemez.
+    # Sonradan çıkan fark fatura tutarına yansıtılır.
+    price_changed = (body.sale_price != project.sale_price or body.sale_price_includes_vat != project.sale_price_includes_vat
+                     or (body.vat_rate if body.vat_rate is not None else DEFAULT_VAT_RATE)
+                     != (project.vat_rate if project.vat_rate is not None else DEFAULT_VAT_RATE))
+    if price_changed:
+        approval = (await db.execute(select(InstallationProjectStage.status).where(
+            InstallationProjectStage.project_id == project.id, InstallationProjectStage.code == "onay"))).scalar_one_or_none()
+        if approval == "completed":
+            raise HTTPException(409, "Müşteri onayı tamamlandı; satış fiyatı ve KDV artık değiştirilemez. Fark varsa fatura tutarına yansıtın.")
     invoice_date, due_date = _parse_date(body.invoice_date), _parse_date(body.invoice_due_date)
     if invoice_date and due_date and due_date < invoice_date:
         raise HTTPException(422, "Vade tarihi fatura tarihinden önce olamaz.")
