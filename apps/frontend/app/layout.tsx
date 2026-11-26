@@ -9,6 +9,8 @@ import { BrandFavicon } from "@/components/brand/brand-favicon";
 import { NavTracker } from "@/components/layout/nav-tracker";
 import { Suspense } from "react";
 import { brand } from "@/lib/brand";
+import { Toaster } from "@/components/shadcn/sonner";
+import { TooltipProvider } from "@/components/shadcn/tooltip";
 
 // Next.js'in kendi otomatik viewport meta enjeksiyonunu devre dışı bırakıp
 // buradan tek, kesin bir viewport tanımlar — iki çakışan <meta viewport>
@@ -76,12 +78,15 @@ export default function RootLayout({
   return (
     <html lang="tr" data-scroll-behavior="smooth" suppressHydrationWarning style={{ backgroundColor: BOOT_BACKGROUND }}>
       <body
-        className="min-h-screen bg-slate-50 text-slate-900"
+        className="min-h-screen bg-background text-foreground"
         style={{ backgroundColor: BOOT_BACKGROUND }}
       >
         <AuthProvider>
-          <AppShell>{children}</AppShell>
+          <TooltipProvider delayDuration={300}>
+            <AppShell>{children}</AppShell>
+          </TooltipProvider>
         </AuthProvider>
+        <Toaster position="top-right" richColors closeButton />
         <ServiceWorkerManager />
         <EdgeSwipeGuard />
         <UpdateAvailableBanner />

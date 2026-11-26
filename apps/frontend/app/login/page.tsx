@@ -10,9 +10,17 @@ import {
   AtSign,
   LockKeyhole,
   ShieldCheck,
-  Loader2,
   UserRound,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Badge } from "@/components/shadcn/badge";
+import { Button } from "@/components/shadcn/button";
+import { Card, CardContent } from "@/components/shadcn/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/shadcn/field";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/shadcn/input-group";
+import { Separator } from "@/components/shadcn/separator";
+import { Spinner } from "@/components/shadcn/spinner";
 import axios from "axios";
 import { buildApiUrl } from "@/lib/api";
 import { getTokenPayloadFromStorage } from "@/lib/auth";
@@ -105,7 +113,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="grid min-h-dvh bg-[#f4f6f8] lg:grid-cols-[minmax(26rem,0.9fr)_minmax(34rem,1.1fr)]">
+    <main className="grid min-h-dvh bg-background lg:grid-cols-[minmax(26rem,0.9fr)_minmax(34rem,1.1fr)]">
       <section className="relative hidden overflow-hidden bg-[#09121c] p-12 text-white lg:flex lg:flex-col lg:justify-between xl:p-16">
         <div className="pointer-events-none absolute -left-32 top-24 h-96 w-96 rounded-full bg-fuchsia-500/10 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,.3)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.3)_1px,transparent_1px)] [background-size:40px_40px]" />
@@ -142,73 +150,59 @@ export default function LoginPage() {
 
           <header className="mb-7">
             <p className="mb-2 text-xs font-semibold tracking-[0.16em] text-fuchsia-700">GÜVENLİ GİRİŞ</p>
-            <h2 className="text-3xl font-bold tracking-[-0.04em] text-slate-950">Tekrar hoş geldiniz</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">Çalışma alanınıza devam etmek için hesap bilgilerinizi girin.</p>
+            <h2 className="text-3xl font-bold tracking-tight">Tekrar hoş geldiniz</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Çalışma alanınıza devam etmek için hesap bilgilerinizi girin.</p>
           </header>
 
-          <div className="rounded-3xl border border-slate-200/90 bg-white p-5 shadow-[0_24px_70px_rgba(15,23,42,0.08)] sm:p-7">
-          <form onSubmit={handleCompanyLogin} className="space-y-5">
-            {companyError && (
-              <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-xs font-medium text-red-700">
-                {companyError}
-              </div>
-            )}
-            <div>
-              <label htmlFor="login-identity" className="mb-2 block text-xs font-semibold text-slate-700">
-                Kullanıcı adı / E-posta
-              </label>
-              <div className="relative">
-                <AtSign className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input id="login-identity" type="text" required autoComplete="username" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} placeholder="kullanici@firma.com" className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-3 pl-10 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-fuchsia-500 focus:bg-white focus:ring-4 focus:ring-fuchsia-500/10" />
-              </div>
-            </div>
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label htmlFor="login-password" className="block text-xs font-semibold text-slate-700">
-                Şifre
-                </label>
-                <span className="text-[11px] text-slate-400">Büyük/küçük harfe duyarlı</span>
-              </div>
-              <div className="relative">
-                <LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input id="login-password" type={showPassword ? "text" : "password"} required autoComplete="current-password" value={companyPassword} onChange={(e) => setCompanyPassword(e.target.value)} placeholder="••••••••" className="w-full rounded-xl border border-slate-200 bg-slate-50/70 py-3 pl-10 pr-11 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-fuchsia-500 focus:bg-white focus:ring-4 focus:ring-fuchsia-500/10" />
-                <button type="button" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"} className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500">
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={companyLoading}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#d90070] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(217,0,112,0.2)] transition hover:-translate-y-0.5 hover:bg-[#bd0063] hover:shadow-[0_16px_34px_rgba(217,0,112,0.27)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {companyLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowRight className="h-4 w-4" />
-              )}
-              {companyLoading ? "Giriş yapılıyor…" : "Giriş yap"}
-            </button>
-          </form>
-
-          <div className="mt-5 flex items-center justify-center gap-2 border-t border-slate-100 pt-5 text-[11px] text-slate-400">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            Oturum bilgileriniz şifreli bağlantıyla korunur
-          </div>
-          </div>
+          <Card className="shadow-lg">
+            <CardContent className="p-5 sm:p-7">
+              <form onSubmit={handleCompanyLogin}>
+                <FieldGroup className="gap-5">
+                  {companyError && <Alert variant="destructive"><AlertDescription>{companyError}</AlertDescription></Alert>}
+                  <Field>
+                    <FieldLabel htmlFor="login-identity">Kullanıcı adı / E-posta</FieldLabel>
+                    <InputGroup className="h-11">
+                      <InputGroupAddon><AtSign /></InputGroupAddon>
+                      <InputGroupInput id="login-identity" type="text" required autoComplete="username" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} placeholder="kullanici@firma.com" />
+                    </InputGroup>
+                  </Field>
+                  <Field>
+                    <div className="flex items-center justify-between">
+                      <FieldLabel htmlFor="login-password">Şifre</FieldLabel>
+                      <span className="text-[11px] text-muted-foreground">Büyük/küçük harfe duyarlı</span>
+                    </div>
+                    <InputGroup className="h-11">
+                      <InputGroupAddon><LockKeyhole /></InputGroupAddon>
+                      <InputGroupInput id="login-password" type={showPassword ? "text" : "password"} required autoComplete="current-password" value={companyPassword} onChange={(e) => setCompanyPassword(e.target.value)} placeholder="••••••••" />
+                      <InputGroupAddon align="inline-end">
+                        <InputGroupButton size="icon-xs" onClick={() => setShowPassword((current) => !current)} aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}>
+                          {showPassword ? <EyeOff /> : <Eye />}
+                        </InputGroupButton>
+                      </InputGroupAddon>
+                    </InputGroup>
+                  </Field>
+                  <Button type="submit" size="lg" disabled={companyLoading} className="w-full">
+                    {companyLoading ? <Spinner data-icon="inline-start" /> : <ArrowRight data-icon="inline-start" />}
+                    {companyLoading ? "Giriş yapılıyor…" : "Giriş yap"}
+                  </Button>
+                </FieldGroup>
+              </form>
+              <Separator className="my-5" />
+              <p className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
+                <ShieldCheck className="size-3.5 text-emerald-600" />
+                Oturum bilgileriniz şifreli bağlantıyla korunur
+              </p>
+            </CardContent>
+          </Card>
 
         {DEMO_MODE && (
-          <aside className="mt-5 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <div className="mb-1 flex items-center gap-2">
-                  <h3 className="text-xs font-semibold text-slate-900">Test hesapları</h3>
-                  <span className="rounded-md bg-amber-200 px-2 py-0.5 text-[9px] font-bold tracking-wide text-amber-900">
-                    Geliştirme
-                  </span>
-                </div>
-                <p className="text-[11px] leading-4 text-slate-500">Yetki seviyesini seçerek doğrudan giriş yapın.</p>
+          <aside className="mt-5 rounded-xl border border-amber-200/80 bg-amber-50/70 p-4">
+            <div className="mb-3">
+              <div className="mb-1 flex items-center gap-2">
+                <h3 className="text-xs font-semibold">Test hesapları</h3>
+                <Badge variant="warning">Geliştirme</Badge>
               </div>
+              <p className="text-[11px] leading-4 text-muted-foreground">Yetki seviyesini seçerek doğrudan giriş yapın.</p>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-3">
@@ -216,21 +210,23 @@ export default function LoginPage() {
                 const account = DEMO_ACCOUNTS[target];
                 const isLoading = quickLoading === target;
                 return (
-                  <button
+                  <Button
                     key={target}
                     type="button"
+                    variant="outline"
                     onClick={() => handleQuickLogin(target)}
                     disabled={quickLoading !== null || companyLoading}
-                    className="group flex min-w-0 items-center gap-2.5 rounded-xl border border-amber-100 bg-white p-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label={`${account.label} ${account.description}`}
+                    className="h-auto min-w-0 justify-start gap-2.5 bg-background p-2.5 text-left"
                   >
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${tone}`}>
-                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
+                    <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg border", tone)}>
+                      {isLoading ? <Spinner /> : <Icon />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-semibold text-slate-900">{account.label}</span>
-                      <span className="block truncate text-[10px] text-slate-400">{account.description}</span>
+                      <span className="block truncate text-xs font-semibold">{account.label}</span>
+                      <span className="block truncate text-[10px] font-normal text-muted-foreground">{account.description}</span>
                     </span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>

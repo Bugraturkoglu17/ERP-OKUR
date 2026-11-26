@@ -124,11 +124,12 @@ body > div {
   --input: 214 20% 88%;
   --ring: 213 72% 28%;
   --radius: 0.5rem;
-  --sidebar: 213 45% 16%;
+  /* Yan menü: Okur'un koyu lacivert zemini (#0c1520). */
+  --sidebar: 213 45% 9%;
   --sidebar-foreground: 210 30% 90%;
   --sidebar-primary: 38 92% 50%;
   --sidebar-primary-foreground: 215 28% 10%;
-  --sidebar-border: 213 40% 22%;
+  --sidebar-border: 213 30% 14%;
   --sidebar-ring: 38 92% 50%;
 }
 

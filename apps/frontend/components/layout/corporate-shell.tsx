@@ -10,61 +10,47 @@ import type { UserRole } from "@/lib/permissions";
 import type { BrandTone } from "@/components/brand/brand-mark";
 import { OkurWordmark } from "@/components/brand/okur-wordmark";
 import { brand } from "@/lib/brand";
+import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { HEADER_SLOT_ID } from "@/components/layout/header-slot";
 import { useMobileDrawer } from "@/hooks/use-mobile-drawer";
+import { Button } from "@/components/shadcn/button";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/shadcn/sheet";
 
 export type CorporateNavItem = { href: string; label: string; icon: LucideIcon };
 
-function CorporateSidebar({
-  mobileOpen,
-  onClose,
-  brandTone,
-  title,
-  navItems,
-}: {
-  mobileOpen: boolean;
-  onClose: () => void;
-  brandTone: BrandTone;
-  title: string;
-  navItems: CorporateNavItem[];
+/** Yan menünün içeriği: masaüstünde sabit sütun, mobilde Sheet (çekmece) içinde aynı içerik. */
+function SidebarContent({ brandTone, title, navItems, mobile, onClose }: {
+  brandTone: BrandTone; title: string; navItems: CorporateNavItem[]; mobile: boolean; onClose: () => void;
 }) {
   const pathname = usePathname();
+  const amber = brandTone === "amber";
 
-  const inner = (
-    <div className={`flex h-full min-h-dvh flex-col border-t-[3px] bg-[#0c1520] ${brandTone === "amber" ? "border-t-amber-400" : "border-t-[#ff3131]"}`}>
-      {/* iOS PWA'da status bar "black-translucent" olduğu için web içeriği
-          durum çubuğunun ALTINA uzanır; drawer başlığı da saat/pil ikonlarıyla
-          çakışır. Güvenli alan boşluğu Tailwind arbitrary value yerine inline
-          style ile veriliyor — env()/calc() ifadesi hiçbir sınıf-adı
-          ayrıştırma adımından geçmeden birebir CSS'e yazılır. */}
+  return (
+    <div className={cn("flex h-full min-h-dvh flex-col border-t-[3px] bg-sidebar text-sidebar-foreground", amber ? "border-t-amber-400" : "border-t-[#ff3131]")}>
+      {/* iOS PWA'da durum çubuğu "black-translucent" olduğu için içerik saat/pil satırının altına uzanır;
+          güvenli alan boşluğu inline style ile verilir (env()/calc() sınıf ayrıştırmasından geçmeden CSS'e yazılır). */}
       <div
-        className="flex items-center justify-between border-b border-white/[0.06] px-4"
-        style={{
-          minHeight: "calc(3rem + env(safe-area-inset-top))",
-          paddingTop: "env(safe-area-inset-top)",
-        }}
+        className="flex items-center justify-between border-b border-sidebar-border px-4"
+        style={{ minHeight: "calc(3rem + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="flex items-center gap-2.5">
-          <OkurWordmark
-            key={`sidebar-brand-${mobileOpen ? "open" : "closed"}`}
-            dark
-            animated
-            className="w-[4.5rem] shrink-0"
-          />
+          <OkurWordmark key={`sidebar-brand-${mobile ? "mobile" : "desktop"}`} dark animated className="w-[4.5rem] shrink-0" />
           <div>
-            <span className="block text-[13px] font-semibold leading-none tracking-[-0.02em] text-white">{title}</span>
+            <span className="block text-[13px] font-semibold leading-none tracking-tight text-white">{title}</span>
             <span className="mt-1 block text-[9px] uppercase leading-none tracking-widest text-white/40">{brand("OKUR ERP", "Operasyon Sistemi")}</span>
           </div>
         </div>
-        <button type="button" aria-label="Yan paneli kapat" onClick={onClose} className="lg:hidden rounded-lg p-2 text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white">
-          <X className="h-4 w-4" />
-        </button>
+        {mobile && (
+          <Button variant="ghost" size="icon" aria-label="Yan paneli kapat" onClick={onClose}
+            className="size-8 text-sidebar-foreground/60 hover:bg-white/[0.06] hover:text-white">
+            <X />
+          </Button>
+        )}
       </div>
 
-      {/* flex-1, QuickSwitch'i en alta iter ve sayfa boyunca dengeli bir
-          dağılım oluşturur. Liste içinde kaydırma yapılabilir ama elastic-bounce (çekmece elastikiyeti) önlenir. */}
-      <nav className="flex-1 space-y-1 overflow-y-auto overscroll-none touch-pan-y px-3 py-5">
+      {/* flex-1, QuickSwitch'i en alta iter; liste kendi içinde kayar, elastik sekme önlenir. */}
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overscroll-none px-3 py-5 touch-pan-y">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           return (
@@ -73,14 +59,22 @@ function CorporateSidebar({
               href={href}
               draggable={false}
               onClick={onClose}
-              className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 ${
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                 active
-                  ? "bg-white/[0.09] text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-                  : "text-slate-400 hover:translate-x-0.5 hover:bg-white/[0.04] hover:text-slate-200"
-              }`}
+                  ? "bg-white/[0.09] font-semibold text-white"
+                  : "text-sidebar-foreground/60 hover:translate-x-0.5 hover:bg-white/[0.04] hover:text-sidebar-foreground",
+              )}
             >
-              {active && <span className={`absolute -left-3 h-5 w-0.5 rounded-r ${brandTone === "amber" ? "bg-amber-400" : "bg-[#ff3131]"}`} />}
-              <Icon className={`h-4 w-4 shrink-0 transition-transform duration-200 ease-out group-hover:scale-[1.16] ${active ? (brandTone === "amber" ? "text-amber-300" : "text-red-400") : "text-slate-500 group-hover:text-slate-300"}`} strokeWidth={1.8} />
+              {active && <span className={cn("absolute -left-3 h-5 w-0.5 rounded-r", amber ? "bg-amber-400" : "bg-[#ff3131]")} />}
+              <Icon
+                strokeWidth={1.8}
+                className={cn(
+                  "size-4 shrink-0 transition-transform duration-200 ease-out group-hover:scale-[1.16]",
+                  active ? (amber ? "text-amber-300" : "text-red-400") : "text-sidebar-foreground/45 group-hover:text-sidebar-foreground/80",
+                )}
+              />
               {label}
             </Link>
           );
@@ -90,38 +84,11 @@ function CorporateSidebar({
       <QuickSwitch onNavigate={onClose} />
     </div>
   );
-
-  return (
-    <>
-      <aside className="hidden lg:block w-60 shrink-0">{inner}</aside>
-      {/* iOS Standalone/PWA ve tüm mobil tarayıcılarda görünür alanı
-          kesintisiz ve tam boy (edge-to-edge) kaplamak için fixed inset-0
-          kullanılır. Böylece cihazın en altındaki Home Indicator alanında
-          herhangi bir boşluk/kayma bug'ı oluşmaz ve arka plan kusursuz uzanır. */}
-      <div
-        className={`fixed inset-0 z-40 lg:hidden ${mobileOpen ? "pointer-events-auto visible" : "pointer-events-none invisible"}`}
-        aria-hidden={!mobileOpen}
-      >
-        <button
-          type="button"
-          aria-label="Menüyü kapat"
-          className={`absolute inset-0 z-0 h-full w-full bg-slate-950/30 backdrop-blur-[3px] transition-opacity duration-200 touch-none ${mobileOpen ? "opacity-100" : "opacity-0"}`}
-          onClick={onClose}
-        />
-        <aside
-          className={`fixed top-0 bottom-0 left-0 z-10 m-0 w-[86vw] max-w-[360px] h-full min-h-dvh bg-[#0c1520] overflow-hidden overscroll-none touch-none transition-transform duration-200 ease-out ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
-          onClick={(event) => event.stopPropagation()}
-        >
-          {inner}
-        </aside>
-      </div>
-    </>
-  );
 }
 
 /**
- * Ortak "Kurumsal Güç" kabuğu — admin/manager/user panelleri arasında
- * sidebar teması, Hesap Geçişi paneli ve header düzenini tek noktadan tutar.
+ * Ortak "Kurumsal" kabuk — yönetici / kullanıcı panellerinde yan menü, hesap geçişi ve üst çubuğu tek noktadan tutar.
+ * Mobilde yan menü shadcn Sheet içinde açılır (odak tuzağı, Esc ile kapanma, kaydırma kilidi Sheet'tedir).
  */
 export function CorporateShell({
   children,
@@ -142,35 +109,33 @@ export function CorporateShell({
 
   return (
     <RoleGuard allowedRoles={allowedRoles} brandTone={brandTone}>
-      <div className="flex h-dvh max-w-full overflow-x-clip bg-slate-50">
-        <CorporateSidebar
-          mobileOpen={drawer.open}
-          onClose={drawer.close}
-          brandTone={brandTone}
-          title={title}
-          navItems={navItems}
-        />
+      <div className="flex h-dvh max-w-full overflow-x-clip bg-background">
+        <aside className="hidden w-60 shrink-0 lg:block">
+          <SidebarContent brandTone={brandTone} title={title} navItems={navItems} mobile={false} onClose={drawer.close} />
+        </aside>
+        <Sheet open={drawer.open} onOpenChange={(open) => { if (!open) drawer.close(); }}>
+          <SheetContent side="left" className="w-[86vw] max-w-[360px] overflow-hidden border-0 p-0 sm:max-w-[360px] [&>button:first-child]:hidden">
+            <SheetTitle className="sr-only">{title} menüsü</SheetTitle>
+            <SheetDescription className="sr-only">Sayfalar arasında gezinme</SheetDescription>
+            <SidebarContent brandTone={brandTone} title={title} navItems={navItems} mobile onClose={drawer.close} />
+          </SheetContent>
+        </Sheet>
+
         <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-hidden">
-          <header className="fixed inset-x-0 top-0 z-30 flex min-h-[calc(3rem_+_env(safe-area-inset-top))] shrink-0 items-center justify-between gap-3 border-b border-slate-200/80 bg-white/95 px-4 pb-0 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-xl sm:px-6 lg:static lg:min-h-12 lg:shadow-none">
-            <button
-              onClick={drawer.openDrawer}
-              className={`h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-[0.98] lg:hidden ${drawer.open ? "hidden" : "flex"}`}
-              aria-label="Menüyü aç"
-              aria-hidden={drawer.open}
-              tabIndex={drawer.open ? -1 : undefined}
-            >
-              <Menu className="h-4 w-4" />
-            </button>
+          <header className="fixed inset-x-0 top-0 z-30 flex min-h-[calc(3rem_+_env(safe-area-inset-top))] shrink-0 items-center justify-between gap-3 border-b bg-background/95 px-4 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-xl sm:px-6 lg:static lg:min-h-12 lg:shadow-none">
+            <Button variant="outline" size="icon" onClick={drawer.openDrawer} aria-label="Menüyü aç" className="size-8 lg:hidden">
+              <Menu />
+            </Button>
             <p className="hidden min-w-0 items-baseline gap-2 truncate lg:flex">
-              <span className="text-xs font-semibold tracking-[-0.01em] text-slate-700">{brand("OKUR ERP", "ERP")}</span>
-              <span className="truncate text-[11px] text-slate-400">Güvenli operasyon çalışma alanı</span>
+              <span className="text-xs font-semibold tracking-tight">{brand("OKUR ERP", "ERP")}</span>
+              <span className="truncate text-[11px] text-muted-foreground">Güvenli operasyon çalışma alanı</span>
             </p>
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               {/* Sayfaya özel düğmeler (HeaderSlot) buraya yerleşir. */}
               <div id={HEADER_SLOT_ID} className="flex shrink-0 items-center gap-2 empty:hidden" />
               <div className="flex min-w-0 items-center gap-2">
-                <div className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-50" />
-                <span className="max-w-[6.5rem] truncate text-[11px] font-semibold tracking-wide text-slate-500 sm:max-w-none">{headerLabel}</span>
+                <span className="size-2 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-50" aria-hidden />
+                <span className="max-w-[6.5rem] truncate text-[11px] font-semibold tracking-wide text-muted-foreground sm:max-w-none">{headerLabel}</span>
               </div>
               <NotificationBell />
             </div>

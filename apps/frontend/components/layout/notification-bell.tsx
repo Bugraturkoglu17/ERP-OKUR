@@ -1,9 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, BellOff, BellRing, CheckCheck, Loader2 } from "lucide-react";
+import { Bell, BellOff, BellRing, CheckCheck } from "lucide-react";
 import { apiGet, apiPatch } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/shadcn/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/shadcn/popover";
+import { Separator } from "@/components/shadcn/separator";
+import { Spinner } from "@/components/shadcn/spinner";
 import { disablePush, enablePush, getPushState, sendTestPush, syncPushSubscription, type PushState } from "@/lib/push";
 
 type Notification = {
@@ -42,7 +47,6 @@ export function NotificationBell() {
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -115,15 +119,11 @@ export function NotificationBell() {
     };
   }, [loadUnreadCount]);
 
+  // Popover dışarı tıklamayı ve Esc'i kendisi yönetir; açılınca liste ve sayaç tazelenir.
   useEffect(() => {
     if (!open) return;
     loadList();
     loadUnreadCount();
-    const onClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
   }, [open, loadList, loadUnreadCount]);
 
   const markOneRead = async (notif: Notification) => {
@@ -147,98 +147,92 @@ export function NotificationBell() {
   };
 
   return (
-    <div ref={containerRef} className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label="Bildirimler"
-        className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-[0.98]"
-      >
-        <Bell className="h-4 w-4" />
-        {unread > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white">
-            {unread > 99 ? "99+" : unread}
-          </span>
-        )}
-      </button>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="icon" aria-label="Bildirimler" className="relative size-9 shrink-0">
+          <Bell />
+          {unread > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" sideOffset={8} className="w-[calc(100vw-2rem)] max-w-80 overflow-hidden p-0 sm:w-80">
+        <div className="flex items-center justify-between px-4 py-3">
+          <p className="text-sm font-semibold">Bildirimler</p>
+          {items.some((n) => !n.is_read) && (
+            <Button variant="link" size="sm" onClick={markAllRead} className="h-auto p-0 text-xs">
+              <CheckCheck data-icon="inline-start" />Tümünü okundu işaretle
+            </Button>
+          )}
+        </div>
+        <Separator />
+        <div className="max-h-[min(24rem,calc(100dvh-7rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] overflow-y-auto overscroll-contain">
+          {loading ? (
+            <div className="flex justify-center px-4 py-8"><Spinner /></div>
+          ) : items.length === 0 ? (
+            <p className="px-4 py-8 text-center text-xs text-muted-foreground">Henüz bildirim yok.</p>
+          ) : (
+            <ul className="divide-y">
+              {items.map((notif) => (
+                <li key={notif.id}>
+                  <button
+                    type="button"
+                    onClick={() => markOneRead(notif)}
+                    className={cn("flex w-full items-start gap-2.5 px-4 py-3 text-left transition-colors hover:bg-accent", !notif.is_read && "bg-primary/5")}
+                  >
+                    <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", !notif.is_read ? "bg-primary" : "bg-transparent")} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold">{notif.title}</span>
+                      {notif.body && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{notif.body}</span>}
+                      <span className="mt-0.5 block text-[10px] text-muted-foreground">{formatRelative(notif.created_at)}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
-      {open && (
-        <div className="absolute right-0 top-11 z-[70] w-[calc(100vw-2rem)] max-w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:w-80">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-800">Bildirimler</p>
-            {items.some((n) => !n.is_read) && (
-              <button type="button" onClick={markAllRead} className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800">
-                <CheckCheck className="h-3.5 w-3.5" /> Tümünü okundu işaretle
-              </button>
-            )}
-          </div>
-          <div className="max-h-[min(24rem,calc(100dvh-7rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] overscroll-contain overflow-y-auto">
-            {loading ? (
-              <p className="px-4 py-8 text-center text-xs text-slate-400">Yükleniyor…</p>
-            ) : items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-xs text-slate-400">Henüz bildirim yok.</p>
-            ) : (
-              <ul className="divide-y divide-slate-100">
-                {items.map((notif) => (
-                  <li key={notif.id}>
-                    <button
-                      type="button"
-                      onClick={() => markOneRead(notif)}
-                      className={`flex w-full items-start gap-2.5 px-4 py-3 text-left transition-colors hover:bg-slate-50 ${!notif.is_read ? "bg-blue-50/40" : ""}`}
-                    >
-                      <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${!notif.is_read ? "bg-blue-600" : "bg-transparent"}`} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-semibold text-slate-800">{notif.title}</span>
-                        {notif.body && <span className="mt-0.5 block truncate text-xs text-slate-500">{notif.body}</span>}
-                        <span className="mt-0.5 block text-[10px] text-slate-400">{formatRelative(notif.created_at)}</span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Bu cihazda telefon bildirimi. Desteklenmeyen tarayıcıda hiç gösterilmez. */}
-          {pushState && pushState !== "unsupported" && (
-            <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
+        {/* Bu cihazda telefon bildirimi. Desteklenmeyen tarayıcıda hiç gösterilmez. */}
+        {pushState && pushState !== "unsupported" && (
+          <>
+            <Separator />
+            <div className="bg-muted/50 px-4 py-3">
               {pushState === "on" ? (
                 <div className="flex items-center justify-between gap-3">
-                  <p className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-slate-700">
-                    <BellRing className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  <p className="flex min-w-0 items-center gap-1.5 text-xs font-medium">
+                    <BellRing className="size-3.5 shrink-0 text-emerald-600" />
                     <span className="truncate">Bu cihazda bildirimler açık</span>
                   </p>
-                  <div className="flex shrink-0 items-center gap-3 text-xs font-medium">
-                    <button type="button" disabled={pushBusy} onClick={testPush} className="text-blue-600 hover:text-blue-800 disabled:opacity-50">Dene</button>
-                    <button type="button" disabled={pushBusy} onClick={() => runPush(disablePush, "Bu cihazda bildirimler kapatıldı.")} className="text-slate-500 hover:text-slate-800 disabled:opacity-50">Kapat</button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={pushBusy} onClick={testPush}>Dene</Button>
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" disabled={pushBusy} onClick={() => runPush(disablePush, "Bu cihazda bildirimler kapatıldı.")}>Kapat</Button>
                   </div>
                 </div>
               ) : pushState === "off" ? (
-                <button
-                  type="button"
-                  disabled={pushBusy}
-                  onClick={() => runPush(enablePush, "Bildirimler açıldı. Yeni iş emri ve güncellemeler bu cihaza gelecek.")}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {pushBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />}
+                <Button size="sm" className="w-full" disabled={pushBusy}
+                  onClick={() => runPush(enablePush, "Bildirimler açıldı. Yeni iş emri ve güncellemeler bu cihaza gelecek.")}>
+                  {pushBusy ? <Spinner data-icon="inline-start" /> : <BellRing data-icon="inline-start" />}
                   Bu cihazda bildirimleri aç
-                </button>
+                </Button>
               ) : pushState === "denied" ? (
-                <p className="flex items-start gap-1.5 text-xs text-slate-600">
-                  <BellOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <BellOff className="mt-0.5 size-3.5 shrink-0" />
                   <span>Bildirimler bu tarayıcıda engellenmiş. Site ayarlarından “Bildirimler”e izin verip sayfayı yenileyin.</span>
                 </p>
               ) : (
-                <p className="flex items-start gap-1.5 text-xs text-slate-600">
-                  <BellRing className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <BellRing className="mt-0.5 size-3.5 shrink-0" />
                   <span>iPhone’da bildirim almak için: Paylaş → <strong>Ana Ekrana Ekle</strong>, ardından uygulamayı ana ekrandan açın.</span>
                 </p>
               )}
-              {pushNote && <p role="status" className="mt-2 text-[11px] text-slate-500">{pushNote}</p>}
+              {pushNote && <p role="status" className="mt-2 text-[11px] text-muted-foreground">{pushNote}</p>}
             </div>
-          )}
-        </div>
-      )}
-    </div>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
