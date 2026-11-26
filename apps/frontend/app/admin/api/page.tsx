@@ -19,6 +19,7 @@ import {
   Code2 
 } from 'lucide-react';
 import { apiGet } from '@/lib/api';
+import { brand } from '@/lib/brand';
 
 interface RouteItem {
   path: string;
@@ -219,7 +220,7 @@ export default function ApiControlPanel() {
               <iframe 
                 src="http://localhost:8001/api/docs" 
                 className="w-full h-full min-h-[600px] border-0"
-                title="OKUR API Swagger"
+                title={brand("OKUR API Swagger", "API Swagger")}
               />
             </div>
           </div>
@@ -299,15 +300,15 @@ export default function ApiControlPanel() {
                   
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between font-semibold">
-                      <span className="text-slate-500">okur-erp-local-backend</span>
+                      <span className="text-slate-500">{brand("okur-", "")}erp-local-backend</span>
                       <span className="text-slate-900">Aktif (%0.4 CPU)</span>
                     </div>
                     <div className="flex justify-between font-semibold">
-                      <span className="text-slate-500">okur-erp-local-db (Postgres)</span>
+                      <span className="text-slate-500">{brand("okur-", "")}erp-local-db (Postgres)</span>
                       <span className="text-slate-900">Aktif (18 Bağlantı)</span>
                     </div>
                     <div className="flex justify-between font-semibold">
-                      <span className="text-slate-500">okur-erp-local-redis</span>
+                      <span className="text-slate-500">{brand("okur-", "")}erp-local-redis</span>
                       <span className="text-slate-900">Aktif (0.8 MB Önbellek)</span>
                     </div>
                   </div>

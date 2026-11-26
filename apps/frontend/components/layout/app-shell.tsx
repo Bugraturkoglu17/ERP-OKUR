@@ -5,10 +5,11 @@ import { Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { fetchTenantContext } from "@/lib/tenant-context";
+import { brand, stripBrand } from "@/lib/brand";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [title, setTitle] = useState("OKUR Mağaza Kartı");
+  const [title, setTitle] = useState(brand("OKUR Mağaza Kartı", "Mağaza Kartı"));
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 
@@ -50,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     (async () => {
       const ctx = await fetchTenantContext();
       if (ctx?.tenant_name) {
-        setTitle(`${ctx.tenant_name} — Mağaza Kartı`);
+        setTitle(`${stripBrand(ctx.tenant_name)} — Mağaza Kartı`);
       }
     })();
   }, [pathname, hasToken]);

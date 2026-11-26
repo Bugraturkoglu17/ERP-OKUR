@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { HIDE_BRAND } from "@/lib/brand";
 
 type OkurWordmarkProps = {
   className?: string;
@@ -16,6 +17,19 @@ export function OkurWordmark({
   dark = false,
   priority = false,
 }: OkurWordmarkProps) {
+  if (HIDE_BRAND) {
+    // Marka gizliyken logo yerine, kutunun genişliğine göre ölçeklenen sade "ERP" yazısı.
+    return (
+      <div role="img" aria-label="ERP" className={`shrink-0 ${className}`} style={{ containerType: "inline-size" }}>
+        <span
+          className={`block font-extrabold leading-none tracking-[-0.04em] ${dark ? "text-white" : "text-slate-900"}`}
+          style={{ fontSize: "24cqw" }}
+        >
+          ERP
+        </span>
+      </div>
+    );
+  }
   return (
     <div
       role="img"

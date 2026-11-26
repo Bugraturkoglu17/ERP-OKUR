@@ -33,7 +33,10 @@ const STATUS_COLOR: Record<string, string> = {
 export default function WorkOrdersTab({ projectId }: { projectId: string }) {
   const pathname = usePathname();
   const isUser = pathname.startsWith("/user");
-  const listHref = pathname.startsWith("/manager") ? "/manager/is-emirleri" : isUser ? "/user/islerim" : "/is-emirleri";
+  const isManager = pathname.startsWith("/manager");
+  const listHref = isManager ? "/manager/is-emirleri" : isUser ? "/user/islerim" : "/is-emirleri";
+  // Mağaza kartından açılan yeni iş emri bu mağaza seçili gelir; geri dönünce mağaza kartına dönülür.
+  const createHref = `/manager/is-emirleri/yeni?storeId=${projectId}`;
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -64,16 +67,23 @@ export default function WorkOrdersTab({ projectId }: { projectId: string }) {
             </span>
           )}
         </div>
-        <Link href={listHref} className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline">
-          <ExternalLink className="h-3.5 w-3.5" /> İş Emirleri Modülüne Git
-        </Link>
+        <div className="flex items-center gap-3">
+          {isManager && orders.length > 0 && (
+            <Link href={createHref} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50">
+              <Plus className="h-3.5 w-3.5" /> İş Emri Oluştur
+            </Link>
+          )}
+          <Link href={listHref} className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:underline">
+            <ExternalLink className="h-3.5 w-3.5" /> İş Emirleri Modülüne Git
+          </Link>
+        </div>
       </div>
 
       {orders.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 gap-3 rounded-2xl border border-dashed border-slate-200">
           <ClipboardList className="h-9 w-9 text-slate-200" />
           <p className="text-sm text-slate-400">Bu mağazaya henüz iş emri açılmamış.</p>
-          {!isUser && <Link href={listHref}
+          {isManager && <Link href={createHref}
             className="inline-flex items-center gap-1.5 text-xs text-blue-600 border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-50">
             <Plus className="h-3.5 w-3.5" /> İş Emri Oluştur
           </Link>}

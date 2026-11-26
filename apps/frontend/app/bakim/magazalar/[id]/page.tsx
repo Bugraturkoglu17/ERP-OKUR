@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { BackLink } from "@/components/ui/back-link";
 import {
   ArrowLeft, CheckCircle2, Clock, Download, Eye,
   FileText, Loader2, Plus, Receipt, StickyNote,
@@ -412,9 +413,7 @@ export default function BakimKlasoruPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Breadcrumb + Header */}
       <div>
-        <Link href="/bakim" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700 mb-3">
-          <ArrowLeft className="h-3.5 w-3.5" /> Bakım Mağazaları
-        </Link>
+        <div className="mb-3"><BackLink fallbackHref="/bakim" fallbackLabel="Bakım Mağazaları" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700" /></div>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100">
             <Wrench className="h-5 w-5 text-sky-600" />

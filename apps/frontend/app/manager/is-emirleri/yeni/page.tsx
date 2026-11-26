@@ -1,9 +1,10 @@
 "use client";
 
 import { InfoHint } from "@/components/ui/info-hint";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { forgetCurrent } from "@/lib/nav-history";
 import {
   AlertCircle, ArrowLeft, ArrowRight, Building2, CalendarDays,
   Check, CheckCircle2, FileUp, FolderKanban, Loader2, Plus, Truck, UserRound, X,
@@ -19,6 +20,9 @@ import {
 } from "@/services/managerWorkOrders";
 import { getRequestErrorMessage } from "@/lib/api";
 import { uploadFormData } from "@/lib/upload";
+import { useSessionDraft } from "@/lib/use-session-draft";
+import { BackLink } from "@/components/ui/back-link";
+import { DraftNotice } from "@/components/ui/draft-notice";
 
 type FormState = {
   category: WorkOrderCategory | "";
@@ -40,8 +44,16 @@ const steps = ["İş & Mağaza", "İş Detayları", "Atama & Cep Depo"];
 
 export default function NewWorkOrderPage() {
   const params = useSearchParams();
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState<FormState>(initialForm);
+  const router = useRouter();
+  // Başka sayfaya gidip dönünce form ve adım kaldığı yerden devam eder (kayıt olunca taslak silinir).
+  const draft = useSessionDraft<{ form: FormState; step: number }>(
+    `yeni-is-emri:${params.get("proje") ?? ""}:${params.get("storeId") ?? ""}`, { form: initialForm, step: 0 });
+  const { form, step } = draft.value;
+  const setDraft = draft.setValue;
+  const setForm = useCallback((update: FormState | ((current: FormState) => FormState)) =>
+    setDraft((current) => ({ ...current, form: typeof update === "function" ? update(current.form) : update })), [setDraft]);
+  const setStep = useCallback((update: number | ((current: number) => number)) =>
+    setDraft((current) => ({ ...current, step: typeof update === "function" ? update(current.step) : update })), [setDraft]);
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [depots, setDepots] = useState<CepDepot[]>([]);
   const [workloads, setWorkloads] = useState<Record<string, { planned: number; active: number }>>({});
@@ -79,16 +91,17 @@ export default function NewWorkOrderPage() {
       .then(async (detail) => {
         setProject(detail);
         const store = detail.store ? await getStoreById(detail.store.id) : null;
-        setForm((current) => ({ ...current, category: "proje", store, depotId: detail.depot_id }));
+        // Taslaktan gelen tip korunur; ilk açılışta varsayılan montaj (Proje) işidir.
+        setForm((current) => ({ ...current, category: current.category || "proje", store, depotId: detail.depot_id }));
       })
       .catch(() => setError("Bağlanacak proje bulunamadı."));
-  }, [params]);
+  }, [params, setForm]);
 
   useEffect(() => {
     const storeId = params.get("storeId");
     if (!storeId) return;
     getStoreById(storeId).then((store) => setForm((current) => ({ ...current, store }))).catch(() => setError("Seçilen mağaza bulunamadı."));
-  }, [params]);
+  }, [params, setForm]);
 
   const depotsByUser = useMemo(() => {
     const map: Record<string, CepDepot[]> = {};
@@ -157,6 +170,7 @@ export default function NewWorkOrderPage() {
         installation_project_id: project?.id ?? null,
       });
       setCreatedId(created.id);
+      draft.finish();
       try { await uploadAttachment(created.id); } catch {
         // İş emri ve stok çıkışı tamamlandı; yalnızca ek yüklenemedi.
         setError("İş emri oluşturuldu, ancak başlangıç eki yüklenemedi. Detay sayfasından tekrar ekleyebilirsiniz.");
@@ -176,9 +190,13 @@ export default function NewWorkOrderPage() {
         </p>
         {error && <p className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-800">{error}</p>}
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
-          <Link href={`/manager/is-emirleri/${createdId}`} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">İş Emrini Gör</Link>
-          {project && <Link href={`/manager/projeler/${project.id}`} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Projeye Dön</Link>}
-          <Link href="/manager/is-emirleri" className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Listeye Dön</Link>
+          {/* Kaydedilmiş form geçmişte kalmasın: iş emri bu sayfanın yerine açılır, geri → proje / mağaza kartı. */}
+          <button type="button" onClick={() => { forgetCurrent(`${window.location.pathname}${window.location.search}`); router.replace(`/manager/is-emirleri/${createdId}`); }}
+            className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">İş Emrini Gör</button>
+          {/* Geldiği yere döner: projeden açıldıysa proje, mağaza kartından açıldıysa mağaza kartı. */}
+          <BackLink fallbackHref={project ? `/manager/projeler/${project.id}` : "/manager/is-emirleri"} fallbackLabel={project ? "Proje" : "İş Emirleri"}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" />
+          {(project || params.get("storeId")) && <Link href="/manager/is-emirleri" className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">İş Emirleri Listesi</Link>}
         </div>
       </div>
     );
@@ -186,10 +204,11 @@ export default function NewWorkOrderPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <Link href="/manager/is-emirleri" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"><ArrowLeft className="h-4 w-4" />İş Emirleri</Link>
+      <BackLink fallbackHref="/manager/is-emirleri" fallbackLabel="İş Emirleri" />
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-slate-950">Yeni İş Emri<InfoHint text="Mağazayı seçin, işi tanımlayın, çalışanı ve stoğun düşüleceği cep deposunu belirleyin." /></h1>
       </header>
+      {draft.restored && <DraftNotice onClear={draft.clear} />}
 
       <ol className="grid grid-cols-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
         {steps.map((label, index) => (
@@ -205,8 +224,8 @@ export default function NewWorkOrderPage() {
           <div className="space-y-6">
             <div>
               <label className="text-sm font-semibold text-slate-800">İş Tipi</label>
-              <div className="mt-2 grid grid-cols-3 gap-2">{CREATABLE_CATEGORIES.map((value) => <button key={value} type="button" disabled={Boolean(project)} onClick={() => setForm((current) => ({ ...current, category: value }))} className={`rounded-xl border px-3 py-3 text-sm font-medium transition disabled:cursor-not-allowed ${form.category === value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40"}`}>{CATEGORY_LABEL[value]}</button>)}</div>
-              {project && <div className="mt-3 flex items-start gap-2 rounded-xl bg-teal-50 p-3 text-sm text-teal-900"><FolderKanban className="mt-0.5 h-4 w-4 shrink-0" /><span>Bu iş emri <b>{project.name}</b> projesine bağlanacak. Mağaza projeden alınır, malzeme proje deposundan düşer.</span></div>}
+              <div className="mt-2 grid grid-cols-3 gap-2">{CREATABLE_CATEGORIES.map((value) => <button key={value} type="button" onClick={() => setForm((current) => ({ ...current, category: value }))} className={`rounded-xl border px-3 py-3 text-sm font-medium transition disabled:cursor-not-allowed ${form.category === value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40"}`}>{value === "proje" && project ? "Montaj (Proje)" : CATEGORY_LABEL[value]}</button>)}</div>
+              {project && <div className="mt-3 flex items-start gap-2 rounded-xl bg-teal-50 p-3 text-sm text-teal-900"><FolderKanban className="mt-0.5 h-4 w-4 shrink-0" /><span>Bu iş emri <b>{project.name}</b> projesine bağlanacak. Mağaza projeden alınır, malzeme proje deposundan düşer.{form.category && form.category !== "proje" ? " Arıza/tadilat işinin malzeme tutarı projenin gerçekleşen maliyetine otomatik eklenir." : ""}</span></div>}
               {form.category === "proje" && !project && (
                 <div className="mt-3 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">
                   <p className="font-semibold">Proje, çok aşamalı bir kurulum sürecidir.</p>

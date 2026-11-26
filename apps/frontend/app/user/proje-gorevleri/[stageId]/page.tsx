@@ -10,6 +10,7 @@ import { uploadFormData } from "@/lib/upload";
 import { formatQuantity } from "@/lib/quantity";
 import { formatServerDate, formatServerDateTime } from "@/lib/utils";
 import { MaterialTitle } from "@/components/retail-stock/material-picker";
+import { BackLink } from "@/components/ui/back-link";
 import { ProductionNumbersCard } from "@/components/installation-projects/project-extras";
 import { STATUS_LABEL, normalizeStatus } from "@/services/managerWorkOrders";
 import {
@@ -18,7 +19,7 @@ import {
 
 // Aşamaya göre önerilen belge türü (sorumlunun en sık yükleyeceği belge).
 const SUGGESTED_DOC: Record<string, string> = {
-  kesif: "kesif_raporu", teklif: "teklif", onay: "sozlesme", test: "test_formu", teslim: "kabul_tutanagi",
+  kesif: "kesif_raporu", teklif: "teklif", onay: "sozlesme", montaj_test: "test_formu", teslim: "kabul_tutanagi",
 };
 
 export default function ProjectTaskPage() {
@@ -76,7 +77,7 @@ export default function ProjectTaskPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <Link href="/user/proje-gorevleri" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"><ArrowLeft className="h-4 w-4" />Proje Görevlerim</Link>
+      <BackLink fallbackHref="/user/proje-gorevleri" fallbackLabel="Proje Görevlerim" />
       <header>
         <p className="text-xs font-semibold text-slate-400">{project.name} · {project.project_type_label}{project.store ? ` · ${project.store.name}` : ""}</p>
         {project.is_member && <Link href={`/user/projeler/${project.id}`} className="mt-1 inline-block text-xs font-semibold text-blue-700 hover:underline">Projenin tamamını aç</Link>}
@@ -95,7 +96,7 @@ export default function ProjectTaskPage() {
       {error && <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
       {success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
 
-      {stage.code === "uretim_montaj" && (
+      {stage.code === "uretim" && (
         <ProductionNumbersCard projectId={project.id} numbers={task.production_numbers} canEnter={project.status === "active"}
           onChanged={load} onError={setError} />
       )}
@@ -148,7 +149,7 @@ export default function ProjectTaskPage() {
         </div>
       </section>
 
-      {(stage.code === "uretim_montaj" || stage.code === "kapanis") && planned.length > 0 && (
+      {(stage.code === "uretim" || stage.code === "kapanis") && planned.length > 0 && (
         <section className="erp-section-card">
           <div className="border-b border-slate-100 px-5 py-4"><h2 className="text-sm font-semibold text-slate-900">Malzeme durumu<InfoHint text="Malzemeyi proje deposuna aktarma ve iade işlemlerini yönetici yapar." /></h2></div>
           <div className="overflow-x-auto p-5"><table className="w-full min-w-[480px] text-sm">
@@ -160,7 +161,7 @@ export default function ProjectTaskPage() {
         </section>
       )}
 
-      {stage.code === "uretim_montaj" && task.work_orders.length > 0 && (
+      {stage.code === "montaj_test" && task.work_orders.length > 0 && (
         <section className="erp-section-card">
           <div className="border-b border-slate-100 px-5 py-4"><h2 className="text-sm font-semibold text-slate-900">Montaj iş emirleri</h2></div>
           <ul className="divide-y divide-slate-100">{task.work_orders.map((wo) => (

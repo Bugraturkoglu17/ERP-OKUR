@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { clearClientSession } from '@/lib/client-session';
+import { brand } from '@/lib/brand';
 
 const API_PREFIX = '/api/v1';
 
@@ -10,7 +11,7 @@ const createDefaultBaseUrl = () => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       return API_PREFIX;
     }
-    throw new Error('Okur yerel kopyası yalnızca localhost üzerinde açılabilir.');
+    throw new Error(`${brand('Okur yerel', 'Yerel')} kopyası yalnızca localhost üzerinde açılabilir.`);
   }
 
   return `http://localhost:8001${API_PREFIX}`;
@@ -22,7 +23,7 @@ const createBaseUrl = () => {
   if (rawBaseUrl === API_PREFIX) return API_PREFIX;
   const parsed = new URL(rawBaseUrl);
   if (!['localhost', '127.0.0.1'].includes(parsed.hostname) || parsed.port !== '8001') {
-    throw new Error('Okur yerel kopyası yalnızca localhost:8001 API adresine bağlanabilir.');
+    throw new Error(`${brand('Okur yerel', 'Yerel')} kopyası yalnızca localhost:8001 API adresine bağlanabilir.`);
   }
   return rawBaseUrl.endsWith(API_PREFIX) ? rawBaseUrl : `${rawBaseUrl}${API_PREFIX}`;
 };

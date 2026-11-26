@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { isFileSystemAccessSupported, pickBackupDirectory, verifyReadWritePermission } from "@/lib/backup/fsAccess";
 import { checkIntegrity, fetchRecentJobs, loadBackupPlan, runBackup, type BackupRunResult } from "@/lib/backup/engine";
 import type { BackupJob, BackupPlan, BackupProgress } from "@/lib/backup/types";
+import { brand } from "@/lib/brand";
 
 const REMINDER_HOUR_KEY = "okur-backup:reminder-hour";
 const DEFAULT_REMINDER_HOUR = 18;
@@ -139,7 +140,7 @@ export default function SystemBackupPage() {
         setError(
           "Seçilen klasöre yazma izni verilemedi. Tarayıcı; Masaüstü, Belgeler, İndirilenler, Resimler, " +
           "Müzik, Videolar veya kullanıcı ana klasörünün doğrudan seçilmesine güvenlik nedeniyle izin vermez. " +
-          "Lütfen bu klasörlerin İÇİNDE yeni bir alt klasör oluşturup (örn. \"OkurYedek\") onu seçin.",
+          "Lütfen bu klasörlerin İÇİNDE yeni bir alt klasör oluşturup (örn. \"" + brand("OkurYedek", "ErpYedek") + "\") onu seçin.",
         );
         setPreparing(false);
         return;
@@ -301,9 +302,9 @@ export default function SystemBackupPage() {
               <div className="flex items-start gap-3">
                 <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0 text-amber-600" />
                 <div>
-                  <CardTitle>Bu klasörde daha önce OKUR yerel ERP yedeği bulunamadı</CardTitle>
+                  <CardTitle>Bu klasörde daha önce {brand("OKUR yerel ERP", "yerel ERP")} yedeği bulunamadı</CardTitle>
                   <p className="mt-2 text-sm text-slate-600">
-                    Bu klasöre devam edilirse yerel PostgreSQL veritabanı ve Okur yerel dosyalarının tamamı için
+                    Bu klasöre devam edilirse yerel PostgreSQL veritabanı ve {brand("Okur yerel", "yerel")} dosyalarının tamamı için
                     <strong> başlangıç TAM YEDEĞİ</strong> oluşturulacaktır.
                   </p>
                 </div>

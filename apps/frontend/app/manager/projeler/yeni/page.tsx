@@ -1,10 +1,13 @@
 "use client";
 
 import { InfoHint } from "@/components/ui/info-hint";
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, Building2, Loader2, Plus } from "lucide-react";
+import { AlertCircle, Building2, Loader2, Plus } from "lucide-react";
+import { BackLink } from "@/components/ui/back-link";
+import { DraftNotice } from "@/components/ui/draft-notice";
+import { useSessionDraft } from "@/lib/use-session-draft";
+import { forgetCurrent } from "@/lib/nav-history";
 import { StorePicker, parseAdres, type StoreOption } from "@/components/store/store-picker";
 import { StoreFormModal, defaultStoreForm } from "@/components/store/store-form-modal";
 import { apiGet, getRequestErrorMessage } from "@/lib/api";
@@ -21,17 +24,31 @@ function todayInput(): string {
 
 const STAGES = ["Keşif", "Projelendirme ve teklif", "Müşteri onayı", "Üretim ve montaj", "Devreye alma ve test", "Teslim", "Kapanış"];
 
+type ProjectDraft = {
+  name: string; projectType: ProjectType | null; memberIds: string[]; store: StoreOption | null;
+  description: string; managerId: string; startDate: string; targetDate: string;
+};
+
 export default function NewProjectPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [projectType, setProjectType] = useState<ProjectType | null>(null);
-  const [memberIds, setMemberIds] = useState<Set<string>>(new Set());
-  const [store, setStore] = useState<StoreOption | null>(null);
+  // Başka sayfaya gidip dönünce form kaldığı yerden devam eder (kayıt olunca taslak silinir).
+  const draft = useSessionDraft<ProjectDraft>("yeni-proje", {
+    name: "", projectType: null, memberIds: [], store: null, description: "", managerId: "", startDate: todayInput(), targetDate: "",
+  });
+  const { name, projectType, store, description, managerId, startDate, targetDate } = draft.value;
+  const memberIds = useMemo(() => new Set(draft.value.memberIds), [draft.value.memberIds]);
+  const patch = (changes: Partial<ProjectDraft>) => draft.setValue((current) => ({ ...current, ...changes }));
+  const setName = (value: string) => patch({ name: value });
+  const setProjectType = (value: ProjectType) => patch({ projectType: value });
+  const setStore = (value: StoreOption | null) => patch({ store: value });
+  const setDescription = (value: string) => patch({ description: value });
+  const setManagerId = (value: string) => patch({ managerId: value });
+  const setStartDate = (value: string) => patch({ startDate: value });
+  const setTargetDate = (value: string) => patch({ targetDate: value });
+  const toggleMember = (id: string) => draft.setValue((current) => ({
+    ...current, memberIds: current.memberIds.includes(id) ? current.memberIds.filter((x) => x !== id) : [...current.memberIds, id],
+  }));
   const [storeFormOpen, setStoreFormOpen] = useState(false);
-  const [description, setDescription] = useState("");
-  const [managerId, setManagerId] = useState("");
-  const [startDate, setStartDate] = useState(todayInput);
-  const [targetDate, setTargetDate] = useState("");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -53,7 +70,10 @@ export default function NewProjectPage() {
         manager_user_id: managerId || null, start_date: startDate, target_date: targetDate || null,
         project_type: projectType, member_user_ids: Array.from(memberIds),
       });
-      router.push(`/manager/projeler/${created.id}`);
+      draft.finish();
+      // Kaydedilmiş form geçmişte kalmasın: proje bu sayfanın yerine açılır (geri → projeler listesi).
+      forgetCurrent(`${window.location.pathname}${window.location.search}`);
+      router.replace(`/manager/projeler/${created.id}`);
     } catch (reason) {
       setError(getRequestErrorMessage(reason, "Proje oluşturulamadı."));
       setSaving(false);
@@ -62,10 +82,11 @@ export default function NewProjectPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <Link href="/manager/projeler" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900"><ArrowLeft className="h-4 w-4" />Projeler</Link>
+      <BackLink fallbackHref="/manager/projeler" fallbackLabel="Projeler" />
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-slate-950">Yeni Proje<InfoHint text="Proje açılınca 7 aşama, kontrol listeleri ve projeye özel bir depo otomatik oluşturulur." /></h1>
       </header>
+      {draft.restored && <DraftNotice onClear={draft.clear} />}
 
       <main className="space-y-5 rounded-xl border border-slate-200 bg-white p-5 sm:p-7">
         <div>
@@ -112,7 +133,7 @@ export default function NewProjectPage() {
         <div>
           <span className="text-sm font-semibold text-slate-800">Projeye atanacak kişiler <span className="font-normal text-slate-400">(isteğe bağlı, birden çok seçilebilir)</span></span>
           <p className="mb-2 mt-1 text-xs text-slate-500">Atanan herkes projenin tüm aşamalarını ve maliyetlerini görür. Proje sorumlusu otomatik olarak atanır. Sonradan değiştirilebilir.</p>
-          <MemberChecklist users={users} selected={memberIds} lockedId={managerId || null} onToggle={(id) => setMemberIds((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} />
+          <MemberChecklist users={users} selected={memberIds} lockedId={managerId || null} onToggle={toggleMember} />
         </div>
 
         <div className="rounded-xl bg-slate-50 p-4">

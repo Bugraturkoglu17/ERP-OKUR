@@ -1271,6 +1271,10 @@ class WorkOrder(SQLModel, table=True):
     stock_depot_id:       Optional[UUID]      = Field(foreign_key="retail_depots.id", default=None, index=True)
     # Kurulum projesine bağlı iş emirlerinde malzeme projenin deposundan düşer.
     installation_project_id: Optional[UUID]   = Field(foreign_key="installation_projects.id", default=None, index=True)
+    # İsteğe bağlı proje köprüsü (analiz için): ne zaman, kim bağladı, proje o an hangi aşamadaydı.
+    project_linked_at:    Optional[datetime]  = Field(default=None)
+    project_linked_by:    Optional[UUID]      = Field(foreign_key="users.id", default=None)
+    project_link_stage_id: Optional[UUID]     = Field(foreign_key="installation_project_stages.id", default=None)
 
     public_links:         List["WorkOrderPublicLink"]      = Relationship(back_populates="work_order")
     photos:               List["WorkOrderPhoto"]           = Relationship(back_populates="work_order")
@@ -1780,16 +1784,14 @@ class InstallationProjectProductionNumber(SQLModel, table=True):
 
 
 class InstallationProjectCost(SQLModel, table=True):
-    """Hedeflenen / gerçekleşen maliyet kalemleri. Sistem kâr-zarar hesabı yapmaz.
+    """Hedeflenen / gerçekleşen maliyet maddeleri (açıklama + tutar).
 
-    Sabit kalemler (montaj, nakliye, ürün) proje ve tür başına tek satırdır; 'ek' kaleminde
-    birden fazla satır olabilir (her biri kendi açıklaması ve tutarıyla, sort_order sırasıyla).
+    Her kalemde (montaj, nakliye, ürün, ek) birden çok madde olabilir; kalem ve genel toplam
+    maddelerin toplamıdır (sort_order sırasıyla gösterilir).
     """
 
     __tablename__ = "installation_project_costs"
     __table_args__ = (
-        Index("uq_installation_project_cost_fixed", "project_id", "kind", "category", unique=True,
-              postgresql_where=text("category <> 'ek'")),
         CheckConstraint("kind IN ('target', 'actual')", name="ck_installation_cost_kind"),
         CheckConstraint("category IN ('montaj_iscilik', 'nakliye', 'urun', 'ek')", name="ck_installation_cost_category"),
         CheckConstraint("amount >= 0", name="ck_installation_cost_amount"),
@@ -1804,6 +1806,41 @@ class InstallationProjectCost(SQLModel, table=True):
     sort_order: int = Field(default=0, nullable=False)
     updated_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+class InstallationProjectStageEvent(SQLModel, table=True):
+    """Aşama kayıt listesi (analiz için): yalnız eklenir, değiştirilmez.
+
+    event: completed | started | responsible_changed | planned_end_changed | approval_requested | approval_rejected.
+    Adım tamamlanınca o anın fotoğrafı (sorumlu, planlanan bitiş, gecikme, kontrol listesi, belge sayısı)
+    yazılır; adlar da metin olarak saklanır ki kişi/aşama sonradan değişse de kayıt aynı kalsın.
+    """
+
+    __tablename__ = "installation_project_stage_events"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    project_id: UUID = Field(foreign_key="installation_projects.id", index=True)
+    stage_id: Optional[UUID] = Field(foreign_key="installation_project_stages.id", default=None, index=True)
+    stage_order: int
+    stage_code: str = Field(max_length=32)
+    stage_name: str = Field(max_length=120)
+    phase_name: Optional[str] = Field(default=None, max_length=120)
+    event: str = Field(max_length=32, index=True)
+    actor_id: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    actor_name: Optional[str] = Field(default=None, max_length=255)
+    responsible_user_id: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    responsible_name: Optional[str] = Field(default=None, max_length=255)
+    planned_end: Optional[datetime] = Field(default=None)
+    started_at: Optional[datetime] = Field(default=None)
+    completed_at: Optional[datetime] = Field(default=None)
+    delay_days: Optional[int] = Field(default=None)
+    checklist_done: Optional[int] = Field(default=None)
+    checklist_total: Optional[int] = Field(default=None)
+    document_count: Optional[int] = Field(default=None)
+    old_value: Optional[str] = Field(default=None, max_length=255)
+    new_value: Optional[str] = Field(default=None, max_length=255)
+    note: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False, index=True)
 
 
 # ── Taşeron kartları ────────────────────────────────────────────────────────

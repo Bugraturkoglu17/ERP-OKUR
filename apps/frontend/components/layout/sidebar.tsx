@@ -10,6 +10,7 @@ import { getRoles, getTokenPayloadFromStorage } from "@/lib/auth";
 import { apiGet } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { OkurWordmark } from "@/components/brand/okur-wordmark";
+import { brand } from "@/lib/brand";
 
 type SidebarProps = {
   mobileOpen?: boolean;
@@ -105,7 +106,7 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           <div className="flex items-center gap-2.5">
             <OkurWordmark animated className="w-20 shrink-0" />
             <div>
-              <p className="text-sm font-bold text-slate-900 leading-none">OKUR ERP</p>
+              <p className="text-sm font-bold text-slate-900 leading-none">{brand("OKUR ERP", "Operasyon")}</p>
               <p className="text-[10px] text-slate-400 mt-0.5">Mağaza Takip</p>
             </div>
           </div>

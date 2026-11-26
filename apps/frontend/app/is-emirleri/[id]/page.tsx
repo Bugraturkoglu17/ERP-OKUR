@@ -18,12 +18,15 @@ import { CountBadge } from "@/components/ui/CountBadge";
 import { ZoomableImage } from "@/components/ui/zoomable-image";
 import { CompletionPanel, formatDateTime as formatCompletionTime, useWorkOrderCompletion } from "@/components/work-order/completion-panel";
 import { MaterialTitle } from "@/components/retail-stock/material-picker";
+import { ProjectLinkControl } from "@/components/work-order/project-link-control";
+import { BackLink } from "@/components/ui/back-link";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type WorkOrder = {
   id: string; project_id: string; project_name?: string; project_no?: string;
   installation_project_id?: string | null; installation_project_name?: string | null;
+  project_link_removable?: boolean; assigned_to_user_id?: string | null;
   project_region?: string; project_city?: string; project_address?: string;
   work_type: string; work_type_label: string; title: string; description?: string;
   assigned_to_name?: string;
@@ -1348,9 +1351,7 @@ export default function WorkOrderDetailPage() {
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-slate-400">
-        <Link href={backHref} className="flex items-center gap-1 hover:text-slate-700">
-          <ArrowLeft className="h-3.5 w-3.5" /> İş Emirleri
-        </Link>
+        <BackLink fallbackHref={backHref} fallbackLabel="İş Emirleri" className="flex items-center gap-1 hover:text-slate-700" />
         <span>/</span>
         <span className="text-slate-700 font-medium truncate max-w-xs">{wo.title}</span>
       </div>
@@ -1435,7 +1436,9 @@ export default function WorkOrderDetailPage() {
             <p className="text-sm font-semibold text-slate-800 mt-0.5 truncate">{wo.project_name ?? "Belirtilmedi"}</p>
             {wo.project_no && <p className="text-[11px] text-slate-400 font-mono">{wo.project_no}</p>}
             {(wo.project_city || wo.project_region) && <p className="text-[11px] text-slate-400">{[wo.project_region, wo.project_city].filter(Boolean).join(" / ")}</p>}
-            {wo.installation_project_name && <p className="mt-1 inline-flex rounded-md bg-teal-50 px-1.5 py-0.5 text-[11px] font-semibold text-teal-800">Proje: {wo.installation_project_name}</p>}
+            {isManager ? (
+              <ProjectLinkControl wo={wo} canManage projectHref={(projectId) => `/manager/projeler/${projectId}`} onChanged={loadWorkOrder} />
+            ) : wo.installation_project_name && <p className="mt-1 inline-flex rounded-md bg-teal-50 px-1.5 py-0.5 text-[11px] font-semibold text-teal-800">Proje: {wo.installation_project_name}</p>}
           </div>
           {wo.assigned_to_name && (
             <div>

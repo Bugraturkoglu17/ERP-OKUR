@@ -1,6 +1,7 @@
 import { apiGet, apiPatch, apiPost, buildApiUrl } from "@/lib/api";
 import { fileExistsAt, writeJsonFile, writeStreamToFile } from "@/lib/backup/fsAccess";
 import { createEmptyManifest, readManifest, upsertManifestEntries, writeManifest } from "@/lib/backup/manifest";
+import { brand } from "@/lib/brand";
 import type {
   BackupJob,
   BackupManifest,
@@ -62,7 +63,7 @@ async function downloadDatabaseDump(
   const ts = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 16);
   const relativePath = `OKUR_DATABASE/${todayFolder()}/okur_db_${ts}.dump`;
   const bytes = await writeStreamToFile(root, relativePath, res.body, (b) =>
-    onProgress({ bytesDone: b, currentFile: "Veritabanı (Okur yerel PostgreSQL)" }),
+    onProgress({ bytesDone: b, currentFile: brand("Veritabanı (Okur yerel PostgreSQL)", "Veritabanı (yerel PostgreSQL)") }),
   );
   // pg_dump custom-format dosyaları "PGDMP" ile başlar — boş/bozuk dump SUCCESS sayılmaz (madde 30).
   return { ok: bytes > 100, bytes };

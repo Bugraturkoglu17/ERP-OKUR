@@ -18,13 +18,15 @@ export type ProductionNumber = { id: string; number: string; note: string | null
 
 export type CostKind = "target" | "actual";
 export type CostCategory = "montaj_iscilik" | "nakliye" | "urun" | "ek";
-export type CostExtra = { id: string; amount: string; description: string | null };
-/** "ek" kaleminde tutar, extras içindeki satırların toplamıdır. */
-export type CostItem = { category: CostCategory; label: string; amount: string | null; description: string | null; extras?: CostExtra[] };
+/** Maliyet maddesi: açıklama + tutar. */
+export type CostLine = { id: string; amount: string; description: string | null };
+/** Kalem (montaj, nakliye, ürün, ek): tutar, maddelerin toplamıdır (madde yoksa null). */
+export type CostItem = { category: CostCategory; label: string; amount: string | null; lines: CostLine[] };
 export type ProjectCosts = {
   categories: Record<CostCategory, string>;
   target: { items: CostItem[]; total: string };
-  actual: { items: CostItem[]; total: string };
+  /** total, bağlı arıza/bakım iş emirlerinin malzeme tutarını (linked_work_orders) da içerir. */
+  actual: { items: CostItem[]; total: string; linked_work_orders?: string; linked_work_orders_label?: string };
 };
 
 export type ProjectSummary = {
@@ -46,6 +48,22 @@ export type ProjectStage = {
   planned_end: string | null; started_at: string | null; completed_at: string | null; note: string | null;
   approval_requested_at?: string | null; approval_requested_by_name?: string | null;
   checklist: ChecklistItem[]; requirements: StageRequirement[];
+  /** Aşamanın kapanması için gereken belge türleri (ör. kesif_raporu, fotograf). */
+  required_docs?: string[];
+  /** Adımın ait olduğu ana aşama (kesif | teklif | uretim_montaj | kapanis). */
+  phase: string; phase_name: string;
+};
+
+export type ProjectPhase = { code: string; name: string };
+
+/** Aşama kayıt listesi satırı (yalnız eklenir): tamamlama anı ve sorumlu / tarih / onay değişiklikleri. */
+export type StageEvent = {
+  id: string; project_id: string; project_name?: string; stage_id: string | null; stage_order: number;
+  stage_code: string; stage_name: string; phase_name: string | null; event: string; event_label: string;
+  actor_name: string | null; responsible_name: string | null; planned_end: string | null;
+  started_at: string | null; completed_at: string | null; delay_days: number | null;
+  checklist_done: number | null; checklist_total: number | null; document_count: number | null;
+  old_value: string | null; new_value: string | null; note: string | null; created_at: string;
 };
 
 export type ProjectDocument = {
@@ -73,6 +91,15 @@ export type ProjectBillingPayload = Omit<ProjectBilling, "defaults">;
 
 export type ProjectWorkOrder = {
   id: string; title: string; status: string; assigned_to_name: string | null; due_date: string | null; created_at: string;
+  work_type: string; work_type_label: string; completed_at: string | null;
+  /** Bağın kurulduğu zaman, kuran kişi ve projenin o anki aşaması. */
+  linked_at: string | null; linked_by_name: string | null; link_stage_name: string | null;
+};
+
+/** Projeye bağlanabilecek iş emri: aynı mağazanın açık, projesiz ve malzemesi düşülmemiş iş emri. */
+export type LinkableWorkOrder = {
+  id: string; title: string; status: string; work_type: string; work_type_label: string;
+  assigned_to_name: string | null; created_at: string; due_date: string | null;
 };
 
 export type ProjectDetail = {
@@ -85,7 +112,7 @@ export type ProjectDetail = {
   depot_id: string; manager_user_id: string | null; manager_name: string | null;
   start_date: string | null; target_date: string | null; budget: string | null;
   created_at: string; completed_at: string | null;
-  stages: ProjectStage[]; documents: ProjectDocument[]; doc_types: Record<string, string>;
+  stages: ProjectStage[]; phases: ProjectPhase[]; documents: ProjectDocument[]; doc_types: Record<string, string>;
   materials: ProjectMaterial[]; planned_cost: string | null; used_cost: string | null;
   work_orders: ProjectWorkOrder[];
 };
@@ -118,9 +145,17 @@ export const saveProjectMembers = (id: string, userIds: string[]) =>
 export const addProductionNumber = (id: string, number: string, note?: string | null) =>
   apiPost<ProductionNumber[]>(`${BASE}/${id}/production-numbers`, { number, note: note ?? null });
 export const deleteProductionNumber = (numberId: string) => apiDelete(`${BASE}/production-numbers/${numberId}`);
+/** Bir türün (hedeflenen / gerçekleşen) tüm maddeleri gönderilir; sunucu o türün eski maddelerini yeniler. */
 export const saveProjectCosts = (id: string, kind: CostKind, items: { category: CostCategory; amount: string | null; description?: string | null }[]) =>
   apiPut<ProjectCosts>(`${BASE}/${id}/costs`, { kind, items });
 export const deleteProjectDocument = (documentId: string) => apiDelete(`${BASE}/documents/${documentId}`);
+export const getProjectStageEvents = (id: string) => apiGet<StageEvent[]>(`${BASE}/${id}/stage-events`);
+export const getLinkableWorkOrders = (id: string) => apiGet<LinkableWorkOrder[]>(`${BASE}/${id}/linkable-work-orders`);
+/** İş emri ↔ proje köprüsü: bağlanınca malzeme proje deposundan düşer. */
+export const linkWorkOrderToProject = (workOrderId: string, projectId: string) =>
+  apiPost(`/work-orders/${workOrderId}/project-link`, { installation_project_id: projectId });
+export const unlinkWorkOrderFromProject = (workOrderId: string, stockDepotId?: string | null) =>
+  apiDelete(`/work-orders/${workOrderId}/project-link${stockDepotId ? `?stock_depot_id=${encodeURIComponent(stockDepotId)}` : ""}`);
 export const projectDocumentUrl = (id: string) => `${BASE}/${id}/documents`;
 
 // ── Aşama sorumlusu (saha kullanıcısı) için: "Proje Görevlerim" ──
@@ -165,7 +200,8 @@ export type ProjectStats = {
     realized_revenue: number; realized_cost: number; realized_profit: number; realized_count: number };
   by_type: { type: ProjectType; label: string; count: number; active: number; budget: number; target: number; actual: number }[];
   by_stage: { order: number; name: string; count: number }[];
-  by_category: { category: CostCategory; label: string; target: number; actual: number }[];
+  /** Son satır "bagli_is_emirleri": bağlı arıza/bakım iş emirlerinin otomatik malzeme tutarı. */
+  by_category: { category: CostCategory | "bagli_is_emirleri"; label: string; target: number; actual: number }[];
   projects: {
     id: string; name: string; status: ProjectStatus; project_type_label: string;
     stages_total: number; stages_done: number; current_stage: string | null; overdue: boolean;

@@ -1,6 +1,7 @@
 "use client";
 
 import { InfoHint } from "@/components/ui/info-hint";
+import { Checkbox } from "@/components/shadcn/checkbox";
 import { useState } from "react";
 import Link from "next/link";
 import { Factory, Loader2, Plus, ReceiptText, Trash2, Users, Wallet } from "lucide-react";
@@ -39,10 +40,10 @@ export function MemberChecklist({ users, selected, onToggle, lockedId }: { users
         const checked = locked || selected.has(u.id);
         return (
           <li key={u.id}>
-            <label className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm ${locked ? "cursor-default" : "cursor-pointer"} ${checked ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"}`}>
-              <input type="checkbox" checked={checked} disabled={locked} onChange={() => onToggle(u.id)} className="h-4 w-4 accent-blue-600" />
-              <span className="min-w-0 truncate text-slate-800">{u.full_name || u.email}</span>
-              {locked && <span className="ml-auto shrink-0 text-[11px] font-medium text-blue-700">Proje sorumlusu</span>}
+            <label className={`flex items-center gap-2.5 rounded-md border px-3 py-2.5 text-sm ${locked ? "cursor-default" : "cursor-pointer hover:bg-accent"} ${checked ? "border-primary/40 bg-primary/5" : "bg-background"}`}>
+              <Checkbox checked={checked} disabled={locked} onCheckedChange={() => onToggle(u.id)} />
+              <span className="min-w-0 truncate">{u.full_name || u.email}</span>
+              {locked && <span className="ml-auto shrink-0 text-xs font-medium text-primary">Proje sorumlusu</span>}
             </label>
           </li>
         );
@@ -375,110 +376,133 @@ export function RealProfitCard({ billing, actualTotal }: { billing: ProjectBilli
   );
 }
 
-const KIND_LABEL: Record<CostKind, string> ={ target: "Hedeflenen maliyet", actual: "Gerçekleşen maliyet" };
-type ExtraDraft = { key: number; amount: string; description: string };
-type CostDraft = { fixed: Record<string, string>; extras: ExtraDraft[] };
-let extraKey = 0;
-const blankExtra = (): ExtraDraft => ({ key: ++extraKey, amount: "", description: "" });
+const KIND_LABEL: Record<CostKind, string> = { target: "Hedeflenen maliyet", actual: "Gerçekleşen maliyet" };
+type LineDraft = { key: number; amount: string; description: string };
+type CostDraft = Record<string, LineDraft[]>;
+let lineKey = 0;
+const blankLine = (): LineDraft => ({ key: ++lineKey, amount: "", description: "" });
+const toDraft = (items: ProjectCosts["target"]["items"]): CostDraft => Object.fromEntries(items.map((item) => [
+  item.category,
+  item.lines.map((line) => ({ key: ++lineKey, amount: moneyInputFromNumber(line.amount), description: line.description ?? "" })),
+]));
 
+/**
+ * Maddeli maliyet sütunu: her kalemin (montaj, nakliye, ürün, ek) altında açıklama + tutar maddeleri;
+ * kalem ara toplamı ve genel toplam kendiliğinden hesaplanır. Gerçekleşen tarafta hedef maddeleri
+ * tek tıkla kopyalanabilir. Kayıt sürerken sütun kilitlenir.
+ */
 function CostColumn({ projectId, kind, costs, canEnter, onChanged, onError }: {
   projectId: string; kind: CostKind; costs: ProjectCosts; canEnter: boolean;
 } & Handlers) {
   const data = costs[kind];
-  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<CostDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const editing = draft !== null;
+  const linked = kind === "actual" ? Number(costs.actual.linked_work_orders ?? 0) : 0;
 
-  function start() {
-    const extras = (data.items.find((item) => item.category === "ek")?.extras ?? [])
-      .map((extra) => ({ key: ++extraKey, amount: moneyInputFromNumber(extra.amount), description: extra.description ?? "" }));
-    setDraft({
-      fixed: Object.fromEntries(data.items.filter((item) => item.category !== "ek").map((item) => [item.category, moneyInputFromNumber(item.amount)])),
-      extras: extras.length ? extras : [blankExtra()],
-    });
-    setEditing(true);
+  function start() { setDraft(toDraft(data.items)); }
+  function update(category: string, key: number, patch: Partial<LineDraft>) {
+    setDraft((cur) => cur && ({ ...cur, [category]: cur[category].map((line) => line.key === key ? { ...line, ...patch } : line) }));
   }
+  const draftSum = (lines: LineDraft[]) => lines.reduce((sum, line) => sum + Number(parseMoneyInput(line.amount) ?? 0), 0);
 
   async function save() {
     if (!draft) return;
     const items: { category: CostCategory; amount: string | null; description: string | null }[] = [];
     for (const item of data.items) {
-      if (item.category === "ek") continue;
-      const amount = parseMoneyInput(draft.fixed[item.category] ?? "");
-      if (amount === undefined) { onError(`${item.label}: tutar sayı olmalı (örn. 15000 veya 15.000,50).`); return; }
-      items.push({ category: item.category, amount, description: null });
+      const lines = draft[item.category] ?? [];
+      for (let index = 0; index < lines.length; index++) {
+        const line = lines[index];
+        const amount = parseMoneyInput(line.amount);
+        const description = line.description.trim() || null;
+        if (amount === undefined) { onError(`${item.label} ${index + 1}. madde: tutar sayı olmalı (örn. 15000 veya 15.000,50).`); return; }
+        if (amount === null && !description) continue;
+        if (amount === null) { onError(`${item.label}: "${description}" maddesinin tutarını girin.`); return; }
+        items.push({ category: item.category, amount, description });
+      }
     }
-    for (let index = 0; index < draft.extras.length; index++) {
-      const extra = draft.extras[index];
-      const amount = parseMoneyInput(extra.amount);
-      if (amount === undefined) { onError(`Ek maliyet ${index + 1}: tutar sayı olmalı (örn. 15000 veya 15.000,50).`); return; }
-      const description = extra.description.trim() || null;
-      if (amount !== null || description) items.push({ category: "ek", amount, description });
-    }
-    // Hiç ek maliyet kalmadıysa boş bir satır gönderilir; sunucu eski ek maliyetleri böylece siler.
-    if (!items.some((item) => item.category === "ek")) items.push({ category: "ek", amount: null, description: null });
     setSaving(true); onError("");
-    try { await saveProjectCosts(projectId, kind, items); setEditing(false); await onChanged(); }
+    try { await saveProjectCosts(projectId, kind, items); setDraft(null); await onChanged(); }
     catch (reason) { onError(getRequestErrorMessage(reason, "Maliyet kaydedilemedi.")); } finally { setSaving(false); }
   }
 
+  const total = editing ? data.items.reduce((sum, item) => sum + draftSum(draft[item.category] ?? []), 0) + linked : Number(data.total);
+
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+    <div className="relative flex flex-col rounded-xl border border-slate-200">
+      {saving && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/60"><Loader2 className="h-5 w-5 animate-spin text-slate-500" /></div>}
+      <div className="flex min-h-[3rem] items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5">
         <h3 className="text-sm font-semibold text-slate-900">{KIND_LABEL[kind]}</h3>
-        {canEnter && !editing && <button type="button" onClick={start} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Düzenle</button>}
+        <div className="flex items-center gap-2">
+          {editing && kind === "actual" && (
+            <button type="button" onClick={() => setDraft(toDraft(costs.target.items))} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50">Hedeften kopyala</button>
+          )}
+          {canEnter && !editing && <button type="button" onClick={start} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Düzenle</button>}
+        </div>
       </div>
       <ul className="divide-y divide-slate-100 px-4">
-        {data.items.map((item) => (
-          <li key={item.category} className="py-2.5">
+        {data.items.map((item) => {
+          const lines = editing ? draft[item.category] ?? [] : item.lines;
+          const subtotal = editing ? draftSum(draft[item.category] ?? []) : Number(item.amount ?? 0);
+          return (
+            <li key={item.category} className="py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-slate-800">{item.label}</span>
+                <span className={`whitespace-nowrap text-sm tabular-nums ${!editing && item.amount === null ? "text-slate-300" : "font-semibold text-slate-900"}`}>
+                  {!editing && item.amount === null ? "—" : `₺${money(subtotal)}`}
+                </span>
+              </div>
+              {editing ? (
+                <div className="mt-2 space-y-2">
+                  {(draft[item.category] ?? []).map((line, index) => (
+                    <div key={line.key} className="flex items-center gap-2">
+                      <input value={line.description} maxLength={500} placeholder="Açıklama" aria-label={`${item.label} ${index + 1}. madde açıklaması`}
+                        onChange={(e) => update(item.category, line.key, { description: e.target.value })}
+                        className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm" />
+                      <MoneyInput value={line.amount} placeholder="0,00" aria-label={`${item.label} ${index + 1}. madde tutarı (₺)`}
+                        onValueChange={(amount) => update(item.category, line.key, { amount })}
+                        className="w-32 shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-right text-sm tabular-nums" />
+                      <button type="button" aria-label={`${item.label} ${index + 1}. maddeyi sil`}
+                        onClick={() => setDraft((cur) => cur && ({ ...cur, [item.category]: cur[item.category].filter((row) => row.key !== line.key) }))}
+                        className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setDraft((cur) => cur && ({ ...cur, [item.category]: [...(cur[item.category] ?? []), blankLine()] }))}
+                    className="inline-flex items-center gap-1 rounded-lg border border-dashed border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:border-slate-400 hover:bg-slate-50"><Plus className="h-3.5 w-3.5" />Madde ekle</button>
+                </div>
+              ) : lines.length > 0 && (
+                <ul className="mt-1.5 space-y-1">
+                  {item.lines.map((line) => (
+                    <li key={line.id} className="flex items-baseline justify-between gap-3 text-xs text-slate-500">
+                      <span className="min-w-0 break-words">{line.description || "Açıklama yok"}</span>
+                      <span className="whitespace-nowrap tabular-nums">₺{money(line.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+        {linked > 0 && (
+          <li className="py-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-slate-700">{item.label}</span>
-              {editing && draft && item.category === "ek" ? (
-                <button type="button" onClick={() => setDraft((cur) => cur && ({ ...cur, extras: [...cur.extras, blankExtra()] }))}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Plus className="h-3.5 w-3.5" />Ek maliyet ekle</button>
-              ) : editing && draft ? (
-                <MoneyInput value={draft.fixed[item.category] ?? ""} placeholder="0,00" aria-label={`${KIND_LABEL[kind]} — ${item.label} (₺)`}
-                  onValueChange={(amount) => setDraft((cur) => cur && ({ ...cur, fixed: { ...cur.fixed, [item.category]: amount } }))}
-                  className="w-36 shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-right text-sm tabular-nums" />
-              ) : <span className={`whitespace-nowrap text-sm tabular-nums ${item.amount === null ? "text-slate-300" : "font-semibold text-slate-900"}`}>{item.amount === null ? "—" : `₺${money(item.amount)}`}</span>}
+              <span className="text-sm font-medium text-slate-800">{costs.actual.linked_work_orders_label ?? "Bağlı iş emirleri"}
+                <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">otomatik</span>
+                <InfoHint text="Projeye bağlanan arıza/bakım iş emirlerinin proje deposundan düşen malzemesi (katalog fiyatıyla). Ürün maliyetini girerken bu tutarı dahil etmeyin." />
+              </span>
+              <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-slate-900">₺{money(linked)}</span>
             </div>
-            {item.category === "ek" && (editing && draft ? (
-              <ul className="mt-2 space-y-2">
-                {draft.extras.map((extra, index) => (
-                  <li key={extra.key} className="flex items-center gap-2">
-                    <input value={extra.description} maxLength={500} placeholder="Ek maliyet açıklaması" aria-label={`${KIND_LABEL[kind]} — ek maliyet ${index + 1} açıklaması`}
-                      onChange={(e) => setDraft((cur) => cur && ({ ...cur, extras: cur.extras.map((row) => row.key === extra.key ? { ...row, description: e.target.value } : row) }))}
-                      className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm" />
-                    <MoneyInput value={extra.amount} placeholder="0,00" aria-label={`${KIND_LABEL[kind]} — ek maliyet ${index + 1} tutarı (₺)`}
-                      onValueChange={(amount) => setDraft((cur) => cur && ({ ...cur, extras: cur.extras.map((row) => row.key === extra.key ? { ...row, amount } : row) }))}
-                      className="w-28 shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-right text-sm tabular-nums" />
-                    <button type="button" aria-label={`Ek maliyet ${index + 1} satırını sil`}
-                      onClick={() => setDraft((cur) => cur && ({ ...cur, extras: cur.extras.filter((row) => row.key !== extra.key) }))}
-                      className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
-                  </li>
-                ))}
-              </ul>
-            ) : item.extras && item.extras.length > 0 ? (
-              <ul className="mt-1.5 space-y-1">
-                {item.extras.map((extra) => (
-                  <li key={extra.id} className="flex items-baseline justify-between gap-3 text-xs text-slate-500">
-                    <span className="min-w-0 break-words">{extra.description || "Açıklama yok"}</span>
-                    <span className="whitespace-nowrap tabular-nums">₺{money(extra.amount)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : null)}
           </li>
-        ))}
+        )}
       </ul>
       <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3">
         <span className="text-sm font-semibold text-slate-700">Toplam</span>
-        <span className="text-base font-bold tabular-nums text-slate-950">₺{money(data.total)}</span>
+        <span className="text-base font-bold tabular-nums text-slate-950">₺{money(total)}</span>
       </div>
       {editing && (
         <div className="flex justify-end gap-2 border-t border-slate-100 px-4 py-3">
-          <button type="button" onClick={() => setEditing(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500">Vazgeç</button>
-          <button type="button" disabled={saving} onClick={() => void save()} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Kaydet</button>
+          <button type="button" onClick={() => setDraft(null)} disabled={saving} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500">Vazgeç</button>
+          <button type="button" disabled={saving} onClick={() => void save()} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Kaydet</button>
         </div>
       )}
     </div>

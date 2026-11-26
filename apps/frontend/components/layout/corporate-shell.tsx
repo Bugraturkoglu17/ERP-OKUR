@@ -9,6 +9,7 @@ import { QuickSwitch } from "@/components/layout/quick-switch";
 import type { UserRole } from "@/lib/permissions";
 import type { BrandTone } from "@/components/brand/brand-mark";
 import { OkurWordmark } from "@/components/brand/okur-wordmark";
+import { brand } from "@/lib/brand";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { HEADER_SLOT_ID } from "@/components/layout/header-slot";
 import { useMobileDrawer } from "@/hooks/use-mobile-drawer";
@@ -53,7 +54,7 @@ function CorporateSidebar({
           />
           <div>
             <span className="block text-[13px] font-semibold leading-none tracking-[-0.02em] text-white">{title}</span>
-            <span className="mt-1 block text-[9px] uppercase leading-none tracking-widest text-white/40">OKUR ERP</span>
+            <span className="mt-1 block text-[9px] uppercase leading-none tracking-widest text-white/40">{brand("OKUR ERP", "Operasyon Sistemi")}</span>
           </div>
         </div>
         <button type="button" aria-label="Yan paneli kapat" onClick={onClose} className="lg:hidden rounded-lg p-2 text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-white">
@@ -161,7 +162,7 @@ export function CorporateShell({
               <Menu className="h-4 w-4" />
             </button>
             <p className="hidden min-w-0 items-baseline gap-2 truncate lg:flex">
-              <span className="text-xs font-semibold tracking-[-0.01em] text-slate-700">OKUR ERP</span>
+              <span className="text-xs font-semibold tracking-[-0.01em] text-slate-700">{brand("OKUR ERP", "ERP")}</span>
               <span className="truncate text-[11px] text-slate-400">Güvenli operasyon çalışma alanı</span>
             </p>
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">

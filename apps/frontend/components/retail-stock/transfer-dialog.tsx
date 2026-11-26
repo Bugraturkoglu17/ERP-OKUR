@@ -5,6 +5,7 @@ import { AlertCircle, ArrowRight, ArrowRightLeft, Check, Loader2, Search, X } fr
 import { apiGet, apiPost, getRequestErrorMessage } from "@/lib/api";
 import { formatQuantity, parseQuantity, quantityForApi, quantityProblem, sanitizeQuantityInput } from "@/lib/quantity";
 import { MaterialTitle, foldText } from "@/components/retail-stock/material-picker";
+import { brand } from "@/lib/brand";
 
 export type TransferDepot = { id: string; kind: "main" | "vehicle" | "project"; name: string; plate: string | null; assigned_user_id: string | null };
 type SourceRow = {
@@ -149,7 +150,7 @@ export function TransferDialog({ depots, manager, initialSourceId, staffNames = 
       onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
       <div role="dialog" aria-modal="true" aria-label="Depo aktarımı" className="flex max-h-[94dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90dvh] sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#bd0063]">OKUR DEPO</p><h2 className="mt-1 text-lg font-bold text-slate-950">{manager ? "Depo aktarımı" : "Ana depoya iade"}</h2></div>
+          <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#bd0063]">{brand("OKUR DEPO", "DEPO")}</p><h2 className="mt-1 text-lg font-bold text-slate-950">{manager ? "Depo aktarımı" : "Ana depoya iade"}</h2></div>
           <button type="button" onClick={onClose} aria-label="Kapat" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button>
         </div>
 

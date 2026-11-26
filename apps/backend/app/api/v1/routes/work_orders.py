@@ -26,7 +26,7 @@ from app.core.notifications import notify
 from app.services.alerts import notify_critical_report
 from app.core.storage import storage, sanitize_filename
 from app.db.models import (
-    InstallationProject,
+    InstallationProject, InstallationProjectStage, RetailBalance,
     Notification,
     Document, Project, Region, User, WorkOrder, WorkOrderActivity, WorkOrderPhoto,
     WorkOrderPublicLink, WorkOrderReport, WorkOrderReportPhoto, WorkOrderServiceForm,
@@ -198,6 +198,9 @@ class WorkOrderRead(BaseModel):
     has_critical_report:   bool = False
     installation_project_id:   Optional[UUID] = None
     installation_project_name: Optional[str] = None
+    project_linked_at:     Optional[datetime] = None
+    # Bağ kaldırılabilir mi: Proje tipi değil ve malzemesi proje deposundan düşülmemiş.
+    project_link_removable: bool = False
     public_token:          Optional[str] = None
 
     class Config:
@@ -471,7 +474,7 @@ async def _complete_stock(db: AsyncSession, wo: WorkOrder, actor: User) -> list[
         summary = ", ".join(f"{item.name} {format_quantity(item.quantity)} {item.unit}" for item in issued)
         await _log_activity(
             db, wo.id, wo.project_id, "stock_deducted",
-            f"Cep depodan {len(issued)} kalem malzeme düşüldü", summary,
+            f"{'Proje deposundan' if wo.installation_project_id else 'Cep depodan'} {len(issued)} kalem malzeme düşüldü", summary,
         )
         await notify_managers_of_issue(db, work_order=wo, actor=actor, issued=issued)
     return issued
@@ -543,6 +546,7 @@ def _enrich(
         has_critical_report=any(report.severity == "critical" for report in (reports or [])),
         installation_project_id=wo.installation_project_id,
         installation_project_name=installation_project_name,
+        project_linked_at=wo.project_linked_at,
         public_token=link.token if link else None,
     )
 
@@ -580,7 +584,9 @@ async def create_work_order(
             raise HTTPException(400, "Bağlanacak aktif proje bulunamadı.")
         if installation.store_id != proj.id:
             raise HTTPException(400, "İş emrinin mağazası projenin mağazasıyla aynı olmalıdır.")
-        payload.work_type = "project"
+        # Projeden açılan iş emri tipini korur (montaj = Proje, arıza = Arıza ...); malzeme proje deposundan düşer.
+        if payload.work_type not in WORK_TYPE_LABELS:
+            raise HTTPException(400, "Geçersiz iş tipi.")
     elif payload.work_type == "project":
         raise HTTPException(400, "Proje iş emri bir projeye bağlı olmalıdır; projeyi Projeler ekranından açın.")
     depot = await validate_work_order_depot(
@@ -600,6 +606,9 @@ async def create_work_order(
         assigned_to_user_id=payload.assigned_to_user_id,
         stock_depot_id=depot.id,
         installation_project_id=installation.id if installation else None,
+        project_linked_at=utc_now() if installation else None,
+        project_linked_by=user.id if installation else None,
+        project_link_stage_id=(await _current_stage_id(db, installation.id)) if installation else None,
         priority=payload.priority or "normal",
         status=WorkOrderStatus.PLANNED.value,
         location_url=payload.location_url,
@@ -753,8 +762,132 @@ async def get_work_order(
     reports_r = await db.execute(select(WorkOrderReport).where(WorkOrderReport.work_order_id == wo.id))
     link = await _get_active_link(wo.id, db)
     installation = await db.get(InstallationProject, wo.installation_project_id) if wo.installation_project_id else None
-    return _enrich(wo, proj, photos_r.scalars().all(), forms_r.scalars().all(), link, reports_r.scalars().all(),
-                   installation_project_name=installation.name if installation else None)
+    out = _enrich(wo, proj, photos_r.scalars().all(), forms_r.scalars().all(), link, reports_r.scalars().all(),
+                  installation_project_name=installation.name if installation else None)
+    if installation and _workflow_value(wo.work_type) != "project":
+        out.project_link_removable = not await has_stock_history(db, wo.id)
+    return out
+
+
+# ── İş emri ↔ kurulum projesi isteğe bağlı köprüsü ───────────────────────────
+# Bağlı iş emri tipini korur; malzemesi proje deposundan düşer ve bağlı arıza/bakım işlerinin malzeme
+# tutarı projenin gerçekleşen maliyetine otomatik eklenir. Malzeme düşüldükten sonra bağ değişmez.
+
+class ProjectLinkCreate(BaseModel):
+    installation_project_id: UUID
+
+
+async def _current_stage_id(db: AsyncSession, installation_project_id: UUID) -> Optional[UUID]:
+    """Projenin o an yürüyen (ilk kapanmamış) aşaması."""
+    row = await db.execute(
+        select(InstallationProjectStage.id)
+        .where(InstallationProjectStage.project_id == installation_project_id,
+               InstallationProjectStage.status != "completed")
+        .order_by(InstallationProjectStage.stage_order).limit(1))
+    return row.scalar_one_or_none()
+
+
+async def _move_planned_lines(db: AsyncSession, wo: WorkOrder, depot: RetailDepot) -> None:
+    """Henüz düşülmemiş malzeme satırlarını yeni depoya taşır; yeni depoda yetmeyen kalem varsa reddeder."""
+    lines = (await db.execute(select(WorkOrderMaterial).where(
+        WorkOrderMaterial.work_order_id == wo.id, WorkOrderMaterial.movement_id.is_(None)))).scalars().all()
+    for line in lines:
+        material = await db.get(RetailMaterial, line.material_id)
+        balance = await db.get(RetailBalance, (depot.id, line.material_id))
+        available = balance.quantity if balance else Decimal("0")
+        if line.quantity > available:
+            raise HTTPException(409, (
+                f"{material.name if material else 'Malzeme'}: {depot.name} deposunda {format_quantity(available)} var, "
+                f"iş emrinde {format_quantity(line.quantity)} yazılı. Önce malzemeyi aktarın veya iş emrindeki listeyi düzeltin."))
+    for line in lines:
+        line.depot_id = depot.id
+        line.updated_at = utc_now()
+
+
+async def _managed_work_order(db: AsyncSession, user: User, work_order_id: UUID) -> WorkOrder:
+    wo = await db.get(WorkOrder, work_order_id)
+    if not wo:
+        raise HTTPException(404, "İş emri bulunamadı.")
+    _ensure_work_order_access(wo, user)
+    if not _can_view_all_work_orders(user):
+        raise HTTPException(403, "İş emrinin proje bağını yalnızca yöneticiler değiştirebilir.")
+    return wo
+
+
+@router.post("/{work_order_id}/project-link", response_model=WorkOrderRead)
+async def link_work_order_to_project(
+    work_order_id: UUID,
+    payload: ProjectLinkCreate,
+    db:   AsyncSession = Depends(get_db),
+    user: User         = Depends(get_current_user),
+):
+    """Var olan iş emrini aynı mağazadaki aktif kurulum projesine bağlar."""
+    wo = await _managed_work_order(db, user, work_order_id)
+    if wo.installation_project_id:
+        raise HTTPException(409, "İş emri zaten bir projeye bağlı; önce mevcut bağı kaldırın.")
+    if _workflow_value(wo.status) in _CLOSED_STATUSES:
+        raise HTTPException(409, "Tamamlanan veya iptal edilen iş emri projeye bağlanamaz.")
+    if await has_stock_history(db, wo.id):
+        raise HTTPException(409, "Malzemesi düşülmüş iş emri projeye bağlanamaz.")
+    installation = await db.get(InstallationProject, payload.installation_project_id)
+    if not installation or installation.tenant_id != wo.tenant_id or installation.status != "active":
+        raise HTTPException(400, "Bağlanacak aktif proje bulunamadı.")
+    if installation.store_id != wo.project_id:
+        raise HTTPException(400, "İş emrinin mağazası projenin mağazasıyla aynı olmalıdır.")
+    depot = await db.get(RetailDepot, installation.depot_id)
+    if not depot or not depot.is_active:
+        raise HTTPException(409, "Projenin deposu kapalı; iş emri bağlanamaz.")
+    await _move_planned_lines(db, wo, depot)
+    stage_id = await _current_stage_id(db, installation.id)
+    stage = await db.get(InstallationProjectStage, stage_id) if stage_id else None
+    wo.installation_project_id = installation.id
+    wo.stock_depot_id = depot.id
+    wo.project_linked_at, wo.project_linked_by, wo.project_link_stage_id = utc_now(), user.id, stage_id
+    wo.updated_at = utc_now()
+    await _log_activity(db, wo.id, wo.project_id, "project_linked", f"Projeye bağlandı: {installation.name}",
+                        f"{user.full_name or user.email} bağladı" + (f"; proje {stage.name} aşamasındaydı." if stage else "."))
+    await db.commit()
+    return await get_work_order(wo.id, db, user)
+
+
+@router.delete("/{work_order_id}/project-link", response_model=WorkOrderRead)
+async def unlink_work_order_from_project(
+    work_order_id: UUID,
+    stock_depot_id: Optional[UUID] = Query(None, description="Çalışanın birden fazla cep deposu varsa hangisi"),
+    db:   AsyncSession = Depends(get_db),
+    user: User         = Depends(get_current_user),
+):
+    """Projeye sonradan bağlanmış iş emrinin bağını kaldırır; malzeme yeniden çalışanın cep deposundan düşer."""
+    wo = await _managed_work_order(db, user, work_order_id)
+    if not wo.installation_project_id:
+        raise HTTPException(409, "İş emri bir projeye bağlı değil.")
+    if _workflow_value(wo.work_type) == "project":
+        raise HTTPException(409, "Proje tipindeki iş emrinin bağı kaldırılamaz; gerekirse iş emrini iptal edin.")
+    if await has_stock_history(db, wo.id):
+        raise HTTPException(409, "Malzemesi proje deposundan düşülmüş iş emrinin bağı kaldırılamaz.")
+    installation = await db.get(InstallationProject, wo.installation_project_id)
+    assignee = await db.get(User, wo.assigned_to_user_id) if wo.assigned_to_user_id else None
+    if stock_depot_id:
+        depot = await validate_work_order_depot(db, tenant_id=wo.tenant_id, depot_id=stock_depot_id, assignee=assignee)
+    else:
+        owned = (await db.execute(select(RetailDepot).where(
+            RetailDepot.assigned_user_id == (assignee.id if assignee else None), RetailDepot.kind == "vehicle",
+            RetailDepot.is_active == True))).scalars().all()  # noqa: E712
+        if len(owned) != 1:
+            raise HTTPException(409, (
+                "İşin atandığı çalışana zimmetli cep depo yok; önce çalışanı değiştirin." if not owned
+                else "Çalışanın birden fazla cep deposu var; depoyu seçin."))
+        depot = owned[0]
+    await _move_planned_lines(db, wo, depot)
+    wo.installation_project_id = None
+    wo.stock_depot_id = depot.id
+    wo.project_linked_at = wo.project_linked_by = wo.project_link_stage_id = None
+    wo.updated_at = utc_now()
+    await _log_activity(db, wo.id, wo.project_id, "project_unlinked",
+                        f"Proje bağı kaldırıldı: {installation.name if installation else 'proje'}",
+                        f"{user.full_name or user.email} kaldırdı; malzeme {depot.plate or depot.name} cep deposundan düşecek.")
+    await db.commit()
+    return await get_work_order(wo.id, db, user)
 
 
 @router.get("/{work_order_id}/materials", response_model=List[WorkOrderMaterialRead])

@@ -2,6 +2,7 @@
 
 import type { BrandTone } from "@/components/brand/brand-mark";
 import { OkurWordmark } from "@/components/brand/okur-wordmark";
+import { brand } from "@/lib/brand";
 
 /**
  * Uygulamanın SOĞUK açılışında (PWA cold boot / sekme yenileme) gösterilen
@@ -34,12 +35,12 @@ export function LaunchScreen({
     <div
       className="erp-launch-screen"
       data-leaving={leaving ? "true" : undefined}
-      aria-label="OKUR ERP açılıyor"
+      aria-label={brand("OKUR ERP açılıyor", "ERP açılıyor")}
       aria-live="polite"
     >
       <div className="erp-launch-ambient" />
       <div className="relative flex flex-col items-center">
-        <OkurWordmark dark animated priority className="w-[min(82vw,27rem)]" />
+        <OkurWordmark dark animated priority className="w-[min(82vw,27rem)] text-center" />
         <p className="erp-launch-wordmark mt-1 text-center text-[10px] font-semibold tracking-[0.22em] text-white/50">
           KURUMSAL OPERASYON SİSTEMİ
         </p>

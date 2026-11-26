@@ -5,6 +5,10 @@ import { AppShell } from "@/components/layout/app-shell";
 import { UpdateAvailableBanner } from "@/components/pwa/UpdateAvailableBanner";
 import { ServiceWorkerManager } from "@/components/pwa/ServiceWorkerManager";
 import { EdgeSwipeGuard } from "@/components/pwa/EdgeSwipeGuard";
+import { BrandFavicon } from "@/components/brand/brand-favicon";
+import { NavTracker } from "@/components/layout/nav-tracker";
+import { Suspense } from "react";
+import { brand } from "@/lib/brand";
 
 // Next.js'in kendi otomatik viewport meta enjeksiyonunu devre dışı bırakıp
 // buradan tek, kesin bir viewport tanımlar — iki çakışan <meta viewport>
@@ -42,11 +46,11 @@ const APPLE_STARTUP_IMAGES: { url: string; media: string }[] = [
 ];
 
 export const metadata: Metadata = {
-  title: "OKUR · Kurumsal Operasyon Sistemi",
+  title: brand("OKUR · Kurumsal Operasyon Sistemi", "Kurumsal Operasyon Sistemi"),
   description: "İş emirleri, mağaza projeleri ve saha raporları için kurumsal operasyon sistemi.",
-  applicationName: "OKUR",
+  applicationName: brand("OKUR", "ERP"),
   appleWebApp: {
-    title: "OKUR",
+    title: brand("OKUR", "ERP"),
     capable: true,
     statusBarStyle: "black-translucent",
     startupImage: APPLE_STARTUP_IMAGES,
@@ -81,6 +85,8 @@ export default function RootLayout({
         <ServiceWorkerManager />
         <EdgeSwipeGuard />
         <UpdateAvailableBanner />
+        <BrandFavicon />
+        <Suspense fallback={null}><NavTracker /></Suspense>
       </body>
     </html>
   );

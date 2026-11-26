@@ -4,6 +4,7 @@ import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useState } from "react";
 import { Building2, Loader2, Settings, ShieldCheck } from "lucide-react";
 import { apiGet } from "@/lib/api";
+import { brand } from "@/lib/brand";
 
 type Tenant = { id: string; is_active: boolean };
 
@@ -17,7 +18,7 @@ export default function AdminSettingsPage() {
   }, []);
 
   const rows = [
-    { label: "Uygulama", value: "OKUR Kurumsal Operasyon Sistemi" },
+    { label: "Uygulama", value: brand("OKUR Kurumsal Operasyon Sistemi", "Kurumsal Operasyon Sistemi") },
     { label: "Firma sayısı", value: tenants === null ? null : String(tenants.length) },
     { label: "Aktif firma", value: tenants === null ? null : String(tenants.filter((item) => item.is_active).length) },
   ];
