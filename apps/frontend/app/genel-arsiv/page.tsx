@@ -83,8 +83,8 @@ function ExtBadge({ name }: { name: string }) {
     ["JPG","JPEG","PNG"].includes(ext) ? "bg-green-50 text-green-600 border-green-100" :
     ["XLSX","XLS"].includes(ext)       ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
     ext === "ZIP"  ? "bg-yellow-50 text-yellow-700 border-yellow-100" :
-    ext === "DOCX" ? "bg-blue-50   text-blue-600  border-blue-100"   :
-    "bg-slate-100 text-slate-500 border-slate-200";
+    ext === "DOCX" ? "bg-primary/5   text-primary  border-primary/20"   :
+    "bg-muted text-muted-foreground border-border";
   return (
     <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase ${cls}`}>
       {ext || "?"}
@@ -220,16 +220,16 @@ export default function GenelArsivPage() {
       {/* Başlık */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100">
-            <Archive className="h-5 w-5 text-slate-600" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
+            <Archive className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">Genel Arşiv<InfoHint text="“Dosya Yükle” ile ekleyin; dosyayı seçip “Mağazaya Aktar” ile ilgili mağaza kartına bağlayın." /></h1>
+            <h1 className="text-lg font-bold text-foreground">Genel Arşiv<InfoHint text="“Dosya Yükle” ile ekleyin; dosyayı seçip “Mağazaya Aktar” ile ilgili mağaza kartına bağlayın." /></h1>
           </div>
         </div>
         <button
           onClick={() => setUploadOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
         >
           <Upload className="h-4 w-4" /> Dosya Yükle
         </button>
@@ -239,13 +239,13 @@ export default function GenelArsivPage() {
       <div className="flex flex-wrap gap-3 items-center">
         {/* Arama */}
         <div className="relative flex-1 min-w-[220px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Dosya adı, mağaza, kategori..."
-            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-4 text-sm focus:border-primary focus:outline-none"
           />
         </div>
 
@@ -272,18 +272,18 @@ export default function GenelArsivPage() {
         })()}
 
         {/* Refresh */}
-        <button onClick={loadDocs} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50">
+        <button onClick={loadDocs} className="flex h-9 w-9 items-center justify-center rounded-xl border border-border text-muted-foreground hover:bg-accent">
           <RefreshCw className="h-4 w-4" />
         </button>
       </div>
 
       {/* Toplu işlem şeridi */}
       {someSelected && (
-        <div className="flex items-center gap-3 rounded-xl bg-blue-50 border border-blue-100 px-4 py-2.5">
-          <span className="text-xs font-semibold text-blue-700">{selected.size} dosya seçildi</span>
+        <div className="flex items-center gap-3 rounded-xl bg-primary/5 border border-primary/20 px-4 py-2.5">
+          <span className="text-xs font-semibold text-primary">{selected.size} dosya seçildi</span>
           <button
             onClick={() => setTransferOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90"
           >
             <ArrowRightCircle className="h-3.5 w-3.5" /> Mağazaya Aktar
           </button>
@@ -309,15 +309,15 @@ export default function GenelArsivPage() {
       )}
 
       {/* Liste */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/60" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Archive className="h-10 w-10 text-slate-200" />
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               {docs.length === 0 ? "Henüz genel arşive dosya yüklenmemiş." : "Aramanızla eşleşen dosya yok."}
             </p>
           </div>
@@ -331,18 +331,18 @@ export default function GenelArsivPage() {
               Yükleyen/Tarih) table-layout: fixed'de de yer kaplamaz. */}
           <table className="w-full min-w-full table-fixed text-xs">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
+              <tr className="border-b border-border bg-muted/50">
                 <th className="w-9 px-2 py-3 sm:w-10 sm:px-4">
-                  <button onClick={toggleAll} className="text-slate-400 hover:text-slate-700">
-                    {allSelected ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
+                  <button onClick={toggleAll} className="text-muted-foreground hover:text-foreground">
+                    {allSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
                   </button>
                 </th>
-                <th className="w-[46%] px-3 py-3 text-left font-semibold text-slate-500 sm:w-auto">Dosya Adı</th>
-                <th className="px-3 py-3 text-left font-semibold text-slate-500 hidden sm:table-cell">Boyut</th>
-                <th className="px-3 py-3 text-left font-semibold text-slate-500 hidden md:table-cell">Yükleyen</th>
-                <th className="px-3 py-3 text-left font-semibold text-slate-500 hidden md:table-cell">Tarih</th>
-                <th className="w-[36%] px-3 py-3 text-left font-semibold text-slate-500 sm:w-auto">Durum</th>
-                <th className="w-11 px-2 py-3 text-right font-semibold text-slate-500 sm:w-14 sm:px-3">İşlem</th>
+                <th className="w-[46%] px-3 py-3 text-left font-semibold text-muted-foreground sm:w-auto">Dosya Adı</th>
+                <th className="px-3 py-3 text-left font-semibold text-muted-foreground hidden sm:table-cell">Boyut</th>
+                <th className="px-3 py-3 text-left font-semibold text-muted-foreground hidden md:table-cell">Yükleyen</th>
+                <th className="px-3 py-3 text-left font-semibold text-muted-foreground hidden md:table-cell">Tarih</th>
+                <th className="w-[36%] px-3 py-3 text-left font-semibold text-muted-foreground sm:w-auto">Durum</th>
+                <th className="w-11 px-2 py-3 text-right font-semibold text-muted-foreground sm:w-14 sm:px-3">İşlem</th>
               </tr>
             </thead>
             <tbody>
@@ -352,12 +352,12 @@ export default function GenelArsivPage() {
                 return (
                   <tr
                     key={doc.id}
-                    className={`border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors ${isChecked ? "bg-blue-50/50" : ""}`}
+                    className={`border-b border-slate-50 last:border-0 hover:bg-accent transition-colors ${isChecked ? "bg-blue-50/50" : ""}`}
                   >
                     {/* Checkbox */}
                     <td className="px-2 py-3 text-center sm:px-4">
-                      <button onClick={() => toggleOne(doc.id)} className="text-slate-400 hover:text-slate-700">
-                        {isChecked ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
+                      <button onClick={() => toggleOne(doc.id)} className="text-muted-foreground hover:text-foreground">
+                        {isChecked ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
                       </button>
                     </td>
 
@@ -365,22 +365,22 @@ export default function GenelArsivPage() {
                     <td className="px-3 py-3">
                       <div className="flex min-w-0 items-center gap-2">
                         <ExtBadge name={doc.original_name} />
-                        <span className="min-w-0 flex-1 truncate font-medium text-slate-800">{doc.original_name}</span>
+                        <span className="min-w-0 flex-1 truncate font-medium text-foreground">{doc.original_name}</span>
                       </div>
                     </td>
 
                     {/* Boyut */}
-                    <td className="px-3 py-3 text-slate-400 hidden sm:table-cell">
+                    <td className="px-3 py-3 text-muted-foreground hidden sm:table-cell">
                       {fmtBytes(doc.file_size_bytes)}
                     </td>
 
                     {/* Yükleyen */}
-                    <td className="px-3 py-3 text-slate-500 hidden md:table-cell">
+                    <td className="px-3 py-3 text-muted-foreground hidden md:table-cell">
                       {doc.uploaded_by_name ?? "—"}
                     </td>
 
                     {/* Tarih */}
-                    <td className="px-3 py-3 text-slate-400 hidden md:table-cell">
+                    <td className="px-3 py-3 text-muted-foreground hidden md:table-cell">
                       {fmtDate(doc.created_at)}
                     </td>
 
@@ -391,8 +391,8 @@ export default function GenelArsivPage() {
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-semibold text-green-700 border border-green-100">
                             Mağazaya Aktarıldı
                           </span>
-                          <div className="mt-1 text-[11px] text-slate-400 leading-tight">
-                            <span className="font-medium text-slate-600">{doc.transferred_project_name ?? "—"}</span>
+                          <div className="mt-1 text-[11px] text-muted-foreground leading-tight">
+                            <span className="font-medium text-muted-foreground">{doc.transferred_project_name ?? "—"}</span>
                             {doc.transferred_project_no && <span className="ml-1 font-mono">({doc.transferred_project_no})</span>}
                             {doc.transferred_category && (
                               <> · {CATEGORY_MAP[doc.transferred_category] ?? doc.transferred_category}</>
@@ -400,7 +400,7 @@ export default function GenelArsivPage() {
                           </div>
                         </div>
                       ) : (
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
                           Aktarılmayı Bekliyor
                         </span>
                       )}

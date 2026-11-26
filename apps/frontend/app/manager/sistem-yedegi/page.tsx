@@ -236,7 +236,7 @@ export default function SystemBackupPage() {
           label="Son Yedek"
           value={lastSuccessful ? formatDateTime(lastSuccessful.completed_at) : "—"}
           valueClassName="text-base sm:text-lg"
-          icon={<Clock className="h-4 w-4 text-slate-300" />}
+          icon={<Clock className="h-4 w-4 text-muted-foreground/60" />}
         />
         <StatCard
           label="Hedef"
@@ -249,20 +249,20 @@ export default function SystemBackupPage() {
             </span>
           }
           valueClassName="text-base sm:text-lg"
-          icon={<HardDrive className="h-4 w-4 text-slate-300" />}
+          icon={<HardDrive className="h-4 w-4 text-muted-foreground/60" />}
         />
         <StatCard
           label="Son Koşu"
           value={lastSuccessful ? `${lastSuccessful.r2_objects_new + lastSuccessful.r2_objects_changed} dosya` : "—"}
           valueClassName="text-base sm:text-lg"
           description={lastSuccessful ? formatBytes(lastSuccessful.bytes_written) : undefined}
-          icon={<DatabaseBackup className="h-4 w-4 text-slate-300" />}
+          icon={<DatabaseBackup className="h-4 w-4 text-muted-foreground/60" />}
         />
         <StatCard
           label="Durum"
           value={lastSuccessful ? "Tamamlandı" : "Yok"}
           valueClassName="text-base sm:text-lg"
-          icon={lastSuccessful ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-slate-300" />}
+          icon={lastSuccessful ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-muted-foreground/60" />}
         />
       </div>
 
@@ -270,19 +270,19 @@ export default function SystemBackupPage() {
       {!plan && supported && (
         <Card>
           <CardTitle>Yedek Al</CardTitle>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             Yedeğin yazılacağı klasörü seçin — bilgisayarınızdaki bir klasör, harici HDD veya USB disk olabilir.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button variant="primary" icon={preparing ? undefined : <FolderOpen className="h-4 w-4" />} loading={preparing} onClick={handlePickFolder}>
               Klasör Seç
             </Button>
-            <label className="flex items-center gap-2 text-xs text-slate-500">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
               Günlük hatırlatma saati:
               <select
                 value={reminderHour}
                 onChange={(e) => changeReminderHour(Number(e.target.value))}
-                className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                className="rounded-lg border border-border px-2 py-1 text-xs"
               >
                 {Array.from({ length: 24 }, (_, h) => (
                   <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
@@ -303,27 +303,27 @@ export default function SystemBackupPage() {
                 <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0 text-amber-600" />
                 <div>
                   <CardTitle>Bu klasörde daha önce {brand("OKUR yerel ERP", "yerel ERP")} yedeği bulunamadı</CardTitle>
-                  <p className="mt-2 text-sm text-slate-600">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     Bu klasöre devam edilirse yerel PostgreSQL veritabanı ve {brand("Okur yerel", "yerel")} dosyalarının tamamı için
                     <strong> başlangıç TAM YEDEĞİ</strong> oluşturulacaktır.
                   </p>
                 </div>
               </div>
-              <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
-                <div><dt className="text-xs text-slate-400">Dosya sayısı</dt><dd className="font-semibold text-slate-900">{plan.diff.new.length}</dd></div>
-                <div><dt className="text-xs text-slate-400">Toplam boyut</dt><dd className="font-semibold text-slate-900">{formatBytes(plan.diff.total_bytes)}</dd></div>
+              <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-muted/50 p-3 text-sm">
+                <div><dt className="text-xs text-muted-foreground">Dosya sayısı</dt><dd className="font-semibold text-foreground">{plan.diff.new.length}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Toplam boyut</dt><dd className="font-semibold text-foreground">{formatBytes(plan.diff.total_bytes)}</dd></div>
               </dl>
             </>
           ) : (
             <>
               <CardTitle>Yedekleme özeti</CardTitle>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Son yedek: {formatDateTime(plan.manifest.updated_at)} · Hedef: {plan.manifest.backup_target_label || plan.manifest.backup_target_id}
               </p>
-              <dl className="mt-4 grid grid-cols-3 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
-                <div><dt className="text-xs text-slate-400">Yeni dosya</dt><dd className="font-semibold text-slate-900">{plan.diff.new.length}</dd></div>
-                <div><dt className="text-xs text-slate-400">Değişen dosya</dt><dd className="font-semibold text-slate-900">{plan.diff.changed.length}</dd></div>
-                <div><dt className="text-xs text-slate-400">Toplam veri</dt><dd className="font-semibold text-slate-900">{formatBytes(plan.diff.total_bytes)}</dd></div>
+              <dl className="mt-4 grid grid-cols-3 gap-3 rounded-xl bg-muted/50 p-3 text-sm">
+                <div><dt className="text-xs text-muted-foreground">Yeni dosya</dt><dd className="font-semibold text-foreground">{plan.diff.new.length}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Değişen dosya</dt><dd className="font-semibold text-foreground">{plan.diff.changed.length}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Toplam veri</dt><dd className="font-semibold text-foreground">{formatBytes(plan.diff.total_bytes)}</dd></div>
               </dl>
               {integrityWarning && integrityWarning.length > 0 && (
                 <p className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -350,26 +350,26 @@ export default function SystemBackupPage() {
           </div>
           <div className="mt-4 space-y-3 text-sm">
             <div className="flex items-center justify-between">
-              <span className="text-slate-600">Veritabanı</span>
+              <span className="text-muted-foreground">Veritabanı</span>
               {progress.phase === "database"
                 ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                 : <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
             </div>
             <div>
-              <div className="flex items-center justify-between text-xs text-slate-500">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Yerel dosyalar</span>
                 <span>{filesPct}%</span>
               </div>
-              <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${filesPct}%` }} />
               </div>
-              <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
+              <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
                 <span>Dosya: {progress.filesDone} / {progress.filesTotal}</span>
                 <span>{formatBytes(progress.bytesDone)} / {formatBytes(progress.bytesTotal)}</span>
               </div>
             </div>
             {progress.currentFile && (
-              <p className="truncate rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-500">Şu anda: {progress.currentFile}</p>
+              <p className="truncate rounded-lg bg-muted/50 px-3 py-2 font-mono text-xs text-muted-foreground">Şu anda: {progress.currentFile}</p>
             )}
           </div>
         </Card>
@@ -386,7 +386,7 @@ export default function SystemBackupPage() {
               <CardTitle>
                 {result.status === "completed" ? "✓ Yedek başarıyla tamamlandı" : "❌ Yedek tamamlanamadı"}
               </CardTitle>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Başarılı: {result.filesNew + result.filesChanged - result.filesFailed} · Başarısız: {result.filesFailed} · Toplam: {formatBytes(result.bytesWritten)}
               </p>
               {result.errorMessage && <p className="mt-1 text-xs text-red-600">{result.errorMessage}</p>}
@@ -405,11 +405,11 @@ export default function SystemBackupPage() {
       <Card padded={false}>
         <div className="p-4 sm:p-5"><CardTitle>Yedek Geçmişi</CardTitle></div>
         {loadingJobs ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Yükleniyor…</div>
+          <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Yükleniyor…</div>
         ) : jobs.length === 0 ? (
-          <p className="px-5 pb-6 text-sm text-slate-400">Henüz bir yedekleme koşusu yok.</p>
+          <p className="px-5 pb-6 text-sm text-muted-foreground">Henüz bir yedekleme koşusu yok.</p>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-border">
             {jobs.map((job) => (
               <div key={job.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
                 <div className="min-w-0">
@@ -418,13 +418,13 @@ export default function SystemBackupPage() {
                     {job.status === "failed" && <XCircle className="h-4 w-4 shrink-0 text-red-500" />}
                     {job.status === "incomplete" && <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />}
                     {job.status === "running" && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-blue-500" />}
-                    <p className="truncate text-sm font-medium text-slate-800">{formatDateTime(job.started_at)}</p>
+                    <p className="truncate text-sm font-medium text-foreground">{formatDateTime(job.started_at)}</p>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-slate-400">
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {job.backup_target_label || job.backup_target_id} · {job.manager_name}
                   </p>
                 </div>
-                <div className="shrink-0 text-right text-xs text-slate-400">
+                <div className="shrink-0 text-right text-xs text-muted-foreground">
                   <p>{formatBytes(job.bytes_written)}</p>
                   <p>{job.r2_objects_new} yeni / {job.r2_objects_changed} değişen</p>
                 </div>

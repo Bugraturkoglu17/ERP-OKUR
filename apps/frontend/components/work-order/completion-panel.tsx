@@ -162,12 +162,12 @@ export function CompletionPanel({ c, closed, depotLabel }: { c: WorkOrderComplet
       )}
 
       {/* Servis Formu */}
-      <section className="rounded-2xl border-2 border-slate-200 bg-white p-4">
+      <section className="rounded-xl border-2 border-border bg-card p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <FileText className="h-4 w-4 shrink-0 text-slate-500" />
+            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Servis Formu<InfoHint text="Yalnızca imzalı servis formunun fotoğrafı veya PDF&apos;i. Tamamlamak için zorunludur." /></h3>
+              <h3 className="text-sm font-bold text-foreground">Servis Formu<InfoHint text="Yalnızca imzalı servis formunun fotoğrafı veya PDF&apos;i. Tamamlamak için zorunludur." /></h3>
             </div>
           </div>
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.hasForm ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
@@ -176,21 +176,21 @@ export function CompletionPanel({ c, closed, depotLabel }: { c: WorkOrderComplet
         </div>
 
         {c.forms.length > 0 && (
-          <ul className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-100">
+          <ul className="mt-3 divide-y divide-border rounded-xl border border-border">
             {c.forms.map((form) => (
               <li key={form.id} className="flex items-center gap-3 px-3 py-2">
-                <FileText className="h-4 w-4 shrink-0 text-slate-400" />
+                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium text-slate-800">{form.file_name ?? "Servis formu"}</p>
-                  <p className="text-[11px] text-slate-400">{[form.uploaded_by_name, formatDateTime(form.uploaded_at)].filter(Boolean).join(" · ")}</p>
+                  <p className="truncate text-xs font-medium text-foreground">{form.file_name ?? "Servis formu"}</p>
+                  <p className="text-[11px] text-muted-foreground">{[form.uploaded_by_name, formatDateTime(form.uploaded_at)].filter(Boolean).join(" · ")}</p>
                 </div>
                 {form.url && (
-                  <a href={form.url} target="_blank" rel="noreferrer" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Servis formunu aç">
+                  <a href={form.url} target="_blank" rel="noreferrer" className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Servis formunu aç">
                     <ExternalLink className="h-4 w-4" />
                   </a>
                 )}
                 {!closed && (
-                  <button type="button" onClick={() => { if (confirm("Bu servis formu silinsin mi?")) void c.removeForm(form.id); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label="Servis formunu sil">
+                  <button type="button" onClick={() => { if (confirm("Bu servis formu silinsin mi?")) void c.removeForm(form.id); }} className="rounded-lg p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600" aria-label="Servis formunu sil">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 )}
@@ -204,7 +204,7 @@ export function CompletionPanel({ c, closed, depotLabel }: { c: WorkOrderComplet
             <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
               onChange={(event) => { const file = event.target.files?.[0]; if (file) void c.uploadForm(file); event.target.value = ""; }} />
             <button type="button" disabled={c.uploading !== null} onClick={() => fileRef.current?.click()}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground hover:bg-accent disabled:opacity-50">
               {c.uploading !== null ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
               {c.uploading !== null ? `Yükleniyor %${c.uploading}` : c.hasForm ? "Başka Sayfa Ekle" : "Servis Formu Yükle"}
             </button>
@@ -213,26 +213,26 @@ export function CompletionPanel({ c, closed, depotLabel }: { c: WorkOrderComplet
       </section>
 
       {/* Kullanılan Malzemeler */}
-      <section className="rounded-2xl border-2 border-slate-200 bg-white p-3 sm:p-4">
+      <section className="rounded-xl border-2 border-border bg-card p-3 sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <Boxes className="h-4 w-4 shrink-0 text-slate-500" />
+            <Boxes className="h-4 w-4 shrink-0 text-muted-foreground" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Kullanılan Malzemeler<InfoHint text={closed ? "Bu iş tamamlandı; aşağıdaki malzemeler cep depodan düşüldü." : "Metraj veya adet yazın. Tamamlandı denildiğinde bu miktarlar cep depodan otomatik düşer ve yöneticiye bildirilir."} /></h3>
+              <h3 className="text-sm font-bold text-foreground">Kullanılan Malzemeler<InfoHint text={closed ? "Bu iş tamamlandı; aşağıdaki malzemeler cep depodan düşüldü." : "Metraj veya adet yazın. Tamamlandı denildiğinde bu miktarlar cep depodan otomatik düşer ve yöneticiye bildirilir."} /></h3>
             </div>
           </div>
-          {depotLabel && <span className="shrink-0 rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{depotLabel}</span>}
+          {depotLabel && <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{depotLabel}</span>}
         </div>
 
         {closed ? (
           issued.length === 0 ? (
-            <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-500">Bu iş için malzeme kullanımı girilmedi; stoktan düşülen malzeme yok.</p>
+            <p className="mt-3 rounded-xl bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">Bu iş için malzeme kullanımı girilmedi; stoktan düşülen malzeme yok.</p>
           ) : (
-            <ul className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-100">
+            <ul className="mt-3 divide-y divide-border rounded-xl border border-border">
               {issued.map((line) => (
                 <li key={line.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                  <div className="min-w-0"><p className="text-sm font-medium text-slate-900"><MaterialTitle sku={line.sku} name={line.name} spec={line.spec} /></p></div>
-                  <div className="shrink-0 text-right"><p className="text-sm font-semibold text-slate-900">{formatQuantity(line.quantity)} {line.unit}</p><p className="flex items-center justify-end gap-1 text-[11px] font-medium text-emerald-600"><CheckCircle2 className="h-3 w-3" />Stoktan düşüldü · {formatDateTime(line.issued_at)}</p></div>
+                  <div className="min-w-0"><p className="text-sm font-medium text-foreground"><MaterialTitle sku={line.sku} name={line.name} spec={line.spec} /></p></div>
+                  <div className="shrink-0 text-right"><p className="text-sm font-semibold text-foreground">{formatQuantity(line.quantity)} {line.unit}</p><p className="flex items-center justify-end gap-1 text-[11px] font-medium text-emerald-600"><CheckCircle2 className="h-3 w-3" />Stoktan düşüldü · {formatDateTime(line.issued_at)}</p></div>
                 </li>
               ))}
             </ul>
@@ -240,12 +240,12 @@ export function CompletionPanel({ c, closed, depotLabel }: { c: WorkOrderComplet
         ) : (
           <>
             <div className="mt-3 space-y-2">
-              {c.rows.length === 0 && <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-500">Henüz malzeme eklenmedi. Malzeme kullanılmadıysa boş bırakabilirsiniz.</p>}
+              {c.rows.length === 0 && <p className="rounded-xl bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">Henüz malzeme eklenmedi. Malzeme kullanılmadıysa boş bırakabilirsiniz.</p>}
               {c.rows.map((row) => {
                 const problem = c.rowProblem(row);
                 const item = c.stock.find((stockItem) => stockItem.material_id === row.materialId);
                 return (
-                  <div key={row.key} className={`rounded-lg border p-1.5 ${problem ? "border-red-300 bg-red-50" : "border-slate-200"}`}>
+                  <div key={row.key} className={`rounded-lg border p-1.5 ${problem ? "border-red-300 bg-red-50" : "border-border"}`}>
                     <div className="flex items-center gap-1.5">
                       <div className="min-w-0 flex-1">
                         <MaterialPicker compact value={row.materialId} onChange={(id) => c.updateRow(row.key, { materialId: id })} disabledIds={chosen}
@@ -254,10 +254,10 @@ export function CompletionPanel({ c, closed, depotLabel }: { c: WorkOrderComplet
                       <div className="relative w-[4.6rem] shrink-0">
                         <input inputMode="decimal" autoComplete="off" value={row.quantity} placeholder="0" aria-label="Miktar"
                           onChange={(event) => c.updateRow(row.key, { quantity: sanitizeQuantityInput(event.target.value) })}
-                          className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1.5 pr-8 text-right text-xs outline-none focus:border-blue-500" />
-                        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">{item?.unit ?? ""}</span>
+                          className="w-full rounded-lg border border-border bg-card py-1.5 pl-1.5 pr-8 text-right text-xs outline-none focus:border-primary" />
+                        <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">{item?.unit ?? ""}</span>
                       </div>
-                      <button type="button" onClick={() => c.removeRow(row.key)} className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label="Satırı sil"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button type="button" onClick={() => c.removeRow(row.key)} className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600" aria-label="Satırı sil"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                     {problem && <p className="mt-1 px-1 text-[11px] font-medium text-red-700">{problem}</p>}
                   </div>
@@ -266,15 +266,15 @@ export function CompletionPanel({ c, closed, depotLabel }: { c: WorkOrderComplet
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button type="button" onClick={c.addRow} disabled={options.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-accent disabled:opacity-50">
                 <Plus className="h-3.5 w-3.5" />Malzeme Ekle
               </button>
               <button type="button" disabled={!c.dirty || c.saving} onClick={() => void c.saveMaterials().catch(() => undefined)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-40">
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-white hover:bg-primary/90 disabled:opacity-40">
                 {c.saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Listeyi Kaydet
               </button>
               {c.dirty && <span className="text-[11px] font-medium text-amber-700">Kaydedilmemiş değişiklik var; tamamlarken otomatik kaydedilir.</span>}
-              {options.length === 0 && <span className="text-[11px] text-slate-500">Cep depoda stok yok.</span>}
+              {options.length === 0 && <span className="text-[11px] text-muted-foreground">Cep depoda stok yok.</span>}
             </div>
           </>
         )}

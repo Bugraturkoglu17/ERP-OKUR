@@ -26,7 +26,7 @@ export function Tabs<K extends string>({
   return (
     <div
       className={cn(
-        "flex gap-0.5 overflow-x-auto border-b border-slate-200 pb-0",
+        "flex gap-0.5 overflow-x-auto border-b pb-0",
         "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
         className
       )}
@@ -37,10 +37,10 @@ export function Tabs<K extends string>({
           type="button"
           onClick={() => onChange(tab.key)}
           className={cn(
-            "flex flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-t-xl border-b-2 px-2 py-2.5 text-xs font-medium transition-colors sm:flex-none sm:gap-2 sm:px-4 sm:text-sm",
+            "flex flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-t-md border-b-2 px-2 py-2.5 text-xs font-medium transition-colors sm:flex-none sm:gap-2 sm:px-4 sm:text-sm",
             active === tab.key
-              ? "border-blue-600 bg-blue-50/50 text-blue-700"
-              : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              ? "border-primary bg-primary/5 text-primary"
+              : "border-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
           )}
         >
           {tab.icon}

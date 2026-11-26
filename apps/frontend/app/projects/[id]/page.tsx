@@ -124,12 +124,12 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   INQUIRY:      { label: "Keşif",         cls: "bg-purple-50 text-purple-700 border-purple-100" },
   approved:     { label: "Onaylandı",     cls: "bg-green-50 text-green-700 border-green-100"   },
   APPROVED:     { label: "Onaylandı",     cls: "bg-green-50 text-green-700 border-green-100"   },
-  in_progress:  { label: "Sahada",        cls: "bg-blue-50 text-blue-700 border-blue-100"      },
-  IN_PROGRESS:  { label: "Sahada",        cls: "bg-blue-50 text-blue-700 border-blue-100"      },
+  in_progress:  { label: "Sahada",        cls: "bg-primary/5 text-primary border-primary/20"      },
+  IN_PROGRESS:  { label: "Sahada",        cls: "bg-primary/5 text-primary border-primary/20"      },
   invoice_pend: { label: "Beklemede",     cls: "bg-amber-50 text-amber-700 border-amber-100"   },
   INVOICE_PEND: { label: "Beklemede",     cls: "bg-amber-50 text-amber-700 border-amber-100"   },
-  completed:    { label: "Tamamlandı",    cls: "bg-slate-100 text-slate-600 border-slate-200"  },
-  COMPLETED:    { label: "Tamamlandı",    cls: "bg-slate-100 text-slate-600 border-slate-200"  },
+  completed:    { label: "Tamamlandı",    cls: "bg-muted text-muted-foreground border-border"  },
+  COMPLETED:    { label: "Tamamlandı",    cls: "bg-muted text-muted-foreground border-border"  },
   cancelled:    { label: "İptal",         cls: "bg-red-50 text-red-600 border-red-100"         },
   CANCELLED:    { label: "İptal",         cls: "bg-red-50 text-red-600 border-red-100"         },
 };
@@ -190,7 +190,7 @@ function DocList({ docs, archiveHref, onDeleted }: { docs: Document[]; archiveHr
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3">
         <Folder className="h-8 w-8 text-slate-200" />
-        <p className="text-sm text-slate-400">Bu mağazaya ait dosya bulunmuyor.</p>
+        <p className="text-sm text-muted-foreground">Bu mağazaya ait dosya bulunmuyor.</p>
       </div>
     );
   }
@@ -203,47 +203,47 @@ function DocList({ docs, archiveHref, onDeleted }: { docs: Document[]; archiveHr
       {docs.map((doc) => {
         const typeInfo = DOC_TYPES[doc.doc_type];
         return (
-          <div key={doc.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 hover:border-slate-200 group transition-colors">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50">
-              <FileText className="h-4 w-4 text-slate-400" />
+          <div key={doc.id} className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:border-border group transition-colors">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/50">
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-slate-900 truncate">{doc.original_name}</p>
+                <p className="text-sm font-medium text-foreground truncate">{doc.original_name}</p>
                 {(() => { const ext = getExtBadge(doc); return ext ? (
                   <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide ${
                     ext === "DWG"  ? "bg-orange-50 text-orange-600" :
                     ext === "PDF"  ? "bg-red-50 text-red-600"       :
                     ext === "XLSX" || ext === "XLS" ? "bg-green-50 text-green-600" :
                     ext === "ZIP"  ? "bg-purple-50 text-purple-600" :
-                    "bg-slate-100 text-slate-500"
+                    "bg-muted text-muted-foreground"
                   }`}>{ext}</span>
                 ) : null; })()}
               </div>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[11px] text-slate-400">{typeInfo?.label ?? doc.doc_type}</span>
+                <span className="text-[11px] text-muted-foreground">{typeInfo?.label ?? doc.doc_type}</span>
                 <span className="text-slate-200">·</span>
-                <span className="text-[11px] text-slate-400">v{doc.version}</span>
+                <span className="text-[11px] text-muted-foreground">v{doc.version}</span>
                 <span className="text-slate-200">·</span>
-                <span className="text-[11px] text-slate-400">{fmtBytes(doc.file_size_bytes)}</span>
+                <span className="text-[11px] text-muted-foreground">{fmtBytes(doc.file_size_bytes)}</span>
                 {doc.revision_note && (
-                  <><span className="text-slate-200">·</span><span className="text-[11px] text-slate-500 italic truncate max-w-[180px]">{doc.revision_note}</span></>
+                  <><span className="text-slate-200">·</span><span className="text-[11px] text-muted-foreground italic truncate max-w-[180px]">{doc.revision_note}</span></>
                 )}
               </div>
             </div>
-            <div className="shrink-0 text-[11px] text-slate-400 ml-1">
+            <div className="shrink-0 text-[11px] text-muted-foreground ml-1">
               {new Date(doc.created_at).toLocaleDateString("tr-TR")}
             </div>
             {/* Çerçevesiz tek "≡" — dokunmatikte de görünür (eskiden yalnızca hover'da çıkıyordu). */}
             {busyId === doc.id ? (
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-slate-400" />
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
             ) : (
               <ToolbarDock
                 actions={actionsFor(doc, doc.is_archive
                   ? [{ key: "archive", label: "Genel Arşivde Göster", icon: Archive, onClick: () => router.push(archiveHref) }]
                   : [])}
                 panelClassName="w-48"
-                triggerClassName="bg-transparent text-slate-400 hover:bg-transparent hover:text-slate-800"
+                triggerClassName="bg-transparent text-muted-foreground hover:bg-transparent hover:text-foreground"
               />
             )}
           </div>
@@ -301,56 +301,56 @@ function EditModal({ project, onClose, onDone }: { project: Project; onClose: ()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="text-sm font-bold text-slate-900">Mağaza Bilgilerini Düzenle</h2>
-          <button onClick={onClose}><X className="h-5 w-5 text-slate-400 hover:text-slate-700" /></button>
+      <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-sm font-bold text-foreground">Mağaza Bilgilerini Düzenle</h2>
+          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground hover:text-foreground" /></button>
         </div>
         <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[75vh] px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Mağaza Adı *</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Mağaza Adı *</label>
               <input required value={form.name} onChange={set("name")}
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Mağaza Kodu</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Mağaza Kodu</label>
               <input value={form.project_no} onChange={set("project_no")}
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Durum</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Durum</label>
               <select value={form.status} onChange={set("status")}
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none">
                 {STATUS_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Bölge</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Bölge</label>
               <input value={form.bolge} onChange={set("bolge")} placeholder="Örn: İç Anadolu"
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Şehir</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Şehir</label>
               <input value={form.sehir} onChange={set("sehir")} placeholder="Örn: Ankara"
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Telefon</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Telefon</label>
               <input value={form.tel1} onChange={set("tel1")} placeholder="0XXX XXX XX XX"
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-primary focus:outline-none" />
             </div>
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Adres</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Adres</label>
               <textarea rows={2} value={form.adres} onChange={set("adres")}
                 placeholder="Tam adres..."
-                className="w-full rounded-lg border px-3 py-2 text-sm resize-none focus:border-blue-500 focus:outline-none" />
+                className="w-full rounded-lg border px-3 py-2 text-sm resize-none focus:border-primary focus:outline-none" />
             </div>
           </div>
           {err && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{err}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button type="button" onClick={onClose}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Vazgeç</button>
+              className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent">Vazgeç</button>
             <button type="submit" disabled={busy}
               className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50">
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}<Save className="h-4 w-4" /> Kaydet
@@ -408,7 +408,7 @@ export default function MagazaDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-7 w-7 animate-spin text-slate-400" />
+        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -417,13 +417,13 @@ export default function MagazaDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <Store className="h-10 w-10 text-slate-200" />
-        <p className="text-sm text-slate-500">Mağaza bulunamadı veya erişim yetkiniz yok.</p>
-        <Link href={backHref} className="text-sm text-blue-600 hover:underline">← Mağazalar Listesine Dön</Link>
+        <p className="text-sm text-muted-foreground">Mağaza bulunamadı veya erişim yetkiniz yok.</p>
+        <Link href={backHref} className="text-sm text-primary hover:underline">← Mağazalar Listesine Dön</Link>
       </div>
     );
   }
 
-  const statusInfo = STATUS_BADGE[project.status] ?? { label: project.status, cls: "bg-slate-100 text-slate-600 border-slate-200" };
+  const statusInfo = STATUS_BADGE[project.status] ?? { label: project.status, cls: "bg-muted text-muted-foreground border-border" };
 
   // Dosyalar doc_type kategorisine göre ayrılır
   const projectFileDocs = docs.filter((d) => getDocCategory(d.doc_type) === "project_file");
@@ -465,14 +465,14 @@ export default function MagazaDetailPage() {
     <div className="max-w-5xl mx-auto space-y-5">
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-xs text-slate-400">
-        <Link href={backHref} className="hover:text-slate-700 transition-colors">Mağazalar</Link>
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Link href={backHref} className="hover:text-foreground transition-colors">Mağazalar</Link>
         <ChevronRight className="h-3 w-3" />
-        <span className="text-slate-700 font-medium truncate max-w-[280px]">{project.name}</span>
+        <span className="text-foreground font-medium truncate max-w-[280px]">{project.name}</span>
       </div>
 
       {/* Başlık Kartı */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -480,23 +480,23 @@ export default function MagazaDetailPage() {
                 {statusInfo.label}
               </span>
               {project.project_no && (
-                <span className="text-[11px] font-mono text-slate-400">#{project.project_no}</span>
+                <span className="text-[11px] font-mono text-muted-foreground">#{project.project_no}</span>
               )}
             </div>
-            <h1 className="text-xl font-bold text-slate-900 leading-tight">{project.name}</h1>
+            <h1 className="text-xl font-bold text-foreground leading-tight">{project.name}</h1>
             {extra.adres && (
-              <p className="mt-1.5 text-sm text-slate-500 line-clamp-2">{extra.adres}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground line-clamp-2">{extra.adres}</p>
             )}
           </div>
           <div className="flex gap-2 shrink-0 flex-wrap">
             {isManager && (
               <Link href={`/manager/is-emirleri/yeni?storeId=${project.id}`}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors">
                 <ClipboardPlus className="h-3.5 w-3.5" /> İş Emri Oluştur
               </Link>
             )}
             {!isUser && <button onClick={() => setEditOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors">
               <Edit2 className="h-3.5 w-3.5" /> Düzenle
             </button>}
           </div>
@@ -505,10 +505,10 @@ export default function MagazaDetailPage() {
       </div>
 
       {/* Sekmeler + İçerik */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
 
         {/* Tab Bar */}
-        <div className="flex overflow-x-auto border-b border-slate-100">
+        <div className="flex overflow-x-auto border-b border-border">
           {TABS.map((t) => {
             const count = tabCounts[t.key];
             const active = tab === t.key;
@@ -518,13 +518,13 @@ export default function MagazaDetailPage() {
                 onClick={() => switchTab(t.key)}
                 className={`flex-none flex items-center gap-1.5 px-4 py-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                   active
-                    ? "border-blue-600 text-blue-700"
-                    : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent"
                 }`}
               >
                 {t.label}
                 {count !== null && count > 0 && (
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${active ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${active ? "bg-blue-100 text-primary" : "bg-muted text-muted-foreground"}`}>
                     {count}
                   </span>
                 )}
@@ -556,7 +556,7 @@ export default function MagazaDetailPage() {
               {/* Ek Bilgiler — gizlenebilir */}
               {(extra.format || extra.adres || extra.acilis_tarihi || phones.length > 0) && (
                 <details className="group">
-                  <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wide text-slate-400 select-none list-none flex items-center gap-1.5">
+                  <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wide text-muted-foreground select-none list-none flex items-center gap-1.5">
                     <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
                     Ek Bilgiler
                   </summary>
@@ -569,9 +569,9 @@ export default function MagazaDetailPage() {
                       <InfoCard key={i} label={`Telefon ${i + 1}`} value={tel!} mono />
                     ))}
                     {extra.adres && (
-                      <div className="sm:col-span-2 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                        <p className="text-[11px] font-medium text-slate-500 mb-1">Adres</p>
-                        <p className="text-sm text-slate-800 leading-relaxed">{extra.adres}</p>
+                      <div className="sm:col-span-2 rounded-xl border border-border bg-muted/50 px-4 py-3">
+                        <p className="text-[11px] font-medium text-muted-foreground mb-1">Adres</p>
+                        <p className="text-sm text-foreground leading-relaxed">{extra.adres}</p>
                       </div>
                     )}
                   </div>
@@ -583,9 +583,9 @@ export default function MagazaDetailPage() {
           {/* ── Proje Dosyaları ── */}
           {tab === "project_files" && (
             <div className="space-y-4">
-              <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <AlertCircle className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-slate-500">Bu alan mağazaya bağlanmış dosyaları görüntülemek içindir. Dosya ekleme işlemleri Genel Arşiv üzerinden yapılır.</p>
+              <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3">
+                <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">Bu alan mağazaya bağlanmış dosyaları görüntülemek içindir. Dosya ekleme işlemleri Genel Arşiv üzerinden yapılır.</p>
               </div>
               {/* Filtre Chipleri */}
               {allProjectDocs.length > 0 && (
@@ -602,8 +602,8 @@ export default function MagazaDetailPage() {
                     <button key={f.key} onClick={() => setProjFileFilter(f.key)}
                       className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                         projFileFilter === f.key
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                          ? "bg-primary text-white border-primary"
+                          : "bg-card text-muted-foreground border-border hover:border-border"
                       }`}>
                       {f.label}
                     </button>
@@ -636,9 +636,9 @@ export default function MagazaDetailPage() {
           {/* ── Diğer Dosyalar ── */}
           {tab === "other" && (
             <div className="space-y-4">
-              <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <AlertCircle className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-slate-500">Bu alan mağazaya bağlanmış dosyaları görüntülemek içindir. Dosya ekleme işlemleri Genel Arşiv üzerinden yapılır.</p>
+              <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3">
+                <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">Bu alan mağazaya bağlanmış dosyaları görüntülemek içindir. Dosya ekleme işlemleri Genel Arşiv üzerinden yapılır.</p>
               </div>
               <DocList docs={otherDocs} archiveHref={archiveHref} onDeleted={removeDoc} />
             </div>
@@ -656,9 +656,9 @@ export default function MagazaDetailPage() {
 
 function InfoCard({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-      <p className="text-[11px] font-medium text-slate-500 mb-0.5">{label}</p>
-      <p className={`text-sm font-medium text-slate-800 ${mono ? "font-mono" : ""}`}>{value}</p>
+    <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
+      <p className="text-[11px] font-medium text-muted-foreground mb-0.5">{label}</p>
+      <p className={`text-sm font-medium text-foreground ${mono ? "font-mono" : ""}`}>{value}</p>
     </div>
   );
 }

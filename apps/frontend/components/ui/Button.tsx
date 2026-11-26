@@ -1,26 +1,21 @@
 "use client";
 
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button as ShadcnButton } from "@/components/shadcn/button";
+import { Spinner } from "@/components/shadcn/spinner";
 
+/**
+ * Eski ortak düğme — arayüzü (variant/size/loading/icon) korunur, görünüm shadcn Button'dan gelir.
+ * Yeni kodda doğrudan `@/components/shadcn/button` kullanın.
+ */
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
-const VARIANT_CLS: Record<ButtonVariant, string> = {
-  primary:   "bg-blue-600 text-white hover:bg-blue-700 disabled:hover:bg-blue-600",
-  secondary: "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-  ghost:     "text-slate-600 hover:bg-slate-100",
-  danger:    "bg-red-600 text-white hover:bg-red-700",
+const VARIANT: Record<ButtonVariant, "default" | "outline" | "ghost" | "destructive"> = {
+  primary: "default", secondary: "outline", ghost: "ghost", danger: "destructive",
 };
-
-// Aynı buton her yerde aynı yükseklik/padding/font-size kullansın diye
-// tek bir boyut skalası — sayfalar kendi rastgele px değerlerini seçmesin.
-const SIZE_CLS: Record<ButtonSize, string> = {
-  sm: "min-h-[2.25rem] px-3 text-xs gap-1.5 rounded-lg",
-  md: "min-h-[2.75rem] px-4 text-sm gap-2 rounded-xl",
-  lg: "min-h-[3rem] px-5 text-sm gap-2 rounded-xl",
-};
+const SIZE: Record<ButtonSize, "sm" | "default" | "lg"> = { sm: "sm", md: "default", lg: "lg" };
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -35,23 +30,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   ref
 ) {
   return (
-    <button
+    <ShadcnButton
       ref={ref}
       type={rest.type ?? "button"}
+      variant={VARIANT[variant]}
+      size={SIZE[size]}
       disabled={disabled || loading}
-      className={cn(
-        "inline-flex min-w-0 items-center justify-center whitespace-nowrap font-semibold transition-colors",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        VARIANT_CLS[variant],
-        SIZE_CLS[size],
-        fullWidth && "w-full",
-        className
-      )}
+      className={cn("min-w-0", fullWidth && "w-full", className)}
       {...rest}
     >
-      {loading ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" /> : icon}
+      {loading ? <Spinner data-icon="inline-start" /> : icon}
       {children != null && <span className="truncate">{children}</span>}
-    </button>
+    </ShadcnButton>
   );
 });
 

@@ -7,9 +7,9 @@ type CountBadgeProps = {
 };
 
 const TONE_CLS: Record<NonNullable<CountBadgeProps["tone"]>, string> = {
-  neutral:  "bg-slate-100 text-slate-600",
-  critical: "bg-red-100 text-red-600",
-  info:     "bg-blue-100 text-blue-700",
+  neutral:  "bg-muted text-muted-foreground",
+  critical: "bg-destructive/10 text-destructive",
+  info:     "bg-primary/10 text-primary",
 };
 
 /** Sayı gösterimi her yerde tek satırda, aynı hizada — "2" üstte "adet"
@@ -31,8 +31,8 @@ export function CountBadge({ count, tone = "neutral", className }: CountBadgePro
 /** "Fotoğraflar 42 adet" gibi başlık + sayı + birim tek satırda, taşmadan. */
 export function CountLabel({ label, count, unit = "adet", className }: { label?: string; count: number; unit?: string; className?: string }) {
   return (
-    <p className={cn("flex items-center gap-1.5 whitespace-nowrap text-sm text-slate-500", className)}>
-      {label && <span className="font-semibold text-slate-800">{label}</span>}
+    <p className={cn("flex items-center gap-1.5 whitespace-nowrap text-sm text-muted-foreground", className)}>
+      {label && <span className="font-semibold text-foreground">{label}</span>}
       <span>{count} {unit}</span>
     </p>
   );

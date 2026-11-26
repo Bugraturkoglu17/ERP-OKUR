@@ -19,9 +19,14 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
   ("Tümünü aktar" onayı AlertDialog), MaterialCatalog (Table), MaterialPicker (Dialog). tsc/eslint temiz, tarayıcıda denenmedi.
   5. grup DEVAM EDİYOR (commit'siz): bitenler → user/dashboard, islerim, proje-gorevleri, proje-gorevleri/[stageId],
   ortak MetricCard (tema renkleri), user/profile (yönetici profili de aynı sayfa). 5. grup TAMAM.
-  4. grup: manager/dashboard bitti. Kalan: sistem-yedegi, genel-arsiv (+TransferModal), document-quick-search.
-  3. grupta kalan büyükler: is-emirleri/[id] (1661 satır), projects/[id] + sekmeleri, project-extras, stage-files,
-  completion-panel, projeler/[id] (kalan kısım).
+  4. grup: manager/dashboard bitti. Eski components/ui (Button, Card, StatCard, PageHeader, Tabs, CountBadge) içten
+  shadcn'e bağlandı (arayüz aynı) → Sistem Yedeği ve iş emri detayı sekmeleri otomatik geçti. ui/skeleton'a dokunulmadı
+  (İstatistikler kullanıyor).
+  Büyük ekranlara renk geçişi (betik: nötr slate/blue/beyaz/rounded-2xl → tema değişkeni; durum renkleri korunur):
+  sistem-yedegi, genel-arsiv (+TransferModal), document-quick-search, is-emirleri/[id], project-extras, stage-files,
+  completion-panel, manager/projeler/[id], projects/[id] ve tüm sekmeleri (~1160 sınıf). Ekran görüntüleri g3_*/g4_*.
+  İSTEĞE BAĞLI kalan: bu büyük ekranlardaki ham <button>/<input>/<select> ve özel pencereleri tek tek shadcn
+  bileşenine çevirmek (görünüm zaten tema renklerinde; davranış değişmez).
   Kalan gruplar: 3) detay ve formlar (iş emri detayı `app/is-emirleri/[id]`, yeni iş emri, yeni proje, mağaza kartı
   detayı, StoreFormModal, TransferDialog, MaterialCatalog, MaterialPicker, proje detayının kalan kısımları,
   project-extras.tsx), 4) panolar (Genel Bakış, Genel Arşiv, Sistem Yedeği; İstatistikler HARİÇ, Raporlar sorulacak),

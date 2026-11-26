@@ -74,12 +74,12 @@ type Stage = {
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  draft:            "bg-slate-100 text-slate-600",
-  sent:             "bg-blue-50 text-blue-700",
+  draft:            "bg-muted text-muted-foreground",
+  sent:             "bg-primary/5 text-primary",
   started:          "bg-amber-50 text-amber-700",
   completed:        "bg-emerald-50 text-emerald-700",
   failed:           "bg-red-50 text-red-700",
-  cancelled:        "bg-slate-100 text-slate-500",
+  cancelled:        "bg-muted text-muted-foreground",
   material_waiting: "bg-orange-50 text-orange-700",
   revisit:          "bg-purple-50 text-purple-700",
   approval_pending: "bg-yellow-50 text-yellow-700",
@@ -87,7 +87,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const PRIORITY_COLOR: Record<string, string> = {
-  normal:   "bg-slate-100 text-slate-600",
+  normal:   "bg-muted text-muted-foreground",
   urgent:   "bg-orange-100 text-orange-700",
   critical: "bg-red-100 text-red-700",
 };
@@ -97,7 +97,7 @@ const PRIORITY_LABEL: Record<string, string> = {
 };
 
 const SEVERITY_COLOR: Record<string, string> = {
-  normal:    "bg-slate-100 text-slate-600",
+  normal:    "bg-muted text-muted-foreground",
   important: "bg-orange-100 text-orange-700",
   critical:  "bg-red-100 text-red-700",
 };
@@ -109,7 +109,7 @@ const SEVERITY_LABEL: Record<string, string> = {
 };
 
 const STAGE_STATUS_COLOR: Record<string, string> = {
-  planned:     "bg-slate-100 text-slate-500",
+  planned:     "bg-muted text-muted-foreground",
   in_progress: "bg-amber-100 text-amber-700",
   completed:   "bg-emerald-100 text-emerald-700",
   cancelled:   "bg-red-50 text-red-500",
@@ -151,13 +151,13 @@ function fmtDateTime(s?: string | null) {
 }
 
 function computedStatus(stages: Stage[]): { label: string; cls: string } {
-  if (!stages.length) return { label: "Açık", cls: "bg-slate-100 text-slate-600" };
+  if (!stages.length) return { label: "Açık", cls: "bg-muted text-muted-foreground" };
   const statuses = stages.map(s => s.status);
   if (statuses[statuses.length - 1] === "completed") return { label: "Tamamlandı", cls: "bg-emerald-100 text-emerald-700" };
   if (statuses.every(s => s === "cancelled")) return { label: "İptal Edildi", cls: "bg-red-50 text-red-600" };
   if (statuses.some(s => s === "in_progress")) return { label: "Devam Ediyor", cls: "bg-amber-100 text-amber-700" };
   if (statuses.some(s => s === "completed")) return { label: "Devam Ediyor", cls: "bg-amber-100 text-amber-700" };
-  return { label: "Açık", cls: "bg-slate-100 text-slate-600" };
+  return { label: "Açık", cls: "bg-muted text-muted-foreground" };
 }
 
 function workOrderStatusLabel(status: string) {
@@ -227,7 +227,7 @@ function PhotoPickerButtons({ onFiles, disabled, compact }: {
 }) {
   const cameraRef  = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
-  const btnCls = `inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 ${compact ? "px-3 py-2 text-xs" : "flex-1 px-4 py-3 text-sm"}`;
+  const btnCls = `inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card font-semibold text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 ${compact ? "px-3 py-2 text-xs" : "flex-1 px-4 py-3 text-sm"}`;
   return (
     <div className={compact ? "flex items-center gap-2" : "flex gap-2"}>
       <button type="button" disabled={disabled} onClick={() => cameraRef.current?.click()} className={btnCls}>
@@ -300,45 +300,45 @@ function CreateReportModal({ woId, onClose, onDone }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-3 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true">
-      <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
+      <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-card shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Rapor Oluştur<InfoHint text="İş ilerlemesi, sorun veya not ekleyin" /></h2>
+            <h2 className="text-sm font-bold text-foreground">Rapor Oluştur<InfoHint text="İş ilerlemesi, sorun veya not ekleyin" /></h2>
           </div>
-          <button onClick={onClose}><X className="h-5 w-5 text-slate-400 hover:text-slate-700" /></button>
+          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground hover:text-foreground" /></button>
         </div>
 
         <div className="p-5 space-y-4 overflow-y-auto flex-1">
           {/* Başlık */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Rapor Başlığı *</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Rapor Başlığı *</label>
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
               autoFocus
               placeholder="Ör: Kompresör değiştirildi"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-xl border border-border px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
             />
           </div>
 
           {/* Açıklama */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Açıklama / Not</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Açıklama / Not</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
               placeholder="Detaylı açıklama, sorun tespiti, yapılan işlemler..."
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none resize-none"
+              className="w-full rounded-xl border border-border px-3 py-2.5 text-sm focus:border-primary focus:outline-none resize-none"
             />
           </div>
 
           {/* Önem Derecesi */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-2">Önem Derecesi</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-2">Önem Derecesi</label>
             <div className="flex gap-2">
               {[
-                { value: "normal",    label: "Normal",  cls: "border-slate-200 text-slate-600" },
+                { value: "normal",    label: "Normal",  cls: "border-border text-muted-foreground" },
                 { value: "important", label: "Önemli",  cls: "border-orange-200 text-orange-600" },
                 { value: "critical",  label: "Kritik",  cls: "border-red-200 text-red-600" },
               ].map(opt => (
@@ -348,10 +348,10 @@ function CreateReportModal({ woId, onClose, onDone }: {
                   onClick={() => setSeverity(opt.value)}
                   className={`flex-1 rounded-xl border-2 py-2.5 text-xs font-semibold transition-all ${
                     severity === opt.value
-                      ? opt.value === "normal"    ? "border-slate-500 bg-slate-50 text-slate-700"
+                      ? opt.value === "normal"    ? "border-slate-500 bg-muted/50 text-foreground"
                         : opt.value === "important" ? "border-orange-500 bg-orange-50 text-orange-700"
                         : "border-red-500 bg-red-50 text-red-700"
-                      : `${opt.cls} bg-white hover:bg-slate-50`
+                      : `${opt.cls} bg-card hover:bg-accent`
                   }`}
                 >
                   {opt.label}
@@ -362,16 +362,16 @@ function CreateReportModal({ woId, onClose, onDone }: {
 
           {/* Görsel Yükleme */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-2">Görsel / Dosya Yükleme</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-2">Görsel / Dosya Yükleme</label>
             <div
               onDrop={handleDrop}
               onDragOver={e => e.preventDefault()}
-              className="mb-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-center"
+              className="mb-2 rounded-xl border-2 border-dashed border-border bg-muted/50 px-4 py-3 text-center"
             >
-              <p className="text-[11px] text-slate-400">Görselleri buraya sürükleyip bırakabilir veya aşağıdan seçebilirsiniz — JPG · PNG · HEIC</p>
+              <p className="text-[11px] text-muted-foreground">Görselleri buraya sürükleyip bırakabilir veya aşağıdan seçebilirsiniz — JPG · PNG · HEIC</p>
             </div>
             <PhotoPickerButtons onFiles={addFiles} />
-            <button type="button" onClick={() => fileRef.current?.click()} className="mt-1.5 text-[11px] font-medium text-blue-600 hover:underline">
+            <button type="button" onClick={() => fileRef.current?.click()} className="mt-1.5 text-[11px] font-medium text-primary hover:underline">
               veya PDF dosyası ekle
             </button>
             <input
@@ -385,14 +385,14 @@ function CreateReportModal({ woId, onClose, onDone }: {
             {files.length > 0 && (
               <div className="mt-2 space-y-1.5">
                 {files.map((f, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-100 px-3 py-1.5">
-                    <FileText className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                    <span className="flex-1 text-xs text-slate-700 truncate">{f.name}</span>
-                    <span className="text-[10px] text-slate-400 shrink-0">
+                  <div key={i} className="flex items-center gap-2 rounded-lg bg-muted/50 border border-border px-3 py-1.5">
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="flex-1 text-xs text-foreground truncate">{f.name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">
                       {(f.size / 1024).toFixed(0)} KB
                     </span>
                     <button onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}
-                      className="text-slate-400 hover:text-red-500 shrink-0">
+                      className="text-muted-foreground hover:text-red-500 shrink-0">
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -408,17 +408,17 @@ function CreateReportModal({ woId, onClose, onDone }: {
             </div>
           )}
           {uploadProgress !== null && (
-            <div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-blue-600 transition-[width]" style={{ width: `${uploadProgress}%` }} /></div><p className="mt-1 text-right text-xs text-slate-500">%{uploadProgress}</p></div>
+            <div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-[width]" style={{ width: `${uploadProgress}%` }} /></div><p className="mt-1 text-right text-xs text-muted-foreground">%{uploadProgress}</p></div>
           )}
         </div>
 
-        <div className="flex shrink-0 justify-between gap-3 border-t border-slate-100 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-4">
+        <div className="flex shrink-0 justify-between gap-3 border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-4">
           <button onClick={onClose}
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent">
             Vazgeç
           </button>
           <button onClick={handleSubmit} disabled={busy}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             Kaydet
           </button>
@@ -489,17 +489,17 @@ function StageUpdateModal({ stage, woId, hasCompletionPhoto, hasServiceForm, onB
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-3 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true">
-      <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-hidden rounded-xl bg-card shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">{stage.stage_name}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Aşama {stage.stage_order} / 4</p>
+            <h2 className="text-sm font-bold text-foreground">{stage.stage_name}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Aşama {stage.stage_order} / 4</p>
           </div>
-          <button onClick={onClose}><X className="h-5 w-5 text-slate-400 hover:text-slate-700" /></button>
+          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground hover:text-foreground" /></button>
         </div>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-2">Durum</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-2">Durum</label>
             <div className="grid grid-cols-2 gap-2">
               {STAGE_STATUS_OPTS.map(opt => (
                 <button
@@ -510,8 +510,8 @@ function StageUpdateModal({ stage, woId, hasCompletionPhoto, hasServiceForm, onB
                       ? opt.value === "completed"   ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                         : opt.value === "in_progress" ? "border-amber-500 bg-amber-50 text-amber-700"
                         : opt.value === "cancelled"   ? "border-red-400 bg-red-50 text-red-600"
-                        : "border-slate-500 bg-slate-50 text-slate-700"
-                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        : "border-slate-500 bg-muted/50 text-foreground"
+                      : "border-border text-muted-foreground hover:bg-accent"
                   }`}
                 >
                   {opt.label}
@@ -520,18 +520,18 @@ function StageUpdateModal({ stage, woId, hasCompletionPhoto, hasServiceForm, onB
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Açıklama (İsteğe Bağlı)</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Açıklama (İsteğe Bağlı)</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
               placeholder="Bu aşamada yapılan işlemler veya notlar..."
-              className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none resize-none"
+              className="w-full rounded-xl border border-border px-3 py-2.5 text-sm focus:border-primary focus:outline-none resize-none"
             />
           </div>
           <div>
             <div className="mb-2 flex items-center justify-between gap-3">
-              <label className="block text-xs font-medium text-slate-600">
+              <label className="block text-xs font-medium text-muted-foreground">
                 {stage.stage_order === 4 ? "Tamamlama Fotoğrafı" : "Aşama Fotoğrafı (İsteğe Bağlı)"}
                 {stage.stage_order === 4 && status === "completed" && <span className="text-red-500"> *</span>}
               </label>
@@ -543,13 +543,13 @@ function StageUpdateModal({ stage, woId, hasCompletionPhoto, hasServiceForm, onB
             {files.length > 0 && (
               <div className="mt-2 space-y-1.5">
                 {files.map((file, index) => (
-                  <div key={`${file.name}-${index}`} className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                    <ImageIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    <span className="flex-1 truncate text-xs text-slate-700">{file.name}</span>
+                  <div key={`${file.name}-${index}`} className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
+                    <ImageIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="flex-1 truncate text-xs text-foreground">{file.name}</span>
                     <button
                       type="button"
                       onClick={() => setFiles(prev => prev.filter((_, itemIndex) => itemIndex !== index))}
-                      className="text-slate-400 hover:text-red-500"
+                      className="text-muted-foreground hover:text-red-500"
                       aria-label={`${file.name} dosyasını kaldır`}
                     >
                       <X className="h-3.5 w-3.5" />
@@ -558,18 +558,18 @@ function StageUpdateModal({ stage, woId, hasCompletionPhoto, hasServiceForm, onB
                 ))}
               </div>
             )}
-            <p className="mt-1.5 text-[10px] text-slate-400">Yüklenen görseller Saha Fotoğrafları bölümünde görünür.</p>
+            <p className="mt-1.5 text-[10px] text-muted-foreground">Yüklenen görseller Saha Fotoğrafları bölümünde görünür.</p>
           </div>
           {err && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
-          {uploadProgress !== null && <div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-blue-600 transition-[width]" style={{ width: `${uploadProgress}%` }} /></div><p className="mt-1 text-right text-xs text-slate-500">%{uploadProgress}</p></div>}
+          {uploadProgress !== null && <div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-[width]" style={{ width: `${uploadProgress}%` }} /></div><p className="mt-1 text-right text-xs text-muted-foreground">%{uploadProgress}</p></div>}
         </div>
-        <div className="flex shrink-0 justify-between gap-3 border-t border-slate-100 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-4">
+        <div className="flex shrink-0 justify-between gap-3 border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-4">
           <button onClick={onClose}
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent">
             Vazgeç
           </button>
           <button onClick={handleSave} disabled={busy}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
             Kaydet
           </button>
@@ -615,33 +615,33 @@ function TransferModal({ woId, photoIds, reportPhotoIds, onClose, onDone }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-3 sm:items-center sm:p-4" role="dialog" aria-modal="true">
-      <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-hidden rounded-xl bg-card shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Mağaza Kartına Ekle</h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">{photoIds.length + reportPhotoIds.length} fotoğraf seçildi</p>
+            <h2 className="text-sm font-bold text-foreground">Mağaza Kartına Ekle</h2>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{photoIds.length + reportPhotoIds.length} fotoğraf seçildi</p>
           </div>
-          <button onClick={onClose}><X className="h-5 w-5 text-slate-400 hover:text-slate-700" /></button>
+          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground hover:text-foreground" /></button>
         </div>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Görsel Kategorisi</label>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Görsel Kategorisi</label>
             <div className="relative">
               <select value={category} onChange={e => setCategory(e.target.value)}
-                className="w-full appearance-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none pr-8">
+                className="w-full appearance-none rounded-xl border border-border px-3 py-2.5 text-sm focus:border-primary focus:outline-none pr-8">
                 {VI_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             </div>
           </div>
           {err && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>}
           <div className="flex gap-2 justify-end">
             <button onClick={onClose}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-accent">
               Vazgeç
             </button>
             <button onClick={handleTransfer} disabled={busy}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Store className="h-4 w-4" />}
               Ekle
             </button>
@@ -881,7 +881,7 @@ export default function WorkOrderDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -890,14 +890,14 @@ export default function WorkOrderDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <ClipboardList className="h-10 w-10 text-slate-200" />
-        <p className="text-sm text-slate-500">İş emri bulunamadı.</p>
-        <Link href={backHref} className="text-sm text-blue-600 hover:underline">İş Emirlerine Dön</Link>
+        <p className="text-sm text-muted-foreground">İş emri bulunamadı.</p>
+        <Link href={backHref} className="text-sm text-primary hover:underline">İş Emirlerine Dön</Link>
       </div>
     );
   }
 
   const computedSt = computedStatus(stages);
-  const statusCls = STATUS_COLOR[wo.status] ?? "bg-slate-100 text-slate-600";
+  const statusCls = STATUS_COLOR[wo.status] ?? "bg-muted text-muted-foreground";
   const photoSourceLabel: Record<string, string> = {
     before: "Hazırlık", after: "Uygulama / İmalat",
     issue: "Kontrol / Test", completion: "Tamamlandı",
@@ -920,13 +920,13 @@ export default function WorkOrderDetailPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-800">İş Raporları</p>
-          <p className="text-xs text-slate-400 mt-0.5">Her aşamada oluşturulan rapor kayıtları</p>
+          <p className="text-sm font-semibold text-foreground">İş Raporları</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Her aşamada oluşturulan rapor kayıtları</p>
         </div>
         {isUser && (
           <button
             onClick={() => setReportModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" /> Rapor Oluştur
           </button>
@@ -934,11 +934,11 @@ export default function WorkOrderDetailPage() {
       </div>
 
       {reports.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-14 gap-3 rounded-2xl border border-dashed border-slate-200">
+        <div className="flex flex-col items-center justify-center py-14 gap-3 rounded-xl border border-dashed border-border">
           <FileText className="h-10 w-10 text-slate-200" />
-          <p className="text-sm text-slate-400">Henüz rapor oluşturulmamış.</p>
+          <p className="text-sm text-muted-foreground">Henüz rapor oluşturulmamış.</p>
           {isUser && <button onClick={() => setReportModal(true)}
-            className="text-xs text-blue-600 border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-50">
+            className="text-xs text-primary border border-primary/20 rounded-lg px-3 py-1.5 hover:bg-primary/5">
             İlk Raporu Oluştur
           </button>}
         </div>
@@ -948,31 +948,31 @@ export default function WorkOrderDetailPage() {
             const addablePhotos = rep.photos.filter(p => p.mime_type?.startsWith("image/") && !p.is_added_to_inventory);
             const addedPhotoCount = rep.photos.filter(p => p.mime_type?.startsWith("image/") && p.is_added_to_inventory).length;
             return (
-            <div key={rep.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div key={rep.id} className="rounded-xl border border-border bg-card p-4">
               {/* Üst satır — rozet solda, kişi & tarih sağ üstte */}
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2 flex-wrap min-w-0">
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${SEVERITY_COLOR[rep.severity] ?? "bg-slate-100 text-slate-600"}`}>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${SEVERITY_COLOR[rep.severity] ?? "bg-muted text-muted-foreground"}`}>
                     {rep.severity === "critical" && <AlertTriangle className="h-3 w-3 mr-1" />}
                     {SEVERITY_LABEL[rep.severity] ?? rep.severity}
                   </span>
                   {rep.photo_count > 0 && (
-                    <span className="text-[11px] text-slate-400">{rep.photo_count} görsel</span>
+                    <span className="text-[11px] text-muted-foreground">{rep.photo_count} görsel</span>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   <div className="flex items-start gap-1.5">
                     <div className="text-right leading-tight">
                       {rep.created_by_name && (
-                        <p className="flex items-center justify-end gap-1 text-[11px] font-medium text-slate-600">
-                          <User className="h-3 w-3 text-slate-400" /> {rep.created_by_name}
+                        <p className="flex items-center justify-end gap-1 text-[11px] font-medium text-muted-foreground">
+                          <User className="h-3 w-3 text-muted-foreground" /> {rep.created_by_name}
                         </p>
                       )}
-                      <p className="text-[11px] text-slate-400">{fmtDateTime(rep.created_at)}</p>
+                      <p className="text-[11px] text-muted-foreground">{fmtDateTime(rep.created_at)}</p>
                     </div>
                     {isUser && <button
                       onClick={() => handleDeleteReport(rep.id)}
-                      className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-red-50 hover:text-red-500"
+                      className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 hover:bg-red-50 hover:text-red-500"
                       aria-label="Raporu sil"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -982,7 +982,7 @@ export default function WorkOrderDetailPage() {
                     <button
                       type="button"
                       onClick={() => { setSelected(new Set(addablePhotos.map(p => `report:${p.id}`))); setTransferOpen(true); }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition hover:border-blue-300 hover:bg-primary/5 hover:text-primary"
                     >
                       <Store className="h-3 w-3" /> Mağaza kartına ekle
                     </button>
@@ -994,9 +994,9 @@ export default function WorkOrderDetailPage() {
                 </div>
               </div>
 
-              <p className="mt-2 text-sm font-semibold text-slate-900">{rep.title}</p>
+              <p className="mt-2 text-sm font-semibold text-foreground">{rep.title}</p>
               {rep.description && (
-                <p className="mt-1 text-xs leading-relaxed text-slate-500 line-clamp-3">{rep.description}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-3">{rep.description}</p>
               )}
 
               {/* Görsel önizlemeler */}
@@ -1011,13 +1011,13 @@ export default function WorkOrderDetailPage() {
                             names: rep.photos.map(p => p.file_name ?? ""),
                             idx,
                           })}
-                          className="h-16 w-16 overflow-hidden rounded-lg border border-slate-200 transition-colors hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="h-16 w-16 overflow-hidden rounded-lg border border-border transition-colors hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           {rp.fresh_url && rp.mime_type?.startsWith("image/") ? (
                             <img src={rp.fresh_url} alt={rp.file_name ?? "Rapor görseli"} className="h-full w-full object-cover" />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-slate-100">
-                              <FileText className="h-5 w-5 text-slate-300" />
+                            <div className="flex h-full w-full items-center justify-center bg-muted">
+                              <FileText className="h-5 w-5 text-muted-foreground/60" />
                             </div>
                           )}
                         </button>
@@ -1050,12 +1050,12 @@ export default function WorkOrderDetailPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-slate-800">4 Aşamalı Takip Çizelgesi</p>
-            <p className="text-xs text-slate-400 mt-0.5">Her aşamayı güncelleyerek iş ilerlemesini kaydedin</p>
+            <p className="text-sm font-semibold text-foreground">4 Aşamalı Takip Çizelgesi</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Her aşamayı güncelleyerek iş ilerlemesini kaydedin</p>
           </div>
           <div className="text-right">
-            <p className="text-lg font-bold text-slate-900">{progressPct}%</p>
-            <p className="text-[10px] text-slate-400">Tamamlandı</p>
+            <p className="text-lg font-bold text-foreground">{progressPct}%</p>
+            <p className="text-[10px] text-muted-foreground">Tamamlandı</p>
           </div>
         </div>
 
@@ -1066,7 +1066,7 @@ export default function WorkOrderDetailPage() {
         )}
 
         {/* Progress bar */}
-        <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+        <div className="h-2 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full bg-emerald-500 transition-all duration-500"
             style={{ width: `${progressPct}%` }}
@@ -1076,7 +1076,7 @@ export default function WorkOrderDetailPage() {
         {/* Aşama kartları */}
         <div className="space-y-3">
           {stages.map((stage, idx) => {
-            const statusCls = STAGE_STATUS_COLOR[stage.status] ?? "bg-slate-100 text-slate-500";
+            const statusCls = STAGE_STATUS_COLOR[stage.status] ?? "bg-muted text-muted-foreground";
             const isCompleted = stage.status === "completed";
             const isActive    = stage.status === "in_progress";
 
@@ -1089,35 +1089,35 @@ export default function WorkOrderDetailPage() {
                   depotLabel={completion.lines[0]?.depot_plate ?? undefined}
                 />
               )}
-              <div className={`rounded-2xl border-2 p-4 transition-colors ${
+              <div className={`rounded-xl border-2 p-4 transition-colors ${
                 isActive    ? "border-amber-200 bg-amber-50/30"
                 : isCompleted ? "border-emerald-200 bg-emerald-50/20"
-                : "border-slate-200 bg-white"
+                : "border-border bg-card"
               }`}>
                 <div className="flex items-start gap-3">
                   {/* Step number */}
                   <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
                     isCompleted ? "bg-emerald-500 text-white"
                     : isActive  ? "bg-amber-500 text-white"
-                    : "bg-slate-100 text-slate-500"
+                    : "bg-muted text-muted-foreground"
                   }`}>
                     {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : idx + 1}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-slate-900">{stage.stage_name}</p>
+                      <p className="text-sm font-semibold text-foreground">{stage.stage_name}</p>
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusCls}`}>
                         {STAGE_STATUS_LABEL[stage.status] ?? stage.status}
                       </span>
                     </div>
 
                     {stage.description && (
-                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">{stage.description}</p>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{stage.description}</p>
                     )}
 
                     {stage.updated_at && (
-                      <div className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-400">
+                      <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
                         {stage.updated_by_name && <span>{stage.updated_by_name}</span>}
                         <span>·</span>
                         <span>{fmtDateTime(stage.updated_at)}</span>
@@ -1130,7 +1130,7 @@ export default function WorkOrderDetailPage() {
                       onClick={() => setStageModal(stage)}
                       disabled={notStartedYet}
                       title={notStartedYet ? "Önce süreci başlatmalısınız" : undefined}
-                      className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 active:scale-95 transition-transform disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                      className="shrink-0 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent active:scale-95 transition-transform disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-card"
                     >
                       Güncelle
                     </button>
@@ -1143,8 +1143,8 @@ export default function WorkOrderDetailPage() {
         </div>
 
         {/* Hesaplanan durum */}
-        <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 flex items-center justify-between">
-          <p className="text-xs text-slate-500">Hesaplanan Genel Durum:</p>
+        <div className="rounded-xl border border-border bg-muted/50 px-4 py-3 flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">Hesaplanan Genel Durum:</p>
           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${computedSt.cls}`}>
             {computedSt.label}
           </span>
@@ -1172,31 +1172,31 @@ export default function WorkOrderDetailPage() {
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <Camera className="h-4 w-4 shrink-0 text-slate-400" />
-            <p className="truncate text-sm font-semibold text-slate-800">Saha Fotoğrafları</p>
+            <Camera className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <p className="truncate text-sm font-semibold text-foreground">Saha Fotoğrafları</p>
             <CountBadge count={allPhotoItems.length} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {isManager && eligiblePhotos.length > 0 && (
               <button onClick={toggleAll}
-                className="whitespace-nowrap rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-50">
+                className="whitespace-nowrap rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent">
                 {allEligibleSelected ? "Seçimi Kaldır" : "Tümünü Seç"}
               </button>
             )}
             {isManager && selected.size > 0 && (
               <button onClick={() => setTransferOpen(true)}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-primary px-3.5 py-2 text-sm font-medium text-white hover:bg-primary/90">
                 <Store className="h-3.5 w-3.5" /> {selected.size} Fotoğrafı Ekle
               </button>
             )}
           </div>
         </div>
         {isUser && (
-          <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+          <div className="space-y-2 rounded-xl border border-border bg-slate-50/60 p-3">
             <select
               value={photoType}
               onChange={(event) => setPhotoType(event.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-600 sm:w-auto"
+              className="w-full rounded-lg border border-border bg-card px-2.5 py-2 text-xs text-muted-foreground sm:w-auto"
             >
               <option value="before">Hazırlık</option>
               <option value="after">Uygulama / İmalat</option>
@@ -1207,13 +1207,13 @@ export default function WorkOrderDetailPage() {
           </div>
         )}
         {uploadQueue.length > 0 && (
-          <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
+          <div className="space-y-2 rounded-xl border border-border bg-slate-50/60 p-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-slate-600">
+              <p className="text-xs font-semibold text-muted-foreground">
                 {uploadQueue.filter(i => i.status === "done").length} / {uploadQueue.length} yüklendi
               </p>
               {uploadQueue.every(i => i.status === "done" || i.status === "error") && (
-                <button type="button" onClick={() => setUploadQueue([])} className="text-[11px] text-slate-400 hover:text-slate-600">
+                <button type="button" onClick={() => setUploadQueue([])} className="text-[11px] text-muted-foreground hover:text-muted-foreground">
                   Listeyi temizle
                 </button>
               )}
@@ -1221,22 +1221,22 @@ export default function WorkOrderDetailPage() {
             <div className="space-y-1.5">
               {uploadQueue.map(item => (
                 <div key={item.id} className="flex items-center gap-2 text-xs">
-                  <span className="w-24 shrink-0 truncate text-slate-600 sm:w-40" title={item.file.name}>{item.file.name}</span>
+                  <span className="w-24 shrink-0 truncate text-muted-foreground sm:w-40" title={item.file.name}>{item.file.name}</span>
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
                     <div
-                      className={`h-full transition-[width] ${item.status === "error" ? "bg-red-500" : item.status === "done" ? "bg-emerald-500" : "bg-blue-600"}`}
+                      className={`h-full transition-[width] ${item.status === "error" ? "bg-red-500" : item.status === "done" ? "bg-emerald-500" : "bg-primary"}`}
                       style={{ width: `${item.status === "done" ? 100 : item.progress}%` }}
                     />
                   </div>
-                  {item.status === "pending" && <span className="w-16 shrink-0 text-slate-400">Bekliyor</span>}
-                  {item.status === "uploading" && <span className="w-16 shrink-0 text-blue-600">%{item.progress}</span>}
+                  {item.status === "pending" && <span className="w-16 shrink-0 text-muted-foreground">Bekliyor</span>}
+                  {item.status === "uploading" && <span className="w-16 shrink-0 text-primary">%{item.progress}</span>}
                   {item.status === "done" && <span className="flex w-16 shrink-0 items-center gap-1 text-emerald-600"><CheckCircle2 className="h-3 w-3" /> Yüklendi</span>}
                   {item.status === "error" && (
                     <button type="button" onClick={() => retryUpload(item.id)} className="w-16 shrink-0 font-semibold text-red-600 hover:underline">
                       Tekrar Dene
                     </button>
                   )}
-                  <button type="button" onClick={() => dismissUploadItem(item.id)} className="shrink-0 text-slate-300 hover:text-slate-500">
+                  <button type="button" onClick={() => dismissUploadItem(item.id)} className="shrink-0 text-muted-foreground/60 hover:text-muted-foreground">
                     <X className="h-3 w-3" />
                   </button>
                 </div>
@@ -1248,7 +1248,7 @@ export default function WorkOrderDetailPage() {
         {allPhotoItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 gap-3">
             <Camera className="h-10 w-10 text-slate-200" />
-            <p className="text-sm text-slate-400">Bu iş emrinde fotoğraf bulunmuyor.</p>
+            <p className="text-sm text-muted-foreground">Bu iş emrinde fotoğraf bulunmuyor.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -1261,7 +1261,7 @@ export default function WorkOrderDetailPage() {
                     <button
                       onClick={() => toggleOne(photo.key)}
                       className={`absolute top-2 left-2 z-10 flex h-5 w-5 items-center justify-center rounded border-2 shadow-sm transition-colors ${
-                        isChecked ? "bg-blue-600 border-blue-600" : "bg-white/80 border-slate-300 hover:border-blue-400"
+                        isChecked ? "bg-primary border-primary" : "bg-white/80 border-border hover:border-blue-400"
                       }`}
                     >
                       {isChecked && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
@@ -1277,7 +1277,7 @@ export default function WorkOrderDetailPage() {
                     <button
                       type="button"
                       onClick={() => handleDeletePhoto(photo.id)}
-                      className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 text-slate-400 shadow-sm hover:bg-red-50 hover:text-red-600"
+                      className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 text-muted-foreground shadow-sm hover:bg-red-50 hover:text-red-600"
                       aria-label={`${photo.name ?? "Saha görseli"} sil`}
                       title="Sil"
                     >
@@ -1292,14 +1292,14 @@ export default function WorkOrderDetailPage() {
                         idx: imageItems.indexOf(photo),
                       })}
                       className={`w-full aspect-square overflow-hidden rounded-xl border transition-all ${
-                        isChecked ? "border-blue-500 ring-2 ring-blue-400" : "border-slate-200 hover:border-slate-300"
+                        isChecked ? "border-primary ring-2 ring-blue-400" : "border-border hover:border-border"
                       }`}
                     >
                       {photo.url ? (
                         <img src={photo.url} alt={photo.name ?? "İş emri fotoğrafı"} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                       ) : (
-                        <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-                          <ImageIcon className="h-8 w-8 text-slate-300" />
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <ImageIcon className="h-8 w-8 text-muted-foreground/60" />
                         </div>
                       )}
                     </button>
@@ -1312,19 +1312,19 @@ export default function WorkOrderDetailPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`${photo.name ?? "Dosya"} dosyasını aç`}
-                      className="flex w-full aspect-square flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 px-2 text-center transition-all hover:border-slate-300 hover:bg-slate-100"
+                      className="flex w-full aspect-square flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-border bg-muted/50 px-2 text-center transition-all hover:border-border hover:bg-accent"
                     >
-                      <FileText className="h-8 w-8 text-slate-400" />
-                      <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-slate-600 ring-1 ring-slate-200">
+                      <FileText className="h-8 w-8 text-muted-foreground" />
+                      <span className="rounded bg-card px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-muted-foreground ring-1 ring-slate-200">
                         {(photo.name?.split(".").pop() ?? "DOSYA").toUpperCase().slice(0, 5)}
                       </span>
-                      <span className="text-[10px] font-medium text-blue-600">Aç / İndir</span>
+                      <span className="text-[10px] font-medium text-primary">Aç / İndir</span>
                     </a>
                   )}
                   <div className="mt-1.5 px-0.5">
-                    <p className="text-[10px] font-medium text-slate-600">{photo.source}</p>
-                    <p className="text-[10px] text-slate-500 truncate">{photo.name ?? "Dosya"}</p>
-                    <p className="text-[10px] text-slate-400">{photo.uploadedBy ?? "Saha"} | {fmtDate(photo.uploadedAt)}</p>
+                    <p className="text-[10px] font-medium text-muted-foreground">{photo.source}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{photo.name ?? "Dosya"}</p>
+                    <p className="text-[10px] text-muted-foreground">{photo.uploadedBy ?? "Saha"} | {fmtDate(photo.uploadedAt)}</p>
                   </div>
                 </div>
               );
@@ -1351,10 +1351,10 @@ export default function WorkOrderDetailPage() {
     <div className="max-w-4xl mx-auto space-y-5 pb-10">
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs text-slate-400">
-        <BackLink fallbackHref={backHref} fallbackLabel="İş Emirleri" className="flex items-center gap-1 hover:text-slate-700" />
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <BackLink fallbackHref={backHref} fallbackLabel="İş Emirleri" className="flex items-center gap-1 hover:text-foreground" />
         <span>/</span>
-        <span className="text-slate-700 font-medium truncate max-w-xs">{wo.title}</span>
+        <span className="text-foreground font-medium truncate max-w-xs">{wo.title}</span>
       </div>
 
       {successMsg && (
@@ -1371,14 +1371,14 @@ export default function WorkOrderDetailPage() {
       )}
 
       {/* Üst Özet Kartı */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${statusCls}`}>
                 {workOrderStatusLabel(wo.status)}
               </span>
-              <span className="text-[11px] font-medium border border-slate-200 rounded-full px-2 py-0.5 text-slate-600">
+              <span className="text-[11px] font-medium border border-border rounded-full px-2 py-0.5 text-muted-foreground">
                 {wo.work_type_label}
               </span>
               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${PRIORITY_COLOR[wo.priority]}`}>
@@ -1390,16 +1390,16 @@ export default function WorkOrderDetailPage() {
                 </span>
               )}
             </div>
-            <h1 className="text-lg font-bold text-slate-900 leading-tight">{wo.title}</h1>
+            <h1 className="text-lg font-bold text-foreground leading-tight">{wo.title}</h1>
             {wo.description && (
-              <p className="mt-1 text-sm text-slate-500 leading-relaxed">{wo.description}</p>
+              <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{wo.description}</p>
             )}
           </div>
           <div className="flex shrink-0 flex-col gap-2">
             {(isManager || isUser) && (
               <Link
                 href={`${storeBase}/${wo.project_id}`}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-accent"
               >
                 <Store className="h-3.5 w-3.5" /> Mağaza Kartı
               </Link>
@@ -1407,7 +1407,7 @@ export default function WorkOrderDetailPage() {
             {isUser && ["planned", "draft", "sent", "approval_pending"].includes(wo.status) && (
               <button
                 onClick={() => setStartConfirmOpen(true)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90"
               >
                 <Zap className="h-3.5 w-3.5" /> Süreci Başlat
               </button>
@@ -1431,50 +1431,50 @@ export default function WorkOrderDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border">
           <div>
-            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Mağaza</p>
-            <p className="text-sm font-semibold text-slate-800 mt-0.5 truncate">{wo.project_name ?? "Belirtilmedi"}</p>
-            {wo.project_no && <p className="text-[11px] text-slate-400 font-mono">{wo.project_no}</p>}
-            {(wo.project_city || wo.project_region) && <p className="text-[11px] text-slate-400">{[wo.project_region, wo.project_city].filter(Boolean).join(" / ")}</p>}
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Mağaza</p>
+            <p className="text-sm font-semibold text-foreground mt-0.5 truncate">{wo.project_name ?? "Belirtilmedi"}</p>
+            {wo.project_no && <p className="text-[11px] text-muted-foreground font-mono">{wo.project_no}</p>}
+            {(wo.project_city || wo.project_region) && <p className="text-[11px] text-muted-foreground">{[wo.project_region, wo.project_city].filter(Boolean).join(" / ")}</p>}
             {isManager ? (
               <ProjectLinkControl wo={wo} canManage projectHref={(projectId) => `/manager/projeler/${projectId}`} onChanged={loadWorkOrder} />
             ) : wo.installation_project_name && <p className="mt-1 inline-flex rounded-md bg-teal-50 px-1.5 py-0.5 text-[11px] font-semibold text-teal-800">Proje: {wo.installation_project_name}</p>}
           </div>
           {wo.assigned_to_name && (
             <div>
-              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Atanan</p>
-              <p className="text-sm text-slate-700 mt-0.5 flex items-center gap-1">
-                <User className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Atanan</p>
+              <p className="text-sm text-foreground mt-0.5 flex items-center gap-1">
+                <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 {wo.assigned_to_name}
               </p>
             </div>
           )}
           <div>
-            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Verilme Tarihi</p>
-            <p className="text-sm text-slate-700 mt-0.5">{formatServerDateTime(wo.created_at)}</p>
-            {wo.created_by_name && <p className="text-[11px] text-slate-400 truncate">{wo.created_by_name}</p>}
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Verilme Tarihi</p>
+            <p className="text-sm text-foreground mt-0.5">{formatServerDateTime(wo.created_at)}</p>
+            {wo.created_by_name && <p className="text-[11px] text-muted-foreground truncate">{wo.created_by_name}</p>}
           </div>
           <div>
-            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Termin</p>
-            <p className="text-sm text-slate-700 mt-0.5">{fmtDate(wo.due_date)}</p>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Termin</p>
+            <p className="text-sm text-foreground mt-0.5">{fmtDate(wo.due_date)}</p>
           </div>
           <div>
-            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Genel Durum</p>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Genel Durum</p>
             <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold mt-0.5 ${computedSt.cls}`}>
               {computedSt.label}
             </span>
           </div>
           {wo.started_at ? (
             <div>
-              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Süreci Başlattı</p>
-              <p className="text-sm text-slate-700 mt-0.5 truncate">{wo.assigned_to_name ?? "—"}</p>
-              <p className="text-[11px] text-slate-400">{fmtDateTime(wo.started_at)}</p>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Süreci Başlattı</p>
+              <p className="text-sm text-foreground mt-0.5 truncate">{wo.assigned_to_name ?? "—"}</p>
+              <p className="text-[11px] text-muted-foreground">{fmtDateTime(wo.started_at)}</p>
             </div>
           ) : (
             <div>
-              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Son Güncelleme</p>
-              <p className="mt-0.5 text-sm text-slate-700">{fmtDateTime(wo.updated_at ?? wo.created_at)}</p>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Son Güncelleme</p>
+              <p className="mt-0.5 text-sm text-foreground">{fmtDateTime(wo.updated_at ?? wo.created_at)}</p>
             </div>
           )}
           {/* Taşeron (yalnız yönetici): iş yükü ve puan taşeron kartında görünür; puan iş tamamlanınca verilir. */}
@@ -1487,13 +1487,13 @@ export default function WorkOrderDetailPage() {
 
       {/* Stoktan düşülen malzemeler (yönetici özeti) */}
       {completion.lines.some(line => line.status === "issued") && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Boxes className="h-4 w-4 text-emerald-700" />
-              <h2 className="text-sm font-bold text-slate-900">Stoktan Düşülen Malzemeler</h2>
+              <h2 className="text-sm font-bold text-foreground">Stoktan Düşülen Malzemeler</h2>
             </div>
-            <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+            <span className="rounded-full border border-emerald-200 bg-card px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
               {completion.lines[0]?.depot_plate} · {completion.lines[0]?.depot_name}
             </span>
           </div>
@@ -1501,10 +1501,10 @@ export default function WorkOrderDetailPage() {
             {completion.lines.filter(line => line.status === "issued").map(line => (
               <li key={line.id} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900"><MaterialTitle sku={line.sku} name={line.name} spec={line.spec} /></p>
+                  <p className="text-sm font-medium text-foreground"><MaterialTitle sku={line.sku} name={line.name} spec={line.spec} /></p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold text-slate-900">{Number(line.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} {line.unit}</p>
+                  <p className="text-sm font-semibold text-foreground">{Number(line.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} {line.unit}</p>
                   <p className="text-[11px] font-medium text-emerald-700">Düşüldü · {formatCompletionTime(line.issued_at)}</p>
                 </div>
               </li>
@@ -1515,15 +1515,15 @@ export default function WorkOrderDetailPage() {
 
       {startConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
-            <p className="text-sm font-semibold text-slate-900">Bu işi teslim alıp süreci başlatmak istiyor musunuz?</p>
-            <p className="mt-1.5 text-xs text-slate-500">Süreç başladıktan sonra aşamaları güncelleyebilirsiniz. Başlangıç zamanı ve sizin adınız kaydedilir.</p>
+          <div className="w-full max-w-sm rounded-xl bg-card p-5 shadow-2xl">
+            <p className="text-sm font-semibold text-foreground">Bu işi teslim alıp süreci başlatmak istiyor musunuz?</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">Süreç başladıktan sonra aşamaları güncelleyebilirsiniz. Başlangıç zamanı ve sizin adınız kaydedilir.</p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setStartConfirmOpen(false)}
                 disabled={starting}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-accent disabled:opacity-50"
               >
                 İptal
               </button>
@@ -1531,7 +1531,7 @@ export default function WorkOrderDetailPage() {
                 type="button"
                 onClick={handleStart}
                 disabled={starting}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
               >
                 {starting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Süreci Başlat
@@ -1543,9 +1543,9 @@ export default function WorkOrderDetailPage() {
 
       {cancelConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
-            <p className="text-sm font-semibold text-slate-900">Bu iş emrini iptal etmek istediğinize emin misiniz?</p>
-            <p className="mt-1.5 text-xs text-slate-500">
+          <div className="w-full max-w-sm rounded-xl bg-card p-5 shadow-2xl">
+            <p className="text-sm font-semibold text-foreground">Bu iş emrini iptal etmek istediğinize emin misiniz?</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">
               İş emri iptal edilir ve kaydı korunur. Malzemeler yalnızca iş tamamlanınca stoktan düşüldüğü için stok etkilenmez.
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -1553,7 +1553,7 @@ export default function WorkOrderDetailPage() {
                 type="button"
                 onClick={() => setCancelConfirmOpen(false)}
                 disabled={cancelling}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-accent disabled:opacity-50"
               >
                 Vazgeç
               </button>
@@ -1573,15 +1573,15 @@ export default function WorkOrderDetailPage() {
 
       {deleteConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
-            <p className="text-sm font-semibold text-slate-900">Bu iş emrini silmek istediğinize emin misiniz?</p>
-            <p className="mt-1.5 text-xs text-slate-500">İş emri, aşamaları, raporları ve fotoğrafları kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
+          <div className="w-full max-w-sm rounded-xl bg-card p-5 shadow-2xl">
+            <p className="text-sm font-semibold text-foreground">Bu iş emrini silmek istediğinize emin misiniz?</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">İş emri, aşamaları, raporları ve fotoğrafları kalıcı olarak silinir. Bu işlem geri alınamaz.</p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setDeleteConfirmOpen(false)}
                 disabled={deleting}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-accent disabled:opacity-50"
               >
                 İptal
               </button>
@@ -1609,7 +1609,7 @@ export default function WorkOrderDetailPage() {
       />
 
       {/* Sekme İçeriği */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
         {/* Sekmeler bileşen olarak değil fonksiyon olarak çağrılır: sayfa içinde tanımlı bir
             bileşen her render'da yeni tür sayılır, alt ağaç sökülüp yeniden kurulur ve
             miktar alanına her tuş basışında odak kaybolup sayfa en üste kayar. */}

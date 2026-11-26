@@ -31,11 +31,11 @@ type Process = {
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const STAGE_STATUS: Record<StageStatus, { label: string; icon: React.ElementType; text: string; bg: string }> = {
-  pending:     { label: "Bekliyor",      icon: Circle,        text: "text-slate-500", bg: "bg-slate-50"  },
-  in_progress: { label: "Devam Ediyor", icon: Play,          text: "text-blue-700",  bg: "bg-blue-50"   },
+  pending:     { label: "Bekliyor",      icon: Circle,        text: "text-muted-foreground", bg: "bg-muted/50"  },
+  in_progress: { label: "Devam Ediyor", icon: Play,          text: "text-primary",  bg: "bg-primary/5"   },
   completed:   { label: "Tamamlandı",   icon: CheckCircle2,  text: "text-green-700", bg: "bg-green-50"  },
   delayed:     { label: "Gecikti",      icon: AlertTriangle, text: "text-red-700",   bg: "bg-red-50"    },
-  cancelled:   { label: "İptal",        icon: XCircle,       text: "text-slate-400", bg: "bg-slate-100" },
+  cancelled:   { label: "İptal",        icon: XCircle,       text: "text-muted-foreground", bg: "bg-muted" },
 };
 
 function fmtDate(d?: string) {
@@ -46,7 +46,7 @@ function fmtDate(d?: string) {
 function calcDays(target?: string): { text: string; color: string } {
   if (!target) return { text: "", color: "" };
   const d = Math.ceil((new Date(target).getTime() - Date.now()) / 86400000);
-  if (d > 0)   return { text: `${d}g kaldı`,           color: "text-blue-600"  };
+  if (d > 0)   return { text: `${d}g kaldı`,           color: "text-primary"  };
   if (d === 0) return { text: "Bugün teslim",           color: "text-amber-600" };
   return             { text: `${Math.abs(d)}g gecikti`, color: "text-red-600"   };
 }
@@ -67,15 +67,15 @@ function ScopeCard({ process, projectId }: { process: Process; projectId: string
     : `/tadilat/surecleri/${process.id}?p=${projectId}`;
 
   return (
-    <div className={`rounded-2xl border bg-white shadow-sm overflow-hidden ${isCompleted ? "border-green-200" : "border-slate-200"}`}>
+    <div className={`rounded-xl border bg-card shadow-sm overflow-hidden ${isCompleted ? "border-green-200" : "border-border"}`}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3.5">
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${isCompleted ? "bg-green-50" : "bg-blue-50"}`}>
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${isCompleted ? "bg-green-50" : "bg-primary/5"}`}>
           {isCompleted ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Circle className="h-4 w-4 text-blue-500" />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-slate-900">{process.title}</p>
+            <p className="text-sm font-semibold text-foreground">{process.title}</p>
             <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
               isCompleted ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
             }`}>
@@ -95,10 +95,10 @@ function ScopeCard({ process, projectId }: { process: Process; projectId: string
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <p className={`text-sm font-bold ${isCompleted ? "text-green-600" : "text-blue-600"}`}>
+          <p className={`text-sm font-bold ${isCompleted ? "text-green-600" : "text-primary"}`}>
             {process.progress_percent}%
           </p>
-          <div className="w-16 h-1.5 rounded-full bg-slate-100 mt-1 overflow-hidden">
+          <div className="w-16 h-1.5 rounded-full bg-muted mt-1 overflow-hidden">
             <div className={`h-full rounded-full ${isCompleted ? "bg-green-400" : "bg-blue-400"}`}
               style={{ width: `${process.progress_percent}%` }} />
           </div>
@@ -108,7 +108,7 @@ function ScopeCard({ process, projectId }: { process: Process; projectId: string
       {/* Actions */}
       <div className="flex items-center gap-1.5 px-4 pb-3 flex-wrap">
         <button onClick={() => setExpanded(v => !v)}
-          className="inline-flex items-center gap-1 text-[11px] text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1 hover:bg-slate-50">
+          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground border border-border rounded-lg px-2.5 py-1 hover:bg-accent">
           {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           Aşamalar ({process.stages.filter(s => s.status === "completed").length}/{process.stages.length})
         </button>
@@ -122,7 +122,7 @@ function ScopeCard({ process, projectId }: { process: Process; projectId: string
 
       {/* Expandable timeline — read-only */}
       {expanded && (
-        <div className="border-t border-slate-100 px-4 py-3 space-y-1.5 bg-slate-50/50">
+        <div className="border-t border-border px-4 py-3 space-y-1.5 bg-slate-50/50">
           {process.stages.map((stage, idx) => {
             const cfg = STAGE_STATUS[stage.status] ?? STAGE_STATUS.pending;
             const Icon = cfg.icon;
@@ -136,12 +136,12 @@ function ScopeCard({ process, projectId }: { process: Process; projectId: string
                   {!isLast && <div className="mt-0.5 flex-1 w-px bg-slate-200 min-h-[12px]" />}
                 </div>
                 <div className={`flex-1 rounded-lg border p-2.5 mb-1 ${
-                  stage.status === "in_progress" ? "border-blue-100 bg-blue-50/60" :
+                  stage.status === "in_progress" ? "border-primary/20 bg-blue-50/60" :
                   stage.status === "completed"   ? "border-green-100 bg-green-50/40" :
-                  "border-slate-100 bg-white"
+                  "border-border bg-card"
                 }`}>
                   <p className={`text-xs font-medium ${cfg.text}`}>{stage.name}</p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[10px] text-slate-400">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[10px] text-muted-foreground">
                     {stage.note && <span className="italic truncate max-w-[200px]">{stage.note}</span>}
                     {stage.completed_at && <span className="text-green-600">{fmtDate(stage.completed_at)}</span>}
                   </div>
@@ -180,8 +180,8 @@ export default function ProcessTab({ projectId }: { projectId: string; workType?
 
   if (loading) return (
     <div className="flex items-center justify-center py-16 gap-2">
-      <div className="h-5 w-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-      <p className="text-xs text-slate-400">Yükleniyor...</p>
+      <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      <p className="text-xs text-muted-foreground">Yükleniyor...</p>
     </div>
   );
 
@@ -191,7 +191,7 @@ export default function ProcessTab({ projectId }: { projectId: string; workType?
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-800">Süreç Takibi</h3>
+        <h3 className="text-sm font-semibold text-foreground">Süreç Takibi</h3>
         <div className="flex items-center gap-2">
           <Link href="/bakim"
             className="inline-flex items-center gap-1 text-[11px] text-sky-700 border border-sky-200 bg-sky-50 rounded-lg px-2.5 py-1.5 hover:bg-sky-100 font-medium">
@@ -205,22 +205,22 @@ export default function ProcessTab({ projectId }: { projectId: string; workType?
       </div>
 
       {/* Read-only banner */}
-      <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <AlertCircle className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-        <p className="text-xs text-slate-500">
+      <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3">
+        <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground">
           Bu alan sadece görüntüleme içindir. Tadilat dosyalarını düzenlemek, aşama güncellemek ve dosya yüklemek için
           {" "}<span className="font-semibold text-amber-700">Tadilat Klasörüne</span> gidin.
         </p>
       </div>
 
       {processes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-14 gap-4 rounded-2xl border border-dashed border-slate-200">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
-            <Clock className="h-6 w-6 text-slate-400" />
+        <div className="flex flex-col items-center justify-center py-14 gap-4 rounded-xl border border-dashed border-border">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+            <Clock className="h-6 w-6 text-muted-foreground" />
           </div>
           <div className="text-center">
-            <p className="text-sm font-semibold text-slate-700">Bu mağazada aktif süreç yok</p>
-            <p className="text-xs text-slate-400 mt-1">Bakım veya tadilat süreçlerini ilgili modülden başlatın.</p>
+            <p className="text-sm font-semibold text-foreground">Bu mağazada aktif süreç yok</p>
+            <p className="text-xs text-muted-foreground mt-1">Bakım veya tadilat süreçlerini ilgili modülden başlatın.</p>
           </div>
           <div className="flex gap-2">
             <Link href="/bakim"
@@ -237,13 +237,13 @@ export default function ProcessTab({ projectId }: { projectId: string; workType?
         <>
           {active.length > 0 && (
             <div className="space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Aktif İş Kalemleri — {active.length}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Aktif İş Kalemleri — {active.length}</p>
               {active.map(proc => <ScopeCard key={proc.id} process={proc} projectId={projectId} />)}
             </div>
           )}
           {completed.length > 0 && (
             <div className="space-y-3">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Tamamlanan İş Kalemleri — {completed.length}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Tamamlanan İş Kalemleri — {completed.length}</p>
               {completed.map(proc => <ScopeCard key={proc.id} process={proc} projectId={projectId} />)}
             </div>
           )}

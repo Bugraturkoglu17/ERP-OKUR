@@ -70,7 +70,7 @@ function phasesOf(project: ProjectDetail): PhaseView[] {
 }
 
 const BALLOON = {
-  completed: "bg-emerald-600 text-white", in_progress: "bg-blue-600 text-white", planned: "bg-slate-100 text-slate-500",
+  completed: "bg-emerald-600 text-white", in_progress: "bg-primary text-white", planned: "bg-muted text-muted-foreground",
 };
 
 /** Üst şerit: ana aşamalar (Aşamalar sekmesi; seçilebilir). */
@@ -83,13 +83,13 @@ function PhaseStrip({ phases, selectedCode, onSelect }: { phases: PhaseView[]; s
         return (
           <li key={phase.code}>
             <button type="button" onClick={() => onSelect(phase)} aria-current={selected ? "step" : undefined}
-              className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition ${selected ? "border-blue-600 ring-1 ring-blue-600" : "border-slate-200 hover:border-slate-300"} ${phase.status === "completed" ? "bg-emerald-50/60" : phase.status === "in_progress" ? "bg-blue-50/60" : "bg-white"}`}>
+              className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition ${selected ? "border-primary ring-1 ring-primary" : "border-border hover:border-border"} ${phase.status === "completed" ? "bg-emerald-50/60" : phase.status === "in_progress" ? "bg-blue-50/60" : "bg-card"}`}>
               <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${BALLOON[phase.status]}`}>
                 {phase.status === "completed" ? <Check className="h-4 w-4" /> : phase.order}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-slate-900">{phase.name}</span>
-                <span className={`block text-xs ${phase.late ? "font-medium text-red-700" : "text-slate-500"}`}>
+                <span className="block truncate text-sm font-semibold text-foreground">{phase.name}</span>
+                <span className={`block text-xs ${phase.late ? "font-medium text-red-700" : "text-muted-foreground"}`}>
                   {phase.steps.length > 1 ? `${done}/${phase.steps.length} adım` : phase.status === "completed" ? "Tamamlandı" : phase.status === "in_progress" ? "Devam ediyor" : "Başlamadı"}{phase.late ? " · gecikti" : ""}
                 </span>
               </span>
@@ -112,7 +112,7 @@ function StepTabs({ steps, selectedId, onSelect }: { steps: ProjectStage[]; sele
           <li key={step.id} className="flex items-center gap-2">
             {index > 0 && <span className="h-px w-6 bg-slate-300" aria-hidden="true" />}
             <button type="button" onClick={() => onSelect(step.id)} aria-current={selected ? "step" : undefined}
-              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition ${selected ? "border-blue-600 bg-white text-blue-800 ring-1 ring-blue-600" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}>
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition ${selected ? "border-primary bg-card text-primary ring-1 ring-primary" : "border-border bg-card text-foreground hover:border-border"}`}>
               <span className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold ${BALLOON[step.status]}`}>
                 {step.status === "completed" ? <Check className="h-3 w-3" /> : index + 1}
               </span>
@@ -155,7 +155,7 @@ function StagePanel({ stage, phase, projectId, due, users, editable, canManage, 
   return (
     <Card className="relative">
       {/* Kayıt sürerken panel kilitlenir: çift tıklama ve yarım işlem olmasın. */}
-      {busy && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-white/60"><Loader2 className="h-6 w-6 animate-spin text-slate-500" /></div>}
+      {busy && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-white/60"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
       <UiCardHeader className="flex-row flex-wrap items-start justify-between gap-3 space-y-0 px-5 py-4">
         <div>
           {/* Tek adımlı ana aşamada (Keşif) ad iki kez yazılmasın: üst satır yalnız çok adımlı aşamada. */}
@@ -232,8 +232,8 @@ function StagePanel({ stage, phase, projectId, due, users, editable, canManage, 
             <p className="text-xs font-medium text-muted-foreground">Adım şartları (tamamlamayı engellemez)</p>
             <ul className="mt-2 flex flex-col gap-1.5">
               {stage.requirements.map((req) => (
-                <li key={req.label} className={`flex items-start gap-2 text-sm ${req.ok ? "text-emerald-700" : "text-slate-600"}`}>
-                  {req.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />}{req.label}
+                <li key={req.label} className={`flex items-start gap-2 text-sm ${req.ok ? "text-emerald-700" : "text-muted-foreground"}`}>
+                  {req.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/60" />}{req.label}
                 </li>
               ))}
             </ul>
@@ -328,22 +328,22 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
       onDrop={editable ? onDrop : undefined}>
       {/* Excel dosyası kartın üstüne sürüklenince bırakma alanı gösterilir. */}
       {dragOver && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-blue-500 bg-blue-50/90 text-sm font-semibold text-blue-800">
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-primary bg-blue-50/90 text-sm font-semibold text-primary">
           Excel dosyasını buraya bırakın
         </div>
       )}
-      {importing && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-white/60"><Loader2 className="h-6 w-6 animate-spin text-slate-500" /></div>}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+      {importing && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-white/60"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Malzeme listesi<InfoHint text={`Planlanan malzeme, proje deposundaki miktar ve montajda kullanılan.${missingCount > 0 ? ` ${missingCount} kalem eksik.` : ""}`} /></h2>
+          <h2 className="text-sm font-semibold text-foreground">Malzeme listesi<InfoHint text={`Planlanan malzeme, proje deposundaki miktar ve montajda kullanılan.${missingCount > 0 ? ` ${missingCount} kalem eksik.` : ""}`} /></h2>
         </div>
         {editable && (
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void downloadMaterialTemplate()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Download className="h-3.5 w-3.5" />Hazır şablon</button>
-            <button type="button" disabled={importing} onClick={() => fileInput.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><FileSpreadsheet className="h-3.5 w-3.5" />Excel&apos;den yükle</button>
+            <button type="button" onClick={() => void downloadMaterialTemplate()} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent"><Download className="h-3.5 w-3.5" />Hazır şablon</button>
+            <button type="button" disabled={importing} onClick={() => fileInput.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent disabled:opacity-50"><FileSpreadsheet className="h-3.5 w-3.5" />Excel&apos;den yükle</button>
             <input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" aria-label="Malzeme listesi Excel dosyası"
               onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) void importExcel(file); }} />
-            {!editing && <button type="button" onClick={startEdit} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Listeyi düzenle</button>}
+            {!editing && <button type="button" onClick={startEdit} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent">Listeyi düzenle</button>}
           </div>
         )}
       </div>
@@ -353,44 +353,44 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
         )}
         {editing ? (
           <div className="max-w-3xl space-y-2">
-            <div className="flex items-center gap-2 px-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400" aria-hidden="true">
+            <div className="flex items-center gap-2 px-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground" aria-hidden="true">
               <span className="w-28 shrink-0">Kod</span><span className="min-w-0 flex-1">Malzeme</span><span className="w-20 shrink-0 text-right">Adet</span><span className="w-7 shrink-0" />
             </div>
             {rows.map((row) => (
               <div key={row.key} className="flex items-center gap-2">
-                <span className="w-28 shrink-0 truncate text-xs tabular-nums text-slate-500">{skuById.get(row.materialId) ?? "—"}</span>
+                <span className="w-28 shrink-0 truncate text-xs tabular-nums text-muted-foreground">{skuById.get(row.materialId) ?? "—"}</span>
                 <div className="min-w-0 flex-1"><MaterialPicker compact value={row.materialId} options={options} disabledIds={chosen}
                   onChange={(id) => setRows((cur) => cur.map((r) => r.key === row.key ? { ...r, materialId: id } : r))} /></div>
                 <input inputMode="decimal" value={row.quantity} placeholder="Adet" aria-label="Planlanan adet"
                   onChange={(e) => setRows((cur) => cur.map((r) => r.key === row.key ? { ...r, quantity: e.target.value } : r))}
-                  className="w-20 shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-right text-sm" />
-                <button type="button" aria-label="Satırı kaldır" onClick={() => setRows((cur) => cur.filter((r) => r.key !== row.key))} className="w-7 shrink-0 rounded-lg p-1.5 text-slate-400 hover:text-red-600"><X className="h-4 w-4" /></button>
+                  className="w-20 shrink-0 rounded-lg border border-border px-2 py-1.5 text-right text-sm" />
+                <button type="button" aria-label="Satırı kaldır" onClick={() => setRows((cur) => cur.filter((r) => r.key !== row.key))} className="w-7 shrink-0 rounded-lg p-1.5 text-muted-foreground hover:text-red-600"><X className="h-4 w-4" /></button>
               </div>
             ))}
             <div className="flex flex-wrap justify-between gap-2 pt-2">
-              <button type="button" onClick={() => setRows((cur) => [...cur, { key: `r${++rowSeed}`, materialId: "", quantity: "" }])} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"><Plus className="h-3.5 w-3.5" />Malzeme ekle</button>
+              <button type="button" onClick={() => setRows((cur) => [...cur, { key: `r${++rowSeed}`, materialId: "", quantity: "" }])} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground"><Plus className="h-3.5 w-3.5" />Malzeme ekle</button>
               <div className="flex gap-2">
-                <button type="button" onClick={() => { setEditing(false); setImportNote(null); }} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500">Vazgeç</button>
+                <button type="button" onClick={() => { setEditing(false); setImportNote(null); }} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-muted-foreground">Vazgeç</button>
                 <button type="button" disabled={saving} onClick={() => void save()} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Kaydet</button>
               </div>
             </div>
           </div>
         ) : project.materials.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">Malzeme listesi henüz girilmedi. &quot;Listeyi düzenle&quot; ile katalogdan seçin ya da Excel dosyasını buraya sürükleyin.</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">Malzeme listesi henüz girilmedi. &quot;Listeyi düzenle&quot; ile katalogdan seçin ya da Excel dosyasını buraya sürükleyin.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
-              <thead><tr className="border-b border-slate-100 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <thead><tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <th className="py-2 pr-3">Malzeme</th><th className="px-2 py-2 text-right">Planlanan</th><th className="px-2 py-2 text-right">Proje deposu</th><th className="px-2 py-2 text-right">Kullanılan</th><th className="py-2 pl-2 text-right">Eksik</th>
               </tr></thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {project.materials.map((m: ProjectMaterial) => (
                   <tr key={m.material_id}>
-                    <td className="py-2 pr-3"><MaterialTitle sku={m.sku} name={m.name} spec={m.spec} className="text-sm" />{m.note && <span className="block text-[11px] text-slate-400">{m.note}</span>}</td>
+                    <td className="py-2 pr-3"><MaterialTitle sku={m.sku} name={m.name} spec={m.spec} className="text-sm" />{m.note && <span className="block text-[11px] text-muted-foreground">{m.note}</span>}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{qty(m.planned_quantity)} {m.unit}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{qty(m.in_depot)}</td>
                     <td className="px-2 py-2 text-right tabular-nums">{qty(m.used)}</td>
-                    <td className={`py-2 pl-2 text-right tabular-nums ${Number(m.missing) > 0 ? "font-semibold text-red-700" : "text-slate-400"}`}>{qty(m.missing)}</td>
+                    <td className={`py-2 pl-2 text-right tabular-nums ${Number(m.missing) > 0 ? "font-semibold text-red-700" : "text-muted-foreground"}`}>{qty(m.missing)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -398,7 +398,7 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
           </div>
         )}
         {!editing && editable && (
-          <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">
+          <p className="mt-3 rounded-lg bg-primary/5 px-3 py-2 text-xs text-primary">
             Malzemeyi projeye ayırmak için <Link href="/manager/depo-stok" className="font-semibold underline">Depo &amp; Stok → Aktarım</Link> ekranında &quot;Nereye&quot; olarak <b>Proje · {project.name}</b> deposunu seçin. Proje bitince kalan malzeme aynı yoldan ana depoya iade edilir.
           </p>
         )}
@@ -442,8 +442,8 @@ function LinkWorkOrderDialog({ project, onClose, onChanged }: {
           <Button asChild variant="outline" className="justify-start">
             <Link href={`/manager/is-emirleri/yeni?proje=${project.id}`}><Plus />Yeni iş emri aç<span className="ml-auto text-xs font-normal text-muted-foreground">montaj, arıza, tadilat</span></Link>
           </Button>
-          <p className="pt-1 text-xs font-semibold text-slate-600">Ya da bu mağazanın açık bir iş emrini seçin</p>
-          {rows !== null && rows.length === 0 && !error && <p className="text-slate-500">Bağlanabilecek açık iş emri yok.</p>}
+          <p className="pt-1 text-xs font-semibold text-muted-foreground">Ya da bu mağazanın açık bir iş emrini seçin</p>
+          {rows !== null && rows.length === 0 && !error && <p className="text-muted-foreground">Bağlanabilecek açık iş emri yok.</p>}
           {rows && rows.length > 0 && (
             <ul className="space-y-1.5">
               {rows.map((wo) => (
@@ -451,27 +451,27 @@ function LinkWorkOrderDialog({ project, onClose, onChanged }: {
                   <label className={`flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2 ${choice === wo.id ? "border-primary bg-primary/5" : "hover:bg-accent"}`}>
                     <input type="radio" name="work-order" value={wo.id} checked={choice === wo.id} onChange={() => setChoice(wo.id)} className="mt-1 accent-[hsl(var(--primary))]" />
                     <span className="min-w-0">
-                      <span className="block truncate font-medium text-slate-900">{wo.title}</span>
-                      <span className="block text-[11px] text-slate-500">{wo.work_type_label} · {wo.assigned_to_name ?? "Atanmadı"} · {formatServerDate(wo.created_at)}</span>
+                      <span className="block truncate font-medium text-foreground">{wo.title}</span>
+                      <span className="block text-[11px] text-muted-foreground">{wo.work_type_label} · {wo.assigned_to_name ?? "Atanmadı"} · {formatServerDate(wo.created_at)}</span>
                     </span>
                   </label>
                 </li>
               ))}
             </ul>
           )}
-          {choice && <p className="text-[11px] text-slate-500">Bağlanınca işin malzemesi proje deposundan düşer; arıza/bakım işlerinin malzeme tutarı gerçekleşen maliyete otomatik eklenir.</p>}
+          {choice && <p className="text-[11px] text-muted-foreground">Bağlanınca işin malzemesi proje deposundan düşer; arıza/bakım işlerinin malzeme tutarı gerçekleşen maliyete otomatik eklenir.</p>}
           {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
           <div className="border-t pt-3">
-            <p className="text-xs font-semibold text-slate-600">Bu projeye bağlı iş emirleri ({project.work_orders.length})</p>
-            {project.work_orders.length === 0 ? <p className="mt-1.5 text-slate-500">Henüz bağlı iş emri yok.</p> : (
-              <ul className="mt-1.5 divide-y divide-slate-100 rounded-xl border border-slate-200">
+            <p className="text-xs font-semibold text-muted-foreground">Bu projeye bağlı iş emirleri ({project.work_orders.length})</p>
+            {project.work_orders.length === 0 ? <p className="mt-1.5 text-muted-foreground">Henüz bağlı iş emri yok.</p> : (
+              <ul className="mt-1.5 divide-y divide-border rounded-xl border border-border">
                 {project.work_orders.map((wo) => {
                   const status = normalizeStatus(wo.status);
                   return (
                     <li key={wo.id}>
-                      <Link href={`/manager/is-emirleri/${wo.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50">
+                      <Link href={`/manager/is-emirleri/${wo.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-accent">
                         <Badge variant={wo.work_type === "project" ? "muted" : "warning"} className="shrink-0">{wo.work_type_label}</Badge>
-                        <span className="min-w-0 flex-1 truncate text-slate-900">{wo.title}</span>
+                        <span className="min-w-0 flex-1 truncate text-foreground">{wo.title}</span>
                         <Badge variant={WO_STATUS_BADGE[status] ?? "info"} className="shrink-0">{STATUS_LABEL[status]}</Badge>
                       </Link>
                     </li>
@@ -581,15 +581,15 @@ export default function ProjectDetailPage() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-950">{project.name}</h1>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${project.status === "active" ? "bg-blue-50 text-blue-700" : project.status === "completed" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{PROJECT_STATUS_LABEL[project.status]}</span>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{project.name}</h1>
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${project.status === "active" ? "bg-primary/5 text-primary" : project.status === "completed" ? "bg-emerald-50 text-emerald-700" : "bg-muted text-muted-foreground"}`}>{PROJECT_STATUS_LABEL[project.status]}</span>
           </div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             {project.store ? <Link href={`${inUserPanel ? "/user" : "/manager"}/magaza-karti/${project.store.id}`} className="hover:underline">{project.store.name}{project.store.no ? ` · ${project.store.no}` : ""}</Link> : "Yer bilgisi yok"}
             {project.manager_name ? ` · Sorumlu: ${project.manager_name}` : ""}
           </p>
-          {project.description && <p className="mt-2 max-w-3xl text-sm text-slate-600">{project.description}</p>}
-          {project.production_numbers.length > 0 && <p className="mt-2 text-xs text-slate-500">Üretim no: <span className="font-semibold tabular-nums text-slate-700">{project.production_numbers.map((n) => n.number).join(", ")}</span></p>}
+          {project.description && <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{project.description}</p>}
+          {project.production_numbers.length > 0 && <p className="mt-2 text-xs text-muted-foreground">Üretim no: <span className="font-semibold tabular-nums text-foreground">{project.production_numbers.map((n) => n.number).join(", ")}</span></p>}
         </div>
         {editable && (
           <div className="flex flex-wrap items-center gap-2">
@@ -628,7 +628,7 @@ export default function ProjectDetailPage() {
               <Card key={tile.label}>
                 <CardContent className="px-4 py-3.5">
                   <p className={TXT.label}>{tile.label}</p>
-                  <p className="mt-1 truncate text-base font-semibold tabular-nums text-slate-900">{tile.value}</p>
+                  <p className="mt-1 truncate text-base font-semibold tabular-nums text-foreground">{tile.value}</p>
                 </CardContent>
               </Card>
             ))}
@@ -707,10 +707,10 @@ export default function ProjectDetailPage() {
 // ── Özet sekmesinin tek yazı ölçeği ─────────────────────────────────────────
 // Başlık 14 px kalın · etiket 12 px gri · değer 14 px yarı kalın · ikincil bilgi 12 px gri · etiket çipi 12 px.
 const TXT = {
-  title: "text-sm font-semibold text-slate-900",
-  label: "text-xs font-medium text-slate-500",
-  value: "text-sm font-semibold text-slate-900",
-  meta: "text-xs text-slate-500",
+  title: "text-sm font-semibold text-foreground",
+  label: "text-xs font-medium text-muted-foreground",
+  value: "text-sm font-semibold text-foreground",
+  meta: "text-xs text-muted-foreground",
   chip: "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
 };
 
@@ -805,13 +805,13 @@ function StageTrack({ phases }: { phases: PhaseView[] }) {
         const done = phase.steps.filter((s) => s.status === "completed").length;
         return (
           <li key={phase.code} aria-current={phase.status === "in_progress" ? "step" : undefined}
-            className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 ${phase.status === "completed" ? "border-emerald-200 bg-emerald-50/60" : phase.status === "in_progress" ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"}`}>
+            className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 ${phase.status === "completed" ? "border-emerald-200 bg-emerald-50/60" : phase.status === "in_progress" ? "border-blue-300 bg-primary/5" : "border-border bg-card"}`}>
             <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${BALLOON[phase.status]}`}>
               {phase.status === "completed" ? <Check className="h-3.5 w-3.5" /> : phase.order}
             </span>
             <span className="min-w-0">
-              <span className={`block truncate text-sm font-medium ${phase.status === "in_progress" ? "text-blue-900" : "text-slate-800"}`}>{phase.name}</span>
-              <span className={`block text-xs ${phase.late ? "font-medium text-red-700" : "text-slate-500"}`}>
+              <span className={`block truncate text-sm font-medium ${phase.status === "in_progress" ? "text-blue-900" : "text-foreground"}`}>{phase.name}</span>
+              <span className={`block text-xs ${phase.late ? "font-medium text-red-700" : "text-muted-foreground"}`}>
                 {phase.steps.length > 1 ? `${done}/${phase.steps.length} adım` : phase.status === "completed" ? "Tamamlandı" : phase.status === "in_progress" ? "Devam ediyor" : "Başlamadı"}{phase.late ? " · gecikti" : ""}
               </span>
             </span>
@@ -886,7 +886,7 @@ function ChecklistTemplatesDialog({ initialCode, onClose, onSaved }: { initialCo
         <nav aria-label="Adımlar" className="flex flex-col gap-0.5 border-b p-3 sm:border-b-0 sm:border-r">
           {(stages ?? []).map((stage) => (
             <button key={stage.code} type="button" onClick={() => setActive(stage.code)} aria-current={stage.code === active ? "true" : undefined}
-              className={cn("flex items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm", stage.code === active ? "bg-primary/10 font-semibold text-primary" : "text-slate-700 hover:bg-muted")}>
+              className={cn("flex items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm", stage.code === active ? "bg-primary/10 font-semibold text-primary" : "text-foreground hover:bg-muted")}>
               <span className="min-w-0 truncate">{stage.name}</span>
               <span className="shrink-0 text-xs text-muted-foreground">{(draft[stage.code] ?? []).length}</span>
             </button>
@@ -930,11 +930,11 @@ function StageEventsDialog({ projectId, onClose }: { projectId: string; onClose:
           ) : rows.length === 0 ? (
             <p className={`py-10 text-center ${TXT.meta}`}>Henüz kayıt yok.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-border">
               {rows.map((row) => (
                 <li key={row.id} className="px-5 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-slate-900">
+                    <span className="text-sm font-medium text-foreground">
                       <Badge variant={row.event === "completed" ? "success" : row.event === "approval_rejected" ? "destructive" : "muted"} className="mr-2">{row.event_label}</Badge>
                       {row.phase_name && row.phase_name !== row.stage_name ? `${row.phase_name} · ` : ""}{row.stage_name}
                     </span>
@@ -969,7 +969,7 @@ function WorkOrdersCard({ project, inUserPanel }: { project: ProjectDetail; inUs
       {project.work_orders.length === 0 ? (
         <p className={`px-5 py-6 text-center ${TXT.meta}`}>Projeye bağlı iş emri yok.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-border">
           {project.work_orders.map((wo) => {
             const status = normalizeStatus(wo.status);
             return (
@@ -977,7 +977,7 @@ function WorkOrdersCard({ project, inUserPanel }: { project: ProjectDetail; inUs
                 <Link href={`${inUserPanel ? "/user/islerim" : "/manager/is-emirleri"}/${wo.id}`} className="block px-5 py-3 hover:bg-muted/50">
                   <div className="flex min-w-0 items-center gap-2">
                     <Badge variant={wo.work_type === "project" ? "muted" : "warning"} className="shrink-0">{wo.work_type_label}</Badge>
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{wo.title}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{wo.title}</span>
                     <Badge variant={WO_STATUS_BADGE[status] ?? "info"} className="shrink-0">{STATUS_LABEL[status]}</Badge>
                   </div>
                   <p className={cn("mt-1 truncate", TXT.meta)}>
@@ -1033,7 +1033,7 @@ function MembersSummary({ project, onEdit }: { project: ProjectDetail; onEdit?: 
       {project.members.length === 0 ? (
         <p className={`px-5 py-6 text-center ${TXT.meta}`}>Projeye atanan kişi yok.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-border">
           {[...project.members]
             .sort((a, b) => Number(b.id === project.manager_user_id) - Number(a.id === project.manager_user_id))
             .map((member) => {
@@ -1041,11 +1041,11 @@ function MembersSummary({ project, onEdit }: { project: ProjectDetail; onEdit?: 
               const steps = project.stages.filter((s) => s.responsible_user_id === member.id);
               return (
                 <li key={member.id} className="flex items-center gap-3 px-5 py-3">
-                  <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-slate-600">
+                  <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
                     {initials(member.name)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-900">{member.name}</p>
+                    <p className="truncate text-sm font-medium text-foreground">{member.name}</p>
                     <p className={cn("truncate", TXT.meta)}>{steps.length ? `Sorumlu: ${steps.map((s) => s.name).join(", ")}` : "Adım sorumluluğu yok"}</p>
                   </div>
                   <Badge variant={isManager ? "info" : "muted"} className="shrink-0">{isManager ? "Proje sorumlusu" : "Atanan"}</Badge>
@@ -1067,10 +1067,10 @@ function AllDocumentsDialog({ project, onClose }: { project: ProjectDetail; onCl
   return (
     <ModalShell title={`Belgeler (${project.documents.length})`} description="Projenin tüm dosyaları, aşamaya göre." onClose={onClose} className="sm:max-w-2xl">
         <div className="flex flex-col gap-4 px-5 py-4">
-          {groups.length === 0 ? <p className="py-6 text-center text-sm text-slate-500">Henüz belge yüklenmedi. Dosyalar Aşamalar sekmesinde ilgili aşamaya yüklenir.</p> : groups.map((group) => (
+          {groups.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">Henüz belge yüklenmedi. Dosyalar Aşamalar sekmesinde ilgili aşamaya yüklenir.</p> : groups.map((group) => (
             <section key={group.key}>
-              <p className="text-xs font-semibold text-slate-600">{group.title} <span className="font-normal text-slate-400">({group.docs.length})</span></p>
-              <ul className="divide-y divide-slate-100">{group.docs.map((doc) => <DocumentRow key={doc.id} doc={doc} />)}</ul>
+              <p className="text-xs font-semibold text-muted-foreground">{group.title} <span className="font-normal text-muted-foreground">({group.docs.length})</span></p>
+              <ul className="divide-y divide-border">{group.docs.map((doc) => <DocumentRow key={doc.id} doc={doc} />)}</ul>
             </section>
           ))}
         </div>

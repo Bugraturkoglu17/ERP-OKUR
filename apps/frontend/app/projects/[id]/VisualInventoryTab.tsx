@@ -97,7 +97,7 @@ function PhotoCard({
       <button
         type="button"
         onClick={onClick}
-        className="group absolute inset-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-left transition-all hover:border-blue-300 hover:shadow-md"
+        className="group absolute inset-0 overflow-hidden rounded-xl border border-border bg-muted/50 text-left transition-all hover:border-blue-300 hover:shadow-md"
       >
         {url && isImage && !imgErr ? (
           <img
@@ -108,7 +108,7 @@ function PhotoCard({
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <ImageIcon className="h-8 w-8 text-slate-300" />
+            <ImageIcon className="h-8 w-8 text-muted-foreground/60" />
           </div>
         )}
 
@@ -319,13 +319,13 @@ export default function VisualInventoryTab({
       <div className="flex items-center gap-2 flex-wrap">
         {usedCategories.length > 0 && (
           <>
-            <Filter className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <button
               onClick={() => setFilterCategory("all")}
               className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                 filterCategory === "all"
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                  ? "bg-primary text-white border-primary"
+                  : "bg-card text-muted-foreground border-border hover:border-border"
               }`}
             >
               Tümü <span className="ml-0.5 opacity-70">({docs.length})</span>
@@ -338,8 +338,8 @@ export default function VisualInventoryTab({
                   onClick={() => setFilterCategory(cat)}
                   className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                     filterCategory === cat
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                      ? "bg-primary text-white border-primary"
+                      : "bg-card text-muted-foreground border-border hover:border-border"
                   }`}
                 >
                   {getCategoryLabel(cat)} <span className="ml-0.5 opacity-70">({count})</span>
@@ -357,13 +357,13 @@ export default function VisualInventoryTab({
       {filteredDocs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Camera className="h-10 w-10 text-slate-200" />
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted-foreground">
             {docs.length === 0
               ? "Bu mağazaya ait görsel bulunmuyor."
               : "Bu kategoride görsel yok."}
           </p>
           {docs.length === 0 && (
-            <p className="text-xs text-slate-300">Görseller Genel Arşiv üzerinden bu sekmeye taşınabilir.</p>
+            <p className="text-xs text-muted-foreground/60">Görseller Genel Arşiv üzerinden bu sekmeye taşınabilir.</p>
           )}
         </div>
       ) : (

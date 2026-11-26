@@ -57,9 +57,9 @@ function getWorkInfo(paymentType: string): WorkInfo {
   }
   return {
     label:    "Hakkediş",
-    badge:    "bg-slate-100 text-slate-600",
+    badge:    "bg-muted text-muted-foreground",
     btnLabel: "Modüle Git",
-    btnCls:   "text-slate-600 border-slate-200 bg-slate-50 hover:bg-slate-100",
+    btnCls:   "text-muted-foreground border-border bg-muted/50 hover:bg-accent",
     route:    "/",
   };
 }
@@ -67,18 +67,18 @@ function getWorkInfo(paymentType: string): WorkInfo {
 // ── Yardımcılar ───────────────────────────────────────────────────────────────
 
 const APPROVAL_STATUS: Record<string, { label: string; icon: typeof CheckCircle2; cls: string }> = {
-  draft:              { label: "Taslak",                     icon: Clock,        cls: "bg-slate-50 text-slate-600"    },
+  draft:              { label: "Taslak",                     icon: Clock,        cls: "bg-muted/50 text-muted-foreground"    },
   internal_pending:   { label: "İç Onay Bekliyor",           icon: Clock,        cls: "bg-amber-50 text-amber-700"    },
   pending:            { label: "İç Onay Bekliyor",           icon: Clock,        cls: "bg-amber-50 text-amber-700"    },
   bekliyor:           { label: "İç Onay Bekliyor",           icon: Clock,        cls: "bg-amber-50 text-amber-700"    },
-  internal_approved:  { label: "İç Onay Alındı",             icon: CheckCircle2, cls: "bg-blue-50 text-blue-700"      },
+  internal_approved:  { label: "İç Onay Alındı",             icon: CheckCircle2, cls: "bg-primary/5 text-primary"      },
   migros_pending:     { label: "Migros Onayı Bekleniyor",    icon: Clock,        cls: "bg-indigo-50 text-indigo-700"  },
   migros_approved:    { label: "Migros Onayı Verildi",       icon: CheckCircle2, cls: "bg-teal-50 text-teal-700"      },
   invoice_stage:      { label: "Faturalandırma Aşamasında",  icon: Clock,        cls: "bg-emerald-50 text-emerald-700"},
   invoiced:           { label: "Faturalandırıldı",           icon: CheckCircle2, cls: "bg-green-100 text-green-800"   },
   revision_requested: { label: "Revizyon İstendi",           icon: Clock,        cls: "bg-purple-50 text-purple-700"  },
   rejected:           { label: "Reddedildi",                 icon: XCircle,      cls: "bg-red-50 text-red-700"        },
-  onaylandi:          { label: "İç Onay Alındı",             icon: CheckCircle2, cls: "bg-blue-50 text-blue-700"      },
+  onaylandi:          { label: "İç Onay Alındı",             icon: CheckCircle2, cls: "bg-primary/5 text-primary"      },
   reddedildi:         { label: "Reddedildi",                 icon: XCircle,      cls: "bg-red-50 text-red-700"        },
   revizyon:           { label: "Revizyon İstendi",           icon: Clock,        cls: "bg-purple-50 text-purple-700"  },
 };
@@ -137,13 +137,13 @@ export default function HakkedisTab({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-slate-800">Hakkedişler<InfoHint text="Mağazaya ait tüm modüllerden hakkediş kayıtları" /></h3>
+        <h3 className="text-sm font-semibold text-foreground">Hakkedişler<InfoHint text="Mağazaya ait tüm modüllerden hakkediş kayıtları" /></h3>
       </div>
 
       {/* Read-only banner */}
-      <div className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <AlertCircle className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-        <p className="text-xs text-slate-500">
+      <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3">
+        <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground">
           Bu alan sadece görüntüleme içindir. Hakkediş yükleme ve düzenleme işlemleri ilgili modülden yapılır.
           Her kaydın yanındaki butona tıklayarak ilgili modüle gidebilirsiniz.
         </p>
@@ -152,13 +152,13 @@ export default function HakkedisTab({ projectId }: { projectId: string }) {
       {payments.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "Toplam Kayıt",     value: payments.length,                                               color: "text-slate-700" },
+            { label: "Toplam Kayıt",     value: payments.length,                                               color: "text-foreground" },
             { label: "Onay Bekliyor",    value: payments.filter(p => p.approval_status === "pending").length,  color: "text-amber-600" },
             { label: "Onaylanan Toplam", value: fmtTRY(totalApproved),                                         color: "text-green-600" },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-slate-100 bg-white p-3 text-center">
+            <div key={s.label} className="rounded-xl border border-border bg-card p-3 text-center">
               <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">{s.label}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
@@ -166,13 +166,13 @@ export default function HakkedisTab({ projectId }: { projectId: string }) {
 
       {loading ? (
         <div className="flex justify-center py-10">
-          <div className="h-5 w-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+          <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </div>
       ) : payments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 gap-3 rounded-2xl border border-dashed border-slate-200">
+        <div className="flex flex-col items-center justify-center py-12 gap-3 rounded-xl border border-dashed border-border">
           <Receipt className="h-8 w-8 text-slate-200" />
-          <p className="text-sm font-medium text-slate-500">Hakkediş kaydı yok</p>
-          <p className="text-xs text-slate-400">Hakkediş eklemek için Bakım, Tadilat veya Yeni Yapım modülünü kullanın.</p>
+          <p className="text-sm font-medium text-muted-foreground">Hakkediş kaydı yok</p>
+          <p className="text-xs text-muted-foreground">Hakkediş eklemek için Bakım, Tadilat veya Yeni Yapım modülünü kullanın.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -181,9 +181,9 @@ export default function HakkedisTab({ projectId }: { projectId: string }) {
             const Icon = st.icon;
             const wi   = getWorkInfo(p.payment_type);
             return (
-              <div key={p.id} className="rounded-xl border border-slate-100 bg-white p-4">
+              <div key={p.id} className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/5">
                     <Receipt className="h-4 w-4 text-blue-500" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -193,7 +193,7 @@ export default function HakkedisTab({ projectId }: { projectId: string }) {
                         {wi.label}
                       </span>
                       {p.period && (
-                        <span className="text-[11px] text-slate-400 font-mono bg-slate-50 px-1.5 py-0.5 rounded">
+                        <span className="text-[11px] text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded">
                           {p.period}
                         </span>
                       )}
@@ -203,31 +203,31 @@ export default function HakkedisTab({ projectId }: { projectId: string }) {
                         <Icon className="h-3 w-3" /> {st.label}
                       </span>
                       {p.amount != null && (
-                        <span className="text-xs font-bold text-slate-700">{fmtTRY(p.amount, p.currency)}</span>
+                        <span className="text-xs font-bold text-foreground">{fmtTRY(p.amount, p.currency)}</span>
                       )}
                     </div>
                     {p.file_name && (
                       <div className="flex items-center gap-1 mt-1.5">
-                        <Paperclip className="h-3 w-3 text-slate-300" />
-                        <span className="text-[11px] text-slate-400 truncate max-w-[200px]">{p.file_name}</span>
+                        <Paperclip className="h-3 w-3 text-muted-foreground/60" />
+                        <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">{p.file_name}</span>
                       </div>
                     )}
-                    {p.description && <p className="text-[11px] text-slate-500 italic mt-1">{p.description}</p>}
-                    <p className="text-[10px] text-slate-400 mt-1.5">
+                    {p.description && <p className="text-[11px] text-muted-foreground italic mt-1">{p.description}</p>}
+                    <p className="text-[10px] text-muted-foreground mt-1.5">
                       {p.submitted_by_name ?? "—"} · {fmtDate(p.created_at)}
                     </p>
                   </div>
                   <div className="flex flex-col gap-1.5 shrink-0">
                     {p.file_url && (
                       <button onClick={() => handleOpen(p)} disabled={opening === p.id}
-                        className="flex items-center gap-1 text-[11px] text-slate-600 border border-slate-200 rounded-lg px-2 py-1 hover:bg-slate-50 disabled:opacity-50">
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground border border-border rounded-lg px-2 py-1 hover:bg-accent disabled:opacity-50">
                         {opening === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
                         Aç
                       </button>
                     )}
                     {p.file_url && (
                       <button onClick={() => handleOpen(p)} disabled={opening === p.id}
-                        className="flex items-center gap-1 text-[11px] text-blue-600 border border-blue-100 rounded-lg px-2 py-1 hover:bg-blue-50 disabled:opacity-50">
+                        className="flex items-center gap-1 text-[11px] text-primary border border-primary/20 rounded-lg px-2 py-1 hover:bg-primary/5 disabled:opacity-50">
                         <Download className="h-3.5 w-3.5" /> İndir
                       </button>
                     )}

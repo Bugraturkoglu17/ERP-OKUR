@@ -28,13 +28,13 @@ export function DocumentRow({ doc, stageName, onDelete }: { doc: ProjectDocument
   const Icon = isImage(doc) ? ImageIcon : FileText;
   return (
     <li className="flex items-center gap-3 py-2.5">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><Icon className="h-4 w-4" /></span>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Icon className="h-4 w-4" /></span>
       <div className="min-w-0 flex-1">
         {doc.url
-          ? <a href={doc.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-medium text-blue-700 hover:underline">{doc.file_name}</a>
-          : <p className="truncate text-sm font-medium text-slate-900">{doc.file_name}</p>}
-        <p className="truncate text-[11px] text-slate-500">
-          <span className="mr-1.5 rounded bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-600">{doc.doc_type_label}</span>
+          ? <a href={doc.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-medium text-primary hover:underline">{doc.file_name}</a>
+          : <p className="truncate text-sm font-medium text-foreground">{doc.file_name}</p>}
+        <p className="truncate text-[11px] text-muted-foreground">
+          <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 font-semibold text-muted-foreground">{doc.doc_type_label}</span>
           {stageName ? `${stageName} · ` : ""}{doc.uploaded_by_name ?? "—"} · {formatServerDateTime(doc.uploaded_at)}
         </p>
       </div>
@@ -122,28 +122,28 @@ export function StageFiles({ project, stage, canUpload, invoiceOnly = false, can
 
   return (
     <div className="relative">
-      {busy && pending === null && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/70"><Loader2 className="h-5 w-5 animate-spin text-slate-500" /></div>}
+      {busy && pending === null && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/70"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-slate-600">Dosyalar{docs.length ? ` (${docs.length})` : ""}</p>
+        <p className="text-xs font-semibold text-muted-foreground">Dosyalar{docs.length ? ` (${docs.length})` : ""}</p>
       </div>
       {canUpload && (
         <button type="button" onClick={() => inputRef.current?.click()}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); choose(e.dataTransfer.files); }}
-          className={`mt-2 flex w-full items-center gap-3 rounded-xl border border-dashed px-4 py-3.5 text-left transition ${dragOver ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-slate-50/60 hover:border-blue-400 hover:bg-blue-50/40"}`}>
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm ring-1 ring-slate-200"><UploadCloud className="h-5 w-5" /></span>
+          className={`mt-2 flex w-full items-center gap-3 rounded-xl border border-dashed px-4 py-3.5 text-left transition ${dragOver ? "border-primary bg-primary/5" : "border-border bg-slate-50/60 hover:border-blue-400 hover:bg-blue-50/40"}`}>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card text-primary shadow-sm ring-1 ring-slate-200"><UploadCloud className="h-5 w-5" /></span>
           <span className="min-w-0">
-            <span className="block text-sm font-semibold text-slate-900">Dosya yükle</span>
-            <span className="block text-[11px] text-slate-500">Tıklayın veya sürükleyip bırakın · PDF, görsel, DWG, Word, Excel · en fazla 25 MB</span>
+            <span className="block text-sm font-semibold text-foreground">Dosya yükle</span>
+            <span className="block text-[11px] text-muted-foreground">Tıklayın veya sürükleyip bırakın · PDF, görsel, DWG, Word, Excel · en fazla 25 MB</span>
           </span>
         </button>
       )}
       <input ref={inputRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => { choose(e.target.files); e.target.value = ""; }} />
       {docs.length === 0 ? (
-        <p className="mt-2 text-xs text-slate-400">Bu adıma henüz dosya yüklenmedi.</p>
+        <p className="mt-2 text-xs text-muted-foreground">Bu adıma henüz dosya yüklenmedi.</p>
       ) : (
-        <ul className="mt-1 divide-y divide-slate-100">
+        <ul className="mt-1 divide-y divide-border">
           {docs.map((doc) => <DocumentRow key={doc.id} doc={doc} onDelete={canDelete ? () => void remove(doc) : undefined} />)}
         </ul>
       )}
