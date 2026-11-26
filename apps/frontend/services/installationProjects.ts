@@ -150,6 +150,16 @@ export const saveProjectCosts = (id: string, kind: CostKind, items: { category: 
   apiPut<ProjectCosts>(`${BASE}/${id}/costs`, { kind, items });
 export const deleteProjectDocument = (documentId: string) => apiDelete(`${BASE}/documents/${documentId}`);
 export const getProjectStageEvents = (id: string) => apiGet<StageEvent[]>(`${BASE}/${id}/stage-events`);
+
+/** Firma kontrol listesi şablonu: adım başına maddeler (yalnız yönetici düzenler). */
+export type ChecklistTemplateStage = { code: string; name: string; phase_name: string; items: { id: string; label: string }[] };
+export const getChecklistTemplates = () => apiGet<{ stages: ChecklistTemplateStage[] }>(`${BASE}/checklist-templates`);
+/** Kaydedince devam eden projelerin tamamlanmamış adımları da güncellenir. id'siz madde yenidir. */
+export const saveChecklistTemplates = (stages: Record<string, { id?: string | null; label: string }[]>) =>
+  apiPut<{ updated_stages: number }>(`${BASE}/checklist-templates`, { stages });
+/** Ana aşama termini (yalnız Üretim ve Montaj); boş tarih termini kaldırır. */
+export const setPhaseDue = (projectId: string, phase: string, due: string | null) =>
+  apiPut(`${BASE}/${projectId}/phase-due`, { phase, due });
 export const getLinkableWorkOrders = (id: string) => apiGet<LinkableWorkOrder[]>(`${BASE}/${id}/linkable-work-orders`);
 /** İş emri ↔ proje köprüsü: bağlanınca malzeme proje deposundan düşer. */
 export const linkWorkOrderToProject = (workOrderId: string, projectId: string) =>

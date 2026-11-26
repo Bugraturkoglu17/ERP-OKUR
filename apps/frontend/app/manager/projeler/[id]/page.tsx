@@ -5,8 +5,8 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import {
-  AlertCircle, ArrowRight, Check, CheckCircle2, ChevronRight, Circle, ClipboardList, FileText, History, Link2, Loader2,
-  Package, Plus, X, XCircle,
+  AlertCircle, ArrowDown, ArrowRight, ArrowUp, Check, CheckCircle2, ChevronRight, Circle, ClipboardList, FileText, History, Link2, ListChecks, Loader2,
+  Package, Plus, Trash2, X, XCircle,
 } from "lucide-react";
 import { apiGet, getRequestErrorMessage } from "@/lib/api";
 import { formatQuantity } from "@/lib/quantity";
@@ -32,9 +32,9 @@ import { cn } from "@/lib/utils";
 import { BillingCard, BudgetCard, CostsCard, MemberChecklist, ProductionNumbersCard, RealProfitCard, SalePriceCard, TargetCostsCard } from "@/components/installation-projects/project-extras";
 import { STATUS_LABEL, normalizeStatus } from "@/services/managerWorkOrders";
 import {
-  PROJECT_STATUS_LABEL, addChecklistItem, getLinkableWorkOrders, getProject, getProjectStageEvents,
-  linkWorkOrderToProject, saveProjectMaterials, saveProjectMembers, setChecklistItem, updateProject, updateStage,
-  type LinkableWorkOrder, type ProjectDetail, type ProjectMaterial, type ProjectStage, type StageEvent,
+  PROJECT_STATUS_LABEL, getChecklistTemplates, getLinkableWorkOrders, getProject, getProjectStageEvents,
+  linkWorkOrderToProject, saveChecklistTemplates, saveProjectMaterials, saveProjectMembers, setChecklistItem, setPhaseDue, updateProject, updateStage,
+  type ChecklistTemplateStage, type LinkableWorkOrder, type ProjectDetail, type ProjectMaterial, type ProjectStage, type StageEvent,
 } from "@/services/installationProjects";
 
 type UserRow = { id: string; full_name: string; email: string; is_active: boolean };
@@ -47,8 +47,15 @@ const qty = (value: string | number) => formatQuantity(value);
 
 type PhaseView = { code: string; name: string; order: number; steps: ProjectStage[]; status: "completed" | "in_progress" | "planned"; late: boolean };
 
+// Termin yalnız Üretim ve Montaj ana aşamasındadır; diğer adımların bitişi "Adımı tamamla" anıdır.
+const DUE_PHASE = "uretim_montaj";
 const isLate = (stage: ProjectStage) =>
-  stage.status !== "completed" && Boolean(stage.planned_end && new Date(stage.planned_end) < new Date(new Date().toDateString()));
+  stage.phase === DUE_PHASE && stage.status !== "completed"
+  && Boolean(stage.planned_end && new Date(stage.planned_end) < new Date(new Date().toDateString()));
+/** Üretim ve Montaj termini (aşamanın adımlarına aynı tarih yazılır). */
+const phaseDue = (project: ProjectDetail) =>
+  project.stages.find((s) => s.phase === DUE_PHASE && s.status !== "completed" && s.planned_end)?.planned_end
+  ?? project.stages.find((s) => s.phase === DUE_PHASE && s.planned_end)?.planned_end ?? null;
 
 /** Ana aşamalar ve adımları: ana aşama, bütün adımları bitince tamamlanmış sayılır. */
 function phasesOf(project: ProjectDetail): PhaseView[] {
@@ -117,18 +124,22 @@ function StepTabs({ steps, selectedId, onSelect }: { steps: ProjectStage[]; sele
   );
 }
 
-function StagePanel({ stage, phase, users, editable, files, onChanged, onError }: {
-  stage: ProjectStage; phase: PhaseView; users: UserRow[]; editable: boolean;
+function StagePanel({ stage, phase, projectId, due, users, editable, files, onChanged, onError }: {
+  stage: ProjectStage; phase: PhaseView; projectId: string;
+  /** Üretim ve Montaj termini (yalnız o ana aşamada gösterilir ve düzenlenir). */
+  due: string | null;
+  users: UserRow[]; editable: boolean;
   /** Aşamanın dosya yükleme alanı ve dosya listesi (sağ sütunda). */
   files?: ReactNode;
   onChanged: () => Promise<void>; onError: (message: string) => void;
 }) {
-  const [newItem, setNewItem] = useState("");
   const [note, setNote] = useState(stage.note ?? "");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setNote(stage.note ?? ""); setNewItem(""); }, [stage.id, stage.note]);
+  useEffect(() => { setNote(stage.note ?? ""); }, [stage.id, stage.note]);
   const locked = !editable || stage.status === "completed";
   const pending = Boolean(stage.approval_requested_at);
+  const hasDue = phase.code === DUE_PHASE;
+  const late = hasDue && isLate(stage);
   // Tarih alanı yazarken her tuşta kaydediyordu; "0002" gibi yarım yıllar kaydedilmesin.
   const validDate = (value: string) => !value || (Number(value.slice(0, 4)) >= 2000 && Number(value.slice(0, 4)) <= 2100);
 
@@ -184,28 +195,29 @@ function StagePanel({ stage, phase, users, editable, files, onChanged, onError }
                 {users.map((u) => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
               </NativeSelect>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`bitis-${stage.id}`} className="text-xs text-muted-foreground">Planlanan bitiş</Label>
-              <Input id={`bitis-${stage.id}`} type="date" disabled={locked || busy} value={stage.planned_end?.slice(0, 10) ?? ""} min="2000-01-01" max="2100-12-31"
-                onChange={(e) => { const v = e.target.value; if (validDate(v)) void run(() => updateStage(stage.id, { planned_end: v || null }), "Tarih kaydedilemedi."); }} />
-            </div>
+            {/* Termin yalnız Üretim ve Montaj'da: aşamanın iki adımına aynı tarih yazılır. Diğer adımlarda bitiş, "Adımı tamamla" anıdır. */}
+            {hasDue && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={`termin-${stage.id}`} className={cn("text-xs", late ? "text-red-700" : "text-muted-foreground")}>Termin (Üretim ve Montaj){late ? " · gecikti" : ""}</Label>
+                <Input id={`termin-${stage.id}`} type="date" disabled={locked || busy} value={due?.slice(0, 10) ?? ""} min="2000-01-01" max="2100-12-31"
+                  onChange={(e) => { const v = e.target.value; if (validDate(v)) void run(() => setPhaseDue(projectId, DUE_PHASE, v || null), "Termin kaydedilemedi."); }} />
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-muted-foreground">Kontrol listesi</p>
-            <ul className="flex flex-col gap-1.5">
-              {stage.checklist.map((item) => (
-                <li key={item.id} className={`flex items-start gap-2.5 rounded-md border px-3 py-2.5 ${item.is_done ? "border-emerald-200 bg-emerald-50/60" : ""}`}>
-                  <Checkbox id={`madde-${item.id}`} disabled={locked || busy} checked={item.is_done} className="mt-0.5"
-                    onCheckedChange={(checked) => void run(() => setChecklistItem(item.id, checked === true), "Madde güncellenemedi.")} />
-                  <Label htmlFor={`madde-${item.id}`} className={`font-normal leading-snug ${item.is_done ? "text-muted-foreground line-through" : ""} ${locked ? "" : "cursor-pointer"}`}>{item.label}</Label>
-                </li>
-              ))}
-            </ul>
-            {!locked && (
-              <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (newItem.trim().length < 2) return; void run(() => addChecklistItem(stage.id, newItem.trim()), "Madde eklenemedi."); }}>
-                <Input value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder="Yeni madde ekle" maxLength={255} aria-label="Yeni kontrol listesi maddesi" />
-                <Button type="submit" variant="outline" size="icon" disabled={busy || newItem.trim().length < 2} aria-label="Maddeyi ekle"><Plus /></Button>
-              </form>
+            <p className="text-xs font-medium text-muted-foreground">Kontrol listesi <span className="text-red-600">· zorunlu</span></p>
+            {stage.checklist.length === 0 ? (
+              <p className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">Bu adımda kontrol maddesi yok.</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {stage.checklist.map((item) => (
+                  <li key={item.id} className={`flex items-start gap-2.5 rounded-md border px-3 py-2.5 ${item.is_done ? "border-emerald-200 bg-emerald-50/60" : ""}`}>
+                    <Checkbox id={`madde-${item.id}`} disabled={locked || busy} checked={item.is_done} className="mt-0.5"
+                      onCheckedChange={(checked) => void run(() => setChecklistItem(item.id, checked === true), "Madde güncellenemedi.")} />
+                    <Label htmlFor={`madde-${item.id}`} className={`font-normal leading-snug ${item.is_done ? "text-muted-foreground line-through" : ""} ${locked ? "" : "cursor-pointer"}`}>{item.label}</Label>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
@@ -414,6 +426,7 @@ export default function ProjectDetailPage() {
   const [docsOpen, setDocsOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [eventsOpen, setEventsOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   // Girişte Özet açılır; başka sayfadan dönülünce en son bakılan sekme hatırlanır.
   const [view, setView] = useState<"ozet" | "asamalar">("ozet");
   const [loading, setLoading] = useState(true);
@@ -475,7 +488,9 @@ export default function ProjectDetailPage() {
   // Ana aşama seçilince o aşamanın ilk bitmemiş adımı (hepsi bittiyse sonuncusu) açılır.
   const selectPhase = (phase: PhaseView) =>
     selectStage((phase.steps.find((s) => s.status !== "completed") ?? phase.steps[phase.steps.length - 1]).id);
-  const currentLate = Boolean(current?.planned_end && new Date(current.planned_end) < new Date(new Date().toDateString()));
+  // Termin yalnız Üretim ve Montaj'da; Özet'te de o gösterilir.
+  const dueDate = phaseDue(project);
+  const dueLate = project.stages.some(isLate);
   // Kapanmış projede yönetici yalnızca fatura yükleyebilir (Kapanış aşamasında).
   const invoiceOnly = project.can_manage && project.status === "completed";
 
@@ -507,6 +522,7 @@ export default function ProjectDetailPage() {
         {editable && (
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" onClick={() => setLinkOpen(true)}><Link2 />İş emri bağla</Button>
+            <Button size="sm" variant="outline" onClick={() => setTemplatesOpen(true)}><ListChecks />Kontrol listelerini düzenle</Button>
             <Button size="sm" variant="outline" onClick={() => void cancelProject()}><XCircle />Projeyi iptal et</Button>
           </div>
         )}
@@ -515,6 +531,7 @@ export default function ProjectDetailPage() {
       {docsOpen && <AllDocumentsDialog project={project} onClose={() => setDocsOpen(false)} />}
       {membersOpen && <MembersDialog project={project} users={users} onClose={() => setMembersOpen(false)} onChanged={refresh} />}
       {eventsOpen && <StageEventsDialog projectId={project.id} onClose={() => setEventsOpen(false)} />}
+      {templatesOpen && <ChecklistTemplatesDialog initialCode={selected.code} onClose={() => setTemplatesOpen(false)} onSaved={refresh} />}
 
       <Tabs value={view} onValueChange={(value) => switchView(value as "ozet" | "asamalar")}>
         <TabsList aria-label="Proje görünümü">
@@ -557,7 +574,7 @@ export default function ProjectDetailPage() {
                 <Field label="Şu anki aşama" value={current ? `${current.phase_name}${current.phase_name !== current.name ? ` · ${current.name}` : ""}${current.approval_requested_at ? " · onay bekliyor" : ""}`
                   : project.status === "completed" ? `Tamamlandı · ${formatServerDate(project.completed_at)}` : "Tüm aşamalar tamamlandı"} />
                 <Field label="Adım sorumlusu" value={current?.responsible_name ?? "—"} />
-                <Field label="Planlanan bitiş" value={current?.planned_end ? `${formatServerDate(current.planned_end)}${currentLate ? " · gecikti" : ""}` : "—"} tone={currentLate ? "danger" : undefined} />
+                <Field label="Termin (Üretim ve Montaj)" value={dueDate ? `${formatServerDate(dueDate)}${dueLate ? " · gecikti" : ""}` : "—"} tone={dueLate ? "danger" : undefined} />
                 <Field label="Proje türü" value={project.project_type_label} />
               </dl>
               <StageTrack phases={phases} />
@@ -576,7 +593,7 @@ export default function ProjectDetailPage() {
       <PhaseStrip phases={phases} selectedCode={selectedPhase.code} onSelect={selectPhase} />
       <StepTabs steps={selectedPhase.steps} selectedId={selected.id} onSelect={selectStage} />
 
-      <StagePanel stage={selected} phase={selectedPhase} users={users} editable={editable} onChanged={refresh} onError={setError}
+      <StagePanel stage={selected} phase={selectedPhase} projectId={project.id} due={dueDate} users={users} editable={editable} onChanged={refresh} onError={setError}
         files={
           <StageFiles project={project} stage={selected}
             canUpload={editable || (invoiceOnly && selected.code === "kapanis")}
@@ -730,6 +747,96 @@ function StageTrack({ phases }: { phases: PhaseView[] }) {
         );
       })}
     </ol>
+  );
+}
+
+type TemplateDraftItem = { key: number; id: string | null; label: string };
+let templateKey = 0;
+
+/**
+ * "Kontrol listelerini düzenle" (yalnız yönetici): firmanın adım başına kontrol listesi şablonu.
+ * Soldan adım seçilir, sağda maddeler yazılır / sıralanır / silinir / eklenir; tek "Kaydet" tüm adımları
+ * firmaya kaydeder ve devam eden projelerin tamamlanmamış adımları da güncellenir.
+ */
+function ChecklistTemplatesDialog({ initialCode, onClose, onSaved }: { initialCode: string; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [stages, setStages] = useState<ChecklistTemplateStage[] | null>(null);
+  const [draft, setDraft] = useState<Record<string, TemplateDraftItem[]>>({});
+  const [active, setActive] = useState(initialCode);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getChecklistTemplates()
+      .then(({ stages: rows }) => {
+        setStages(rows);
+        setDraft(Object.fromEntries(rows.map((s) => [s.code, s.items.map((i) => ({ key: ++templateKey, id: i.id, label: i.label }))])));
+        if (!rows.some((s) => s.code === initialCode) && rows[0]) setActive(rows[0].code);
+      })
+      .catch((reason) => setError(getRequestErrorMessage(reason, "Kontrol listeleri yüklenemedi.")))
+      .finally(() => setBusy(false));
+  }, [initialCode]);
+
+  const items = draft[active] ?? [];
+  const update = (next: TemplateDraftItem[]) => setDraft((cur) => ({ ...cur, [active]: next }));
+  const move = (index: number, delta: number) => {
+    const next = [...items];
+    const [row] = next.splice(index, 1);
+    next.splice(index + delta, 0, row);
+    update(next);
+  };
+
+  async function save() {
+    for (const stage of stages ?? []) {
+      const rows = (draft[stage.code] ?? []).filter((row) => row.label.trim());
+      if (rows.some((row) => row.label.trim().length < 2)) { setError(`${stage.name}: maddeler en az 2 karakter olmalı.`); setActive(stage.code); return; }
+      const labels = rows.map((row) => row.label.trim().toLocaleLowerCase("tr-TR"));
+      if (new Set(labels).size !== labels.length) { setError(`${stage.name}: aynı madde iki kez yazılmış.`); setActive(stage.code); return; }
+    }
+    setBusy(true); setError("");
+    try {
+      await saveChecklistTemplates(Object.fromEntries((stages ?? []).map((stage) => [
+        stage.code, (draft[stage.code] ?? []).filter((row) => row.label.trim()).map((row) => ({ id: row.id, label: row.label.trim() })),
+      ])));
+      await onSaved();
+      onClose();
+    } catch (reason) { setError(getRequestErrorMessage(reason, "Kontrol listeleri kaydedilemedi.")); setBusy(false); }
+  }
+
+  return (
+    <ModalShell title="Kontrol listeleri (firma şablonu)" description="Kaydedince tüm firmada geçerli olur; devam eden projelerin tamamlanmamış adımları da güncellenir."
+      busy={busy} onClose={onClose} className="sm:max-w-3xl"
+      footer={<>
+        <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>Vazgeç</Button>
+        <Button size="sm" onClick={() => void save()} disabled={busy || !stages}>Kaydet</Button>
+      </>}>
+      {error && <Alert variant="destructive" className="m-5 mb-0 w-auto"><AlertDescription>{error}</AlertDescription></Alert>}
+      <div className="grid min-h-[22rem] sm:grid-cols-[13rem_1fr]">
+        <nav aria-label="Adımlar" className="flex flex-col gap-0.5 border-b p-3 sm:border-b-0 sm:border-r">
+          {(stages ?? []).map((stage) => (
+            <button key={stage.code} type="button" onClick={() => setActive(stage.code)} aria-current={stage.code === active ? "true" : undefined}
+              className={cn("flex items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm", stage.code === active ? "bg-primary/10 font-semibold text-primary" : "text-slate-700 hover:bg-muted")}>
+              <span className="min-w-0 truncate">{stage.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{(draft[stage.code] ?? []).length}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="flex flex-col gap-2 p-4">
+          <p className="text-xs font-medium text-muted-foreground">{stages?.find((s) => s.code === active)?.phase_name} · {stages?.find((s) => s.code === active)?.name} — maddeler</p>
+          {items.length === 0 && <p className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">Bu adımda madde yok.</p>}
+          {items.map((row, index) => (
+            <div key={row.key} className="flex items-center gap-1.5">
+              <Input value={row.label} maxLength={255} aria-label={`${index + 1}. madde`} placeholder="Madde"
+                onChange={(e) => update(items.map((item) => item.key === row.key ? { ...item, label: e.target.value } : item))} />
+              <Button variant="ghost" size="icon" aria-label="Yukarı taşı" disabled={index === 0} onClick={() => move(index, -1)}><ArrowUp /></Button>
+              <Button variant="ghost" size="icon" aria-label="Aşağı taşı" disabled={index === items.length - 1} onClick={() => move(index, 1)}><ArrowDown /></Button>
+              <Button variant="ghost" size="icon" aria-label="Maddeyi sil" className="text-muted-foreground hover:text-destructive"
+                onClick={() => update(items.filter((item) => item.key !== row.key))}><Trash2 /></Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" className="self-start" onClick={() => update([...items, { key: ++templateKey, id: null, label: "" }])}><Plus />Madde ekle</Button>
+        </div>
+      </div>
+    </ModalShell>
   );
 }
 

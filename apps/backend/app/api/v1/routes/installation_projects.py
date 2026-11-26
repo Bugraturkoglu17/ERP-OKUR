@@ -31,7 +31,7 @@ from app.services.alerts import manager_ids
 from app.core.notifications import notify
 from app.api.v1.routes.work_orders import WORK_TYPE_LABELS
 from app.db.models import (
-    Customer, InstallationProject, InstallationProjectChecklistItem, InstallationProjectCost,
+    Customer, InstallationChecklistTemplate, InstallationProject, InstallationProjectChecklistItem, InstallationProjectCost,
     InstallationProjectDocument, InstallationProjectMaterial, InstallationProjectMember,
     InstallationProjectProductionNumber, InstallationProjectStage, InstallationProjectStageEvent, Project, Region, RetailBalance,
     RetailDepot, RetailMaterial, RetailMovement, Tenant, User, WorkOrder, utc_now,
@@ -68,7 +68,7 @@ MONTAGE_STAGE = "montaj_test"
 # Ana aşamalar: ekranda üst şerit. Her ana aşama bir veya birkaç adımdan oluşur; adımlar sırayla
 # ve ayrı ayrı tamamlanır, ana aşamanın bütün adımları bitince sonraki ana aşamaya geçilir.
 PHASES: list[tuple[str, str]] = [
-    ("kesif", "Keşif"), ("teklif", "Teklif"), ("uretim_montaj", "Üretim ve montaj"), ("kapanis", "Kapanış"),
+    ("kesif", "Keşif"), ("teklif", "Teklif"), ("uretim_montaj", "Üretim ve Montaj"), ("kapanis", "Kapanış"),
 ]
 PHASE_NAMES = dict(PHASES)
 
@@ -77,14 +77,14 @@ STAGE_TEMPLATE: list[tuple[int, str, str, list[str], tuple[str, ...], list[str]]
     (1, "kesif", "Keşif", ["kesif_raporu", "fotograf"], (),
      ["Yer ölçüleri alındı", "Mevcut durum fotoğraflandı", "Müşteri ihtiyacı not edildi"]),
     # Malzeme listesi "Üretim" adımında girildiği için burada "malzeme listesi girilmiş olmalı" şartı aranmaz.
-    (2, "teklif", "Projelendirme ve teklif", ["teklif"], ("budget_set", "target_costs_set"),
+    (2, "teklif", "Projelendirme ve Teklif", ["teklif"], ("budget_set", "target_costs_set"),
      ["Soğutma ihtiyacı hesaplandı", "Çizim hazırlandı", "Malzeme listesi çıkarıldı", "Teklif hazırlandı"]),
     # Satış fiyatı (müşterinin onayladığı tutar) ve KDV bu adımda girilir.
-    (3, "onay", "Müşteri onayı", ["sozlesme"], ("sale_price_set",),
+    (3, "onay", "Müşteri Onayı", ["sozlesme"], ("sale_price_set",),
      ["Teklif müşteriye iletildi", "Müşteri onayı alındı", "Avans (varsa) alındı"]),
     (4, PRODUCTION_STAGE, "Üretim", [], ("production_number", "materials_ready"),
      ["Eksik malzemeler belirlendi", "Malzemeler proje deposuna aktarıldı"]),
-    (5, MONTAGE_STAGE, "Montaj ve test", ["test_formu"], ("work_orders_done",),
+    (5, MONTAGE_STAGE, "Montaj ve Test", ["test_formu"], ("work_orders_done",),
      ["Ekip ve tarihler planlandı", "Montaj tamamlandı"]),
     (6, "teslim", "Teslim", ["kabul_tutanagi"], (),
      ["Kullanıcı eğitimi verildi", "Son çizimler teslim edildi"]),
@@ -462,6 +462,64 @@ def _status_value(value) -> str:
     return getattr(value, "value", value)
 
 
+# ── Firma kontrol listesi şablonu ────────────────────────────────────────────
+
+async def _templates(db: AsyncSession, tenant_id: UUID) -> dict[str, list[InstallationChecklistTemplate]]:
+    """Firmanın adım başına kontrol listesi şablonu; hiç yoksa varsayılan maddelerle bir kez oluşturulur."""
+    rows = (await db.execute(select(InstallationChecklistTemplate).where(
+        InstallationChecklistTemplate.tenant_id == tenant_id)
+        .order_by(InstallationChecklistTemplate.stage_code, InstallationChecklistTemplate.sort_order))).scalars().all()
+    if not rows:
+        for _order, code, _name, _docs, _rules, checklist in STAGE_TEMPLATE:
+            for index, label in enumerate(checklist):
+                db.add(InstallationChecklistTemplate(tenant_id=tenant_id, stage_code=code, label=label, sort_order=index))
+        await db.flush()
+        return await _templates(db, tenant_id)
+    out: dict[str, list[InstallationChecklistTemplate]] = {code: [] for _o, code, *_ in STAGE_TEMPLATE}
+    for row in rows:
+        out.setdefault(row.stage_code, []).append(row)
+    return out
+
+
+async def _sync_stage_checklist(db: AsyncSession, stage: InstallationProjectStage,
+                                template: list[InstallationChecklistTemplate]) -> None:
+    """Tamamlanmamış adımın kontrol listesini şablona eşitler: işaretli kalan maddeler korunur, yeni madde
+    işaretsiz eklenir, şablondan çıkan madde kaldırılır. Şablona henüz bağlanmamış eski maddeler adıyla eşlenir."""
+    items = (await db.execute(select(InstallationProjectChecklistItem).where(
+        InstallationProjectChecklistItem.stage_id == stage.id))).scalars().all()
+    by_template = {i.template_item_id: i for i in items if i.template_item_id}
+    unlinked = {i.label.strip().casefold(): i for i in items if not i.template_item_id}
+    kept: set[UUID] = set()
+    for tpl in template:
+        item = by_template.get(tpl.id) or unlinked.pop(tpl.label.strip().casefold(), None)
+        if item:
+            item.template_item_id, item.label, item.sort_order = tpl.id, tpl.label, tpl.sort_order
+        else:
+            item = InstallationProjectChecklistItem(stage_id=stage.id, label=tpl.label, sort_order=tpl.sort_order,
+                                                    template_item_id=tpl.id)
+            db.add(item)
+            await db.flush()
+        kept.add(item.id)
+    for item in items:
+        if item.id not in kept:
+            await db.delete(item)
+
+
+class TemplateItem(BaseModel):
+    id: Optional[UUID] = None
+    label: str = SchemaField(min_length=2, max_length=255)
+
+
+class TemplatesSave(BaseModel):
+    # adım kodu → maddeler (sırasıyla)
+    stages: dict[str, list[TemplateItem]] = SchemaField(default_factory=dict)
+
+
+class PhaseDue(BaseModel):
+    phase: str
+    due: Optional[str] = None  # YYYY-AA-GG; boş = termin kaldırılır
+
+
 # ── Aşama kayıt listesi ──────────────────────────────────────────────────────
 
 async def _user_name(db: AsyncSession, user_id: Optional[UUID]) -> Optional[str]:
@@ -788,6 +846,63 @@ async def project_stats(db: AsyncSession = Depends(get_db), user: User = Depends
     }
 
 
+@router.get("/checklist-templates")
+async def get_checklist_templates(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
+    """Firmanın kontrol listesi şablonu (adım sırasıyla)."""
+    _require_manager(user)
+    tenant_id = await _tenant_id(db, user)
+    templates = await _templates(db, tenant_id)
+    await db.commit()
+    return {"stages": [{
+        "code": code, "name": name, "phase_name": PHASE_NAMES[_phase_of(code)],
+        "items": [{"id": t.id, "label": t.label} for t in templates.get(code, [])],
+    } for _order, code, name, *_rest in STAGE_TEMPLATE]}
+
+
+@router.put("/checklist-templates")
+async def save_checklist_templates(body: TemplatesSave, db: AsyncSession = Depends(get_db),
+                                   user: User = Depends(get_current_user)) -> dict:
+    """Şablonu kaydeder (yalnız yönetici) ve devam eden projelerin tamamlanmamış adımlarına uygular."""
+    _require_manager(user)
+    tenant_id = await _tenant_id(db, user)
+    current = await _templates(db, tenant_id)
+    known = {code for _o, code, *_ in STAGE_TEMPLATE}
+    if set(body.stages) - known:
+        raise HTTPException(400, "Geçersiz adım.")
+    now = utc_now()
+    for code, items in body.stages.items():
+        labels = [i.label.strip() for i in items]
+        if len({label.casefold() for label in labels}) != len(labels):
+            raise HTTPException(422, "Aynı adımda aynı madde iki kez yazılamaz.")
+        existing = {t.id: t for t in current.get(code, [])}
+        keep: set[UUID] = set()
+        for index, item in enumerate(items):
+            row = existing.get(item.id) if item.id else None
+            if row:
+                row.label, row.sort_order, row.updated_by, row.updated_at = item.label.strip(), index, user.id, now
+            else:
+                row = InstallationChecklistTemplate(tenant_id=tenant_id, stage_code=code, label=item.label.strip(),
+                                                    sort_order=index, updated_by=user.id, updated_at=now)
+                db.add(row)
+                await db.flush()
+            keep.add(row.id)
+        for row_id, row in existing.items():
+            if row_id not in keep:
+                await db.delete(row)
+    await db.flush()
+    templates = await _templates(db, tenant_id)
+    # Devam eden projelerin tamamlanmamış adımları şablona eşitlenir (tamamlanmış adımlara dokunulmaz).
+    open_stages = (await db.execute(
+        select(InstallationProjectStage).join(InstallationProject, InstallationProject.id == InstallationProjectStage.project_id)
+        .where(InstallationProject.tenant_id == tenant_id, InstallationProject.status == "active",
+               InstallationProjectStage.status != "completed", InstallationProjectStage.code.in_(list(body.stages)))
+    )).scalars().all()
+    for stage in open_stages:
+        await _sync_stage_checklist(db, stage, templates.get(stage.code, []))
+    await db.commit()
+    return {"updated_stages": len(open_stages)}
+
+
 @router.get("/stage-events")
 async def all_stage_events(
     since: Optional[str] = Query(None, description="YYYY-AA-GG; bu tarihten sonraki kayıtlar"),
@@ -924,7 +1039,8 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
     await db.flush()
     await _set_members(db, project, body.member_user_ids, user)
     now = utc_now()
-    for order, code, name, _docs, _rules, checklist in STAGE_TEMPLATE:
+    templates = await _templates(db, tenant_id)
+    for order, code, name, _docs, _rules, _default_checklist in STAGE_TEMPLATE:
         stage = InstallationProjectStage(
             project_id=project.id, stage_order=order, code=code, name=name,
             status="in_progress" if order == 1 else "planned", started_at=now if order == 1 else None,
@@ -932,8 +1048,10 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
         )
         db.add(stage)
         await db.flush()
-        for index, label in enumerate(checklist):
-            db.add(InstallationProjectChecklistItem(stage_id=stage.id, label=label, sort_order=index))
+        # Kontrol listesi firmanın şablonundan gelir (yönetici "Kontrol listelerini düzenle" ile değiştirir).
+        for tpl in templates.get(code, []):
+            db.add(InstallationProjectChecklistItem(stage_id=stage.id, label=tpl.label, sort_order=tpl.sort_order,
+                                                    template_item_id=tpl.id))
         if order == 1:
             await _stage_event(db, project, stage, "started", user)
     await db.commit()
@@ -1015,6 +1133,30 @@ async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db), user
         "materials": materials, "planned_cost": planned_cost, "used_cost": used_cost,
         "work_orders": [_work_order_row(wo, names, stage_names) for wo in work_orders],
     }
+
+
+@router.put("/{project_id}/phase-due")
+async def set_phase_due(project_id: UUID, body: PhaseDue, db: AsyncSession = Depends(get_db),
+                        user: User = Depends(get_current_user)) -> dict:
+    """Ana aşamanın termini (şimdilik yalnız Üretim ve Montaj): aşamanın bitmemiş adımlarına planlanan bitiş
+    olarak yazılır; gecikme uyarısı ve kayıt listesi bu tarihe göre çalışır."""
+    project = await _project(db, user, project_id)
+    _require_active(project)
+    if body.phase != "uretim_montaj":
+        raise HTTPException(400, "Termin yalnız Üretim ve Montaj aşamasına girilir.")
+    due = _parse_date(body.due)
+    stages = [s for s in await _stages(db, project.id) if _phase_of(s.code) == body.phase and s.status != "completed"]
+    if not stages:
+        raise HTTPException(409, "Üretim ve Montaj aşaması tamamlanmış; termin değiştirilemez.")
+    for stage in stages:
+        if stage.planned_end != due:
+            old = stage.planned_end
+            stage.planned_end, stage.overdue_notified_at = due, None
+            await _stage_event(db, project, stage, "planned_end_changed", user, old=_day(old) or "—", new=_day(due) or "—",
+                               note="Üretim ve Montaj termini")
+    project.updated_at = utc_now()
+    await db.commit()
+    return {"phase": body.phase, "due": _iso(due)}
 
 
 @router.get("/{project_id}/stage-events")

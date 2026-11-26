@@ -5,6 +5,16 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
 
 ## Açık
 
+- [ ] **DEVİR (26.11.2026 akşam) · Keşif / kontrol listesi şablonu — kodlandı, henüz derlenip denenmedi.**
+  Yapılan: firma kontrol listesi şablonu (tablo `installation_checklist_templates`, migration `20261126_03`
+  uygulandı), `GET/PUT /installation-projects/checklist-templates` (kaydedince devam eden projelerin tamamlanmamış
+  adımları eşitlenir), proje başlığında "Kontrol listelerini düzenle" penceresi (`ChecklistTemplatesDialog`),
+  adım panelinde "Planlanan bitiş" ve projeye özel "Yeni madde ekle" kaldırıldı, kontrol listesi "zorunlu",
+  Üretim ve Montaj'a tek termin (`PUT /{id}/phase-due`), başlıklar büyük harf (Üretim ve Montaj, Montaj ve Test,
+  Projelendirme ve Teklif, Müşteri Onayı). Tip kontrolü temiz.
+  Kalan: arayüzü derle (`scripts\start_okur_web.bat`), pencereyi ve termin alanını tarayıcıda dene, ekran görüntüsüyle
+  kullanıcı onayı al. Sonra sıradaki konu: **Teklif** aşaması.
+
 - [ ] **Gün sonu · Marka:** OKUR adı/logosu geçici gizli. Geri açmak için `apps/frontend/.env.local` içinden
   `NEXT_PUBLIC_HIDE_BRAND=true` satırını silip arayüzü yeniden derle. (26.11.2026)
 - [ ] **Gün sonu · Tasarım:** Tüm ekranların yazı boyutu / düzeni tek ölçeğe getirilecek (proje Özet ekranı örnek alınacak). (26.11.2026)

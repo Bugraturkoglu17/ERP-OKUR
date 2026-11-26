@@ -1711,11 +1711,27 @@ class InstallationProjectStage(SQLModel, table=True):
     approval_requested_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
 
 
+class InstallationChecklistTemplate(SQLModel, table=True):
+    """Firmanın adım başına kontrol listesi şablonu (yönetici düzenler; yeni ve devam eden projelere uygulanır)."""
+
+    __tablename__ = "installation_checklist_templates"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(foreign_key="tenants.id", index=True)
+    stage_code: str = Field(max_length=32, index=True)
+    label: str = Field(max_length=255)
+    sort_order: int = Field(default=0)
+    updated_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
 class InstallationProjectChecklistItem(SQLModel, table=True):
     __tablename__ = "installation_project_checklist_items"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     stage_id: UUID = Field(foreign_key="installation_project_stages.id", index=True)
+    # Firma şablonundaki karşılığı (şablon kaydedilince ad/sıra güncellenir, şablondan silinirse kaldırılır).
+    template_item_id: Optional[UUID] = Field(foreign_key="installation_checklist_templates.id", default=None)
     label: str = Field(max_length=255)
     sort_order: int = Field(default=0)
     is_done: bool = Field(default=False)
