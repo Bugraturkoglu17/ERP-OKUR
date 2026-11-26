@@ -25,7 +25,7 @@ export type CostItem = { category: CostCategory; label: string; amount: string |
 export type ProjectCosts = {
   categories: Record<CostCategory, string>;
   target: { items: CostItem[]; total: string };
-  /** total, bağlı arıza/bakım iş emirlerinin malzeme tutarını (linked_work_orders) da içerir. */
+  /** total, proje deposundan kullanılan malzemenin tutarını (linked_work_orders) da içerir. */
   actual: { items: CostItem[]; total: string; linked_work_orders?: string; linked_work_orders_label?: string };
 };
 
@@ -210,7 +210,7 @@ export type ProjectStats = {
     realized_revenue: number; realized_cost: number; realized_profit: number; realized_count: number };
   by_type: { type: ProjectType; label: string; count: number; active: number; budget: number; target: number; actual: number }[];
   by_stage: { order: number; name: string; count: number }[];
-  /** Son satır "bagli_is_emirleri": bağlı arıza/bakım iş emirlerinin otomatik malzeme tutarı. */
+  /** Son satır "bagli_is_emirleri": proje deposundan kullanılan malzemenin otomatik tutarı. */
   by_category: { category: CostCategory | "bagli_is_emirleri"; label: string; target: number; actual: number }[];
   projects: {
     id: string; name: string; status: ProjectStatus; project_type_label: string;

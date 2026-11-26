@@ -15,6 +15,9 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
   Kalan: arayüzü derle (`scripts\start_okur_web.bat`), pencereyi ve termin alanını tarayıcıda dene, ekran görüntüsüyle
   kullanıcı onayı al. Sonra sıradaki konu: **Teklif** aşaması.
 
+- [ ] **Analiz · Üretim no:** Üretim no projenin kimliği gibidir; İstatistikler'de ve aramada kullanılacak
+  (kullanıcı "sonraki tura" dedi, kapsam ayrıca konuşulacak). (26.11.2026)
+
 - [ ] **Gün sonu · Marka:** OKUR adı/logosu geçici gizli. Geri açmak için `apps/frontend/.env.local` içinden
   `NEXT_PUBLIC_HIDE_BRAND=true` satırını silip arayüzü yeniden derle. (26.11.2026)
 - [ ] **Gün sonu · Tasarım:** Tüm ekranların yazı boyutu / düzeni tek ölçeğe getirilecek (proje Özet ekranı örnek alınacak). (26.11.2026)

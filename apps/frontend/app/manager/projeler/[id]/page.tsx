@@ -1,11 +1,11 @@
 "use client";
 
 import { InfoHint } from "@/components/ui/info-hint";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import {
-  AlertCircle, ArrowDown, ArrowRight, ArrowUp, Check, CheckCircle2, ChevronRight, Circle, ClipboardList, FileText, History, Link2, ListChecks, Loader2,
+  AlertCircle, ArrowDown, ArrowRight, ArrowUp, Check, CheckCircle2, ChevronRight, Circle, ClipboardList, Download, FileSpreadsheet, FileText, History, Link2, ListChecks, Loader2,
   Package, Plus, Trash2, X, XCircle,
 } from "lucide-react";
 import { apiGet, getRequestErrorMessage } from "@/lib/api";
@@ -13,6 +13,8 @@ import { formatQuantity } from "@/lib/quantity";
 import { DocumentRow, StageFiles } from "@/components/installation-projects/stage-files";
 import { formatServerDate, formatServerDateTime } from "@/lib/utils";
 import { MaterialPicker, MaterialTitle } from "@/components/retail-stock/material-picker";
+import { downloadMaterialTemplate, parseMaterialExcel } from "@/components/installation-projects/material-excel";
+import { SubcontractorAssignmentBox } from "@/components/subcontractors/subcontractor-assignment";
 import { BackLink } from "@/components/ui/back-link";
 // shadcn/ui (pilot): yalnız hafif bileşenler; mevcut components/ui dosyalarına dokunulmaz.
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
@@ -124,11 +126,13 @@ function StepTabs({ steps, selectedId, onSelect }: { steps: ProjectStage[]; sele
   );
 }
 
-function StagePanel({ stage, phase, projectId, due, users, editable, files, onChanged, onError }: {
+function StagePanel({ stage, phase, projectId, due, users, editable, canManage, files, onChanged, onError }: {
   stage: ProjectStage; phase: PhaseView; projectId: string;
   /** Üretim ve Montaj termini (yalnız o ana aşamada gösterilir ve düzenlenir). */
   due: string | null;
   users: UserRow[]; editable: boolean;
+  /** Yönetici: taşeron seçimi ve tamamlanan adımda taşeron puanı. */
+  canManage: boolean;
   /** Aşamanın dosya yükleme alanı ve dosya listesi (sağ sütunda). */
   files?: ReactNode;
   onChanged: () => Promise<void>; onError: (message: string) => void;
@@ -166,8 +170,8 @@ function StagePanel({ stage, phase, projectId, due, users, editable, files, onCh
           </p>
         </div>
         {stage.status !== "completed" && editable && (
-          <Button disabled={busy || stage.status !== "in_progress"} onClick={() => void run(() => updateStage(stage.id, { action: "complete" }), "Adım tamamlanamadı.")}>
-            {busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}{pending ? "Onayla ve projeyi kapat" : stage.code === "kapanis" ? "Projeyi kapat" : "Adımı tamamla"}
+          <Button disabled={busy} onClick={() => void run(() => updateStage(stage.id, { action: "complete" }), "Adım tamamlanamadı.")}>
+            {busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}{pending ? "Onayla ve Projeyi Kapat" : stage.code === "kapanis" ? "Projeyi Kapat" : "Adımı Tamamla"}
           </Button>
         )}
       </UiCardHeader>
@@ -203,9 +207,11 @@ function StagePanel({ stage, phase, projectId, due, users, editable, files, onCh
                   onChange={(e) => { const v = e.target.value; if (validDate(v)) void run(() => setPhaseDue(projectId, DUE_PHASE, v || null), "Termin kaydedilemedi."); }} />
               </div>
             )}
+            {/* Taşeron: iş yükü ve puan taşeron kartında görünür; puan adım tamamlanınca verilir. */}
+            {canManage && <SubcontractorAssignmentBox target={{ stage_id: stage.id }} editable={canManage} doneHint={stage.status} />}
           </div>
           <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-muted-foreground">Kontrol listesi <span className="text-red-600">· zorunlu</span></p>
+            <p className="text-xs font-medium text-muted-foreground">Kontrol listesi</p>
             {stage.checklist.length === 0 ? (
               <p className="rounded-md border border-dashed px-3 py-3 text-sm text-muted-foreground">Bu adımda kontrol maddesi yok.</p>
             ) : (
@@ -223,7 +229,7 @@ function StagePanel({ stage, phase, projectId, due, users, editable, files, onCh
         </div>
         <div className="flex flex-col gap-4">
           <div className="rounded-md bg-muted/60 p-4">
-            <p className="text-xs font-medium text-muted-foreground">Adımın tamamlanması için</p>
+            <p className="text-xs font-medium text-muted-foreground">Adım şartları (tamamlamayı engellemez)</p>
             <ul className="mt-2 flex flex-col gap-1.5">
               {stage.requirements.map((req) => (
                 <li key={req.label} className={`flex items-start gap-2 text-sm ${req.ok ? "text-emerald-700" : "text-slate-600"}`}>
@@ -251,12 +257,53 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
   const [editing, setEditing] = useState(false);
   const [rows, setRows] = useState<MaterialRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [importNote, setImportNote] = useState<{ text: string; warn: boolean } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const planned = project.materials.filter((m) => Number(m.planned_quantity) > 0);
   const missingCount = planned.filter((m) => Number(m.missing) > 0).length;
+  const skuById = new Map(catalog.map((m) => [m.id, m.sku]));
+
+  const plannedRows = () => planned.map((m) => ({ key: `r${++rowSeed}`, materialId: m.material_id, quantity: qty(m.planned_quantity) }));
 
   function startEdit() {
-    setRows(planned.map((m) => ({ key: `r${++rowSeed}`, materialId: m.material_id, quantity: qty(m.planned_quantity) })));
+    setRows(plannedRows());
+    setImportNote(null);
     setEditing(true);
+  }
+
+  /** Excel'deki satırlar listeyle birleştirilir: aynı malzemenin adedi güncellenir, yeniler eklenir. Kayıt "Kaydet" ile. */
+  async function importExcel(file: File) {
+    if (!/\.(xlsx|xls|csv)$/i.test(file.name)) { onError("Excel dosyası seçin (.xlsx, .xls veya .csv)."); return; }
+    setImporting(true); onError(""); setImportNote(null);
+    try {
+      const result = await parseMaterialExcel(file, catalog);
+      const base = (editing ? rows : plannedRows()).filter((r) => r.materialId);
+      const merged = [...base];
+      for (const line of result.lines) {
+        const index = merged.findIndex((r) => r.materialId === line.materialId);
+        if (index >= 0) merged[index] = { ...merged[index], quantity: line.quantity };
+        else merged.push({ key: `r${++rowSeed}`, materialId: line.materialId, quantity: line.quantity });
+      }
+      setRows(merged); setEditing(true);
+      const problems = [
+        result.unknownCodes.length ? `Katalogda bulunamayan kodlar alınmadı: ${result.unknownCodes.join(", ")}.` : "",
+        result.invalidRows.length ? `Adedi geçersiz satırlar alınmadı: ${result.invalidRows.join("; ")}.` : "",
+      ].filter(Boolean);
+      setImportNote({
+        text: `${result.lines.length} malzeme aktarıldı; kaydetmek için "Kaydet"e basın.${problems.length ? " " + problems.join(" ") : ""}`,
+        warn: problems.length > 0 || result.lines.length === 0,
+      });
+    } catch (reason) {
+      onError(getRequestErrorMessage(reason, "Excel dosyası okunamadı."));
+    } finally { setImporting(false); }
+  }
+
+  function onDrop(event: DragEvent<HTMLElement>) {
+    event.preventDefault(); setDragOver(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) void importExcel(file);
   }
 
   async function save() {
@@ -267,7 +314,7 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
     setSaving(true); onError("");
     try {
       await saveProjectMaterials(project.id, lines.map((r) => ({ material_id: r.materialId, planned_quantity: r.quantity.trim().replace(",", ".") })));
-      setEditing(false); await onChanged();
+      setEditing(false); setImportNote(null); await onChanged();
     } catch (reason) { onError(getRequestErrorMessage(reason, "Malzeme listesi kaydedilemedi.")); } finally { setSaving(false); }
   }
 
@@ -275,36 +322,61 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
   const options = catalog.map((m) => ({ id: m.id, name: m.name, spec: m.spec, brand: m.brand, sku: m.sku, hint: m.unit }));
 
   return (
-    <section className="erp-section-card">
+    <section className="erp-section-card relative"
+      onDragOver={editable ? (e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDragOver(true); } } : undefined}
+      onDragLeave={editable ? (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false); } : undefined}
+      onDrop={editable ? onDrop : undefined}>
+      {/* Excel dosyası kartın üstüne sürüklenince bırakma alanı gösterilir. */}
+      {dragOver && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-blue-500 bg-blue-50/90 text-sm font-semibold text-blue-800">
+          Excel dosyasını buraya bırakın
+        </div>
+      )}
+      {importing && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-white/60"><Loader2 className="h-6 w-6 animate-spin text-slate-500" /></div>}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-900">Malzeme listesi<InfoHint text={`Planlanan malzeme, proje deposundaki miktar ve montajda kullanılan.${missingCount > 0 ? ` ${missingCount} kalem eksik.` : ""}`} /></h2>
         </div>
-        {editable && !editing && <button type="button" onClick={startEdit} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Listeyi düzenle</button>}
+        {editable && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => void downloadMaterialTemplate()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><Download className="h-3.5 w-3.5" />Hazır şablon</button>
+            <button type="button" disabled={importing} onClick={() => fileInput.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><FileSpreadsheet className="h-3.5 w-3.5" />Excel&apos;den yükle</button>
+            <input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" aria-label="Malzeme listesi Excel dosyası"
+              onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) void importExcel(file); }} />
+            {!editing && <button type="button" onClick={startEdit} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Listeyi düzenle</button>}
+          </div>
+        )}
       </div>
       <div className="p-5">
+        {importNote && (
+          <p className={`mb-3 rounded-lg px-3 py-2 text-xs ${importNote.warn ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-800"}`}>{importNote.text}</p>
+        )}
         {editing ? (
-          <div className="space-y-2">
+          <div className="max-w-3xl space-y-2">
+            <div className="flex items-center gap-2 px-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400" aria-hidden="true">
+              <span className="w-28 shrink-0">Kod</span><span className="min-w-0 flex-1">Malzeme</span><span className="w-20 shrink-0 text-right">Adet</span><span className="w-7 shrink-0" />
+            </div>
             {rows.map((row) => (
               <div key={row.key} className="flex items-center gap-2">
+                <span className="w-28 shrink-0 truncate text-xs tabular-nums text-slate-500">{skuById.get(row.materialId) ?? "—"}</span>
                 <div className="min-w-0 flex-1"><MaterialPicker compact value={row.materialId} options={options} disabledIds={chosen}
                   onChange={(id) => setRows((cur) => cur.map((r) => r.key === row.key ? { ...r, materialId: id } : r))} /></div>
-                <input inputMode="decimal" value={row.quantity} placeholder="Miktar" aria-label="Planlanan miktar"
+                <input inputMode="decimal" value={row.quantity} placeholder="Adet" aria-label="Planlanan adet"
                   onChange={(e) => setRows((cur) => cur.map((r) => r.key === row.key ? { ...r, quantity: e.target.value } : r))}
                   className="w-20 shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-right text-sm" />
-                <button type="button" aria-label="Satırı kaldır" onClick={() => setRows((cur) => cur.filter((r) => r.key !== row.key))} className="rounded-lg p-1.5 text-slate-400 hover:text-red-600"><X className="h-4 w-4" /></button>
+                <button type="button" aria-label="Satırı kaldır" onClick={() => setRows((cur) => cur.filter((r) => r.key !== row.key))} className="w-7 shrink-0 rounded-lg p-1.5 text-slate-400 hover:text-red-600"><X className="h-4 w-4" /></button>
               </div>
             ))}
             <div className="flex flex-wrap justify-between gap-2 pt-2">
               <button type="button" onClick={() => setRows((cur) => [...cur, { key: `r${++rowSeed}`, materialId: "", quantity: "" }])} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700"><Plus className="h-3.5 w-3.5" />Malzeme ekle</button>
               <div className="flex gap-2">
-                <button type="button" onClick={() => setEditing(false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500">Vazgeç</button>
+                <button type="button" onClick={() => { setEditing(false); setImportNote(null); }} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500">Vazgeç</button>
                 <button type="button" disabled={saving} onClick={() => void save()} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Kaydet</button>
               </div>
             </div>
           </div>
         ) : project.materials.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-500">Malzeme listesi henüz girilmedi. &quot;Listeyi düzenle&quot; ile katalogdan malzeme ekleyin.</p>
+          <p className="py-6 text-center text-sm text-slate-500">Malzeme listesi henüz girilmedi. &quot;Listeyi düzenle&quot; ile katalogdan seçin ya da Excel dosyasını buraya sürükleyin.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
@@ -593,7 +665,7 @@ export default function ProjectDetailPage() {
       <PhaseStrip phases={phases} selectedCode={selectedPhase.code} onSelect={selectPhase} />
       <StepTabs steps={selectedPhase.steps} selectedId={selected.id} onSelect={selectStage} />
 
-      <StagePanel stage={selected} phase={selectedPhase} projectId={project.id} due={dueDate} users={users} editable={editable} onChanged={refresh} onError={setError}
+      <StagePanel stage={selected} phase={selectedPhase} projectId={project.id} due={dueDate} users={users} editable={editable} canManage={project.can_manage} onChanged={refresh} onError={setError}
         files={
           <StageFiles project={project} stage={selected}
             canUpload={editable || (invoiceOnly && selected.code === "kapanis")}

@@ -113,10 +113,10 @@ COST_CATEGORIES = {
     "ek": "Ek maliyetler",
 }
 EXTRA_COST = "ek"  # Bu kalemde birden fazla satır girilebilir.
-# Projeye sonradan bağlanan arıza/bakım vb. iş emirlerinin proje deposundan düşen malzeme tutarı.
-# Elle girilmez; gerçekleşen maliyete ve gerçek kâra otomatik eklenir.
+# Projeye bağlı bütün iş emirlerinde (proje tipi dahil) proje deposundan kullanılan malzemenin tutarı.
+# Elle girilmez; gerçekleşen maliyete ve gerçek kâra otomatik eklenir. (Anahtar adı eski kayıtlarla uyum için aynı.)
 LINKED_WO_COST = "bagli_is_emirleri"
-LINKED_WO_COST_LABEL = "Bağlı iş emirleri (malzeme)"
+LINKED_WO_COST_LABEL = "Kullanılan malzeme"
 # Projenin kendi montaj/test iş emirlerinin tipi; aşama şartlarında yalnız bu tip sayılır.
 PROJECT_WORK_TYPE = "project"
 
@@ -202,18 +202,16 @@ async def _production_numbers(db: AsyncSession, project_id: UUID) -> list[dict]:
 
 
 async def _linked_wo_costs(db: AsyncSession, project_ids: list[UUID]) -> dict[UUID, Decimal]:
-    """Projeye bağlı, Proje tipi OLMAYAN iş emirlerinin proje deposundan düşen malzeme tutarı
-    (katalog birim fiyatıyla). Proje tipi iş emirlerinin malzemesi elle girilen "ürün" kalemindedir."""
+    """İş emirlerinde proje deposundan kullanılan bütün malzemenin tutarı (katalog birim fiyatıyla).
+    Proje tipi iş emirleri dahildir; kullanılan malzeme girilince maliyetin malzeme kısmı kendiliğinden tamamlanır."""
     if not project_ids:
         return {}
     rows = (await db.execute(
         select(InstallationProject.id,
                func.sum(RetailMovement.quantity * func.coalesce(RetailMaterial.unit_price, 0)))
-        .join(WorkOrder, WorkOrder.installation_project_id == InstallationProject.id)
-        .join(RetailMovement, RetailMovement.work_order_id == WorkOrder.id)
+        .join(RetailMovement, RetailMovement.source_depot_id == InstallationProject.depot_id)
         .join(RetailMaterial, RetailMaterial.id == RetailMovement.material_id)
-        .where(InstallationProject.id.in_(project_ids), WorkOrder.work_type != PROJECT_WORK_TYPE,
-               RetailMovement.kind == "use", RetailMovement.source_depot_id == InstallationProject.depot_id)
+        .where(InstallationProject.id.in_(project_ids), RetailMovement.kind == "use")
         .group_by(InstallationProject.id)
     )).all()
     return {pid: Decimal(total or 0).quantize(Decimal("0.01")) for pid, total in rows}
@@ -222,7 +220,7 @@ async def _linked_wo_costs(db: AsyncSession, project_ids: list[UUID]) -> dict[UU
 async def _costs(db: AsyncSession, project_id: UUID) -> dict:
     """Hedeflenen / gerçekleşen maliyet kalemleri ve toplamları (girilmemiş kalem None döner).
 
-    Gerçekleşen toplama, bağlı arıza/bakım iş emirlerinin malzeme tutarı otomatik eklenir."""
+    Gerçekleşen toplama, proje deposundan kullanılan malzemenin tutarı otomatik eklenir."""
     rows = (await db.execute(select(InstallationProjectCost).where(
         InstallationProjectCost.project_id == project_id))).scalars().all()
     out: dict = {"categories": COST_CATEGORIES}
@@ -761,7 +759,7 @@ async def project_stats(db: AsyncSession = Depends(get_db), user: User = Depends
         entry[cost.kind] = entry.get(cost.kind, 0.0) + amount
         if cost.project_id in live_ids and cost.category in category_totals and cost.kind in COST_KINDS:
             category_totals[cost.category][cost.kind] += amount
-    # Bağlı arıza/bakım iş emirlerinin malzemesi gerçekleşen maliyete otomatik eklenir.
+    # Proje deposundan kullanılan malzeme gerçekleşen maliyete otomatik eklenir.
     category_totals[LINKED_WO_COST] = {"target": 0.0, "actual": 0.0}
     for project_id, linked in (await _linked_wo_costs(db, ids)).items():
         if not linked:
@@ -1309,17 +1307,8 @@ async def update_stage(stage_id: UUID, body: StageUpdate, db: AsyncSession = Dep
         if stage.status == "completed":
             raise HTTPException(409, "Bu aşama zaten tamamlanmış.")
         stages = await _stages(db, project.id)
-        if any(s.status != "completed" for s in stages if s.stage_order < stage.stage_order):
-            raise HTTPException(409, "Aşamalar sırayla kapanır; önce önceki aşamaları tamamlayın.")
-        checklist = (await db.execute(select(InstallationProjectChecklistItem).where(
-            InstallationProjectChecklistItem.stage_id == stage.id))).scalars().all()
-        doc_types = set((await db.execute(select(InstallationProjectDocument.doc_type).where(
-            InstallationProjectDocument.project_id == project.id))).scalars().all())
-        reqs = await _requirements(db, project, stage, list(checklist), doc_types,
-                                   await _material_status(db, project), await _work_orders(db, project.id))
-        missing = [r["label"] for r in reqs if not r["ok"]]
-        if missing:
-            raise HTTPException(409, "Aşama kapatılamadı: " + "; ".join(missing) + ".")
+        # "Adımı Tamamla" / "Projeyi Kapat" daima açıktır (kullanıcı kararı, 26.11.2026): adım sırası ve
+        # adım şartları (kontrol listesi, belge, malzeme, iş emri, fatura vb.) tamamlamayı engellemez; şartlar yalnız bilgidir.
         managers = await manager_ids(db, project.tenant_id)
         if action == "request_approval":
             if stage.code != "kapanis":
@@ -1337,17 +1326,22 @@ async def update_stage(stage_id: UUID, body: StageUpdate, db: AsyncSession = Dep
             requester = stage.approval_requested_by
             now = utc_now()
             stage.status, stage.completed_at, stage.completed_by = "completed", now, user.id
+            stage.started_at = stage.started_at or now  # Sırası gelmeden tamamlanan adım da başlamış sayılır.
             stage.approval_requested_at = stage.approval_requested_by = None
             # Kayıt listesi: tamamlama anının fotoğrafı (sorumlu, planlanan bitiş, gecikme, madde ve belge sayısı).
             await _stage_event(db, project, stage, "completed", user, snapshot=True)
             next_stage = next((s for s in stages if s.stage_order == stage.stage_order + 1), None)
             if next_stage:
-                next_stage.status, next_stage.started_at = "in_progress", next_stage.started_at or now
-                await _stage_event(db, project, next_stage, "started", user)
+                # Adımlar sıra beklemeden tamamlanabildiği için sonraki adım yalnız henüz başlamamışsa başlatılır
+                # (önceden tamamlanmış adım geri açılmaz).
+                started = next_stage.status == "planned"
+                if started:
+                    next_stage.status, next_stage.started_at = "in_progress", next_stage.started_at or now
+                    await _stage_event(db, project, next_stage, "started", user)
                 await _notify_many(db, (managers | {project.manager_user_id}) - {user.id}, tenant_id=project.tenant_id,
                                    category="project_stage_completed", title="Proje aşaması tamamlandı",
                                    body=f"{project.name} — {stage.name} aşamasını {user.full_name} tamamladı.")
-                if next_stage.responsible_user_id and next_stage.responsible_user_id != user.id:
+                if started and next_stage.responsible_user_id and next_stage.responsible_user_id != user.id:
                     await _notify_many(db, {next_stage.responsible_user_id}, tenant_id=project.tenant_id,
                                        category="project_stage_started", title="Proje görevi başladı",
                                        body=f"{project.name} — {next_stage.name} aşaması sizde.")

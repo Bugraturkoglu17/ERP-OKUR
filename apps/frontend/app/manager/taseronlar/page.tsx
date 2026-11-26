@@ -2,7 +2,7 @@
 
 import { InfoHint } from "@/components/ui/info-hint";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, HardHat, Loader2, Mail, Pencil, Phone, Plus, Search, X } from "lucide-react";
+import { AlertCircle, HardHat, Loader2, Mail, Pencil, Phone, Plus, Search, Star, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getRequestErrorMessage } from "@/lib/api";
 import {
@@ -24,6 +24,12 @@ function toForm(item: Subcontractor): Form {
   (Object.keys(EMPTY) as (keyof Form)[]).forEach((key) => { (form[key] as string) = (item[key] as string | null) ?? ""; });
   return form;
 }
+
+type SortKey = "name" | "rating" | "load";
+const SORTS: { key: SortKey; label: string }[] = [{ key: "name", label: "Ad" }, { key: "rating", label: "Puan" }, { key: "load", label: "İş yükü" }];
+const workload = (item: Subcontractor) => item.open_work_orders + item.active_projects;
+const formatDay = (iso: string) => new Date(iso).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+const isPast = (iso: string) => new Date(iso) < new Date(new Date().toDateString());
 
 function CompetencyDot({ value, size = "h-3 w-3" }: { value: Competency | null; size?: string }) {
   return <span aria-hidden className={`inline-block shrink-0 rounded-full ${size} ${value ? COMPETENCY[value].dot : "border border-dashed border-slate-300 bg-white"}`} />;
@@ -72,7 +78,7 @@ function SubcontractorDialog({ item, onClose, onSaved }: { item: Subcontractor |
         <div className="space-y-6 p-5">
           <fieldset>
             <legend className="text-sm font-semibold text-slate-900">Yetkinlik rengi</legend>
-            <p className="mt-0.5 text-xs text-slate-500">Rengin anlamını siz belirlersiniz; yalnızca gösterge olarak kullanılır.</p>
+            <p className="mt-0.5 text-xs text-slate-500">Puan verilmiş taşeronda renk puan ortalamasından hesaplanır; bu renk puan yokken görünür.</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {COMPETENCY_KEYS.map((key) => (
                 <button key={key} type="button" aria-pressed={form.competency === key} onClick={() => setForm((current) => ({ ...current, competency: current.competency === key ? "" : key }))}
@@ -132,6 +138,7 @@ export default function SubcontractorsPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Competency | "all" | "none">("all");
   const [showInactive, setShowInactive] = useState(false);
+  const [sort, setSort] = useState<SortKey>("name");
   const [dialog, setDialog] = useState<{ item: Subcontractor | null } | null>(null);
 
   const load = useCallback(async () => {
@@ -143,10 +150,15 @@ export default function SubcontractorsPage() {
 
   const visible = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr-TR");
-    return items.filter((item) => (showInactive || item.is_active)
-      && (filter === "all" || (filter === "none" ? !item.competency : item.competency === filter))
+    const rows = items.filter((item) => (showInactive || item.is_active)
+      && (filter === "all" || (filter === "none" ? !item.color : item.color === filter))
       && (!q || `${item.company_name} ${item.contact_name ?? ""} ${item.city ?? ""} ${item.tax_number ?? ""}`.toLocaleLowerCase("tr-TR").includes(q)));
-  }, [items, query, filter, showInactive]);
+    const byName = (a: Subcontractor, b: Subcontractor) => a.company_name.localeCompare(b.company_name, "tr");
+    return [...rows].sort((a, b) =>
+      sort === "rating" ? (b.rating_avg ?? -1) - (a.rating_avg ?? -1) || byName(a, b)
+        : sort === "load" ? workload(b) - workload(a) || byName(a, b)
+          : byName(a, b));
+  }, [items, query, filter, showInactive, sort]);
 
   const inactiveCount = items.filter((item) => !item.is_active).length;
 
@@ -160,7 +172,7 @@ export default function SubcontractorsPage() {
     <div className="mx-auto max-w-6xl space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">Taşeron Kartları<InfoHint text="Taşeron firmaların cari bilgileri, yetkili kişileri ve yetkinlik rengi." /></h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-950">Taşeron Kartları<InfoHint text="Puan: tamamlanan iş emri ve proje adımlarında verilen 1–5 puanın ortalaması. İş yükü: taşerona atanmış açık iş emirleri ve devam eden projeler." /></h1>
         </div>
         <button type="button" onClick={() => setDialog({ item: null })} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"><Plus className="h-4 w-4" />Yeni Taşeron</button>
       </header>
@@ -178,15 +190,24 @@ export default function SubcontractorsPage() {
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Firma, yetkili veya il ara" aria-label="Taşeron ara" className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500" />
         </div>
       </div>
-      {inactiveCount > 0 && (
-        <label className="flex w-fit cursor-pointer items-center gap-2 text-xs text-slate-600">
-          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="h-4 w-4 accent-blue-600" />Pasif kartları da göster ({inactiveCount})
-        </label>
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 text-xs" role="group" aria-label="Sıralama">
+          <span className="mr-1 text-slate-500">Sırala</span>
+          {SORTS.map((option) => (
+            <button key={option.key} type="button" aria-pressed={sort === option.key} onClick={() => setSort(option.key)}
+              className={`rounded-lg px-2.5 py-1.5 font-semibold ${sort === option.key ? "bg-slate-100 text-slate-900" : "text-slate-500 hover:text-slate-900"}`}>{option.label}</button>
+          ))}
+        </div>
+        {inactiveCount > 0 && (
+          <label className="flex w-fit cursor-pointer items-center gap-2 text-xs text-slate-600">
+            <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} className="h-4 w-4 accent-blue-600" />Pasif kartları da göster ({inactiveCount})
+          </label>
+        )}
+      </div>
 
       {error && <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>}
 
-      {loading ? <div className="grid gap-3 md:grid-cols-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}</div>
+      {loading ? <div className="space-y-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
         : visible.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
             <HardHat className="mx-auto h-8 w-8 text-slate-300" />
@@ -194,33 +215,65 @@ export default function SubcontractorsPage() {
             {items.length === 0 && <p className="mt-1 text-sm text-slate-500">&quot;Yeni Taşeron&quot; ile ilk kartı oluşturun.</p>}
           </div>
         ) : (
-          <ul className="grid gap-3 md:grid-cols-2">
-            {visible.map((item) => (
-              <li key={item.id} className={`rounded-2xl border bg-white p-4 sm:p-5 ${item.is_active ? "border-slate-200" : "border-slate-200 opacity-60"}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="mt-1.5"><CompetencyDot value={item.competency} size="h-3.5 w-3.5" /></span>
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-900">{item.company_name}</p>
-                      <p className="mt-0.5 truncate text-xs text-slate-500">
-                        {item.competency ? `Yetkinlik: ${COMPETENCY[item.competency].label}` : "Renk atanmamış"}{item.city ? ` · ${item.city}` : ""}{!item.is_active ? " · Pasif" : ""}
-                      </p>
-                    </div>
-                  </div>
-                  <button type="button" onClick={() => setDialog({ item })} aria-label={`${item.company_name} kartını düzenle`} className="shrink-0 rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 hover:text-slate-900"><Pencil className="h-4 w-4" /></button>
-                </div>
-                <dl className="mt-3 grid gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
-                  <div className="min-w-0"><dt className="text-slate-400">Yetkili</dt><dd className="truncate font-medium text-slate-800">{item.contact_name ?? "—"}{item.contact_title ? ` · ${item.contact_title}` : ""}</dd></div>
-                  <div className="min-w-0"><dt className="text-slate-400">Vergi dairesi / no</dt><dd className="truncate font-medium tabular-nums text-slate-800">{[item.tax_office, item.tax_number].filter(Boolean).join(" / ") || "—"}</dd></div>
-                </dl>
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 text-xs">
-                  {(item.contact_phone ?? item.phone) && <a href={`tel:${item.contact_phone ?? item.phone}`} className="inline-flex items-center gap-1.5 font-medium text-blue-700 hover:underline"><Phone className="h-3.5 w-3.5" />{item.contact_phone ?? item.phone}</a>}
-                  {(item.contact_email ?? item.email) && <a href={`mailto:${item.contact_email ?? item.email}`} className="inline-flex min-w-0 items-center gap-1.5 font-medium text-blue-700 hover:underline"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{item.contact_email ?? item.email}</span></a>}
-                  <button type="button" onClick={() => void toggleActive(item)} className="ml-auto font-semibold text-slate-500 hover:text-slate-900">{item.is_active ? "Pasife al" : "Etkinleştir"}</button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+            <table className="w-full min-w-[860px] text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <th className="px-4 py-3">Firma</th>
+                  <th className="px-3 py-3">Puan</th>
+                  <th className="px-3 py-3 text-right">Açık iş emri</th>
+                  <th className="px-3 py-3 text-right">Devam eden proje</th>
+                  <th className="px-3 py-3">En yakın termin</th>
+                  <th className="px-3 py-3">İletişim</th>
+                  <th className="px-4 py-3"><span className="sr-only">İşlemler</span></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visible.map((item) => {
+                  const phone = item.contact_phone ?? item.phone;
+                  const email = item.contact_email ?? item.email;
+                  return (
+                    <tr key={item.id} className={item.is_active ? "" : "opacity-60"}>
+                      <td className="max-w-[280px] px-4 py-3">
+                        <div className="flex items-start gap-2.5">
+                          <span className="mt-1.5" title={item.color ? `${COMPETENCY[item.color].label}${item.color_from_rating ? " (puandan)" : ""}` : "Renk yok"}>
+                            <CompetencyDot value={item.color} size="h-3 w-3" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-slate-900">{item.company_name}</p>
+                            <p className="truncate text-xs text-slate-500">{[item.city, item.contact_name].filter(Boolean).join(" · ") || "—"}{!item.is_active ? " · Pasif" : ""}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3">
+                        {item.rating_avg !== null ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                            <span className="font-semibold tabular-nums text-slate-900">{item.rating_avg.toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
+                            <span className="text-xs text-slate-400">{item.rating_count} iş</span>
+                          </span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className={`px-3 py-3 text-right tabular-nums ${item.open_work_orders ? "font-semibold text-slate-900" : "text-slate-300"}`}>{item.open_work_orders}</td>
+                      <td className={`px-3 py-3 text-right tabular-nums ${item.active_projects ? "font-semibold text-slate-900" : "text-slate-300"}`}>{item.active_projects}</td>
+                      <td className="whitespace-nowrap px-3 py-3 tabular-nums">
+                        {item.nearest_due ? <span className={isPast(item.nearest_due) ? "font-semibold text-red-700" : "text-slate-700"}>{formatDay(item.nearest_due)}{isPast(item.nearest_due) ? " · gecikti" : ""}</span> : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="max-w-[220px] px-3 py-3 text-xs">
+                        {phone && <a href={`tel:${phone}`} className="flex items-center gap-1.5 font-medium text-blue-700 hover:underline"><Phone className="h-3.5 w-3.5 shrink-0" />{phone}</a>}
+                        {email && <a href={`mailto:${email}`} className="mt-0.5 flex min-w-0 items-center gap-1.5 font-medium text-blue-700 hover:underline"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{email}</span></a>}
+                        {!phone && !email && <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <button type="button" onClick={() => setDialog({ item })} aria-label={`${item.company_name} kartını düzenle`} className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50 hover:text-slate-900"><Pencil className="h-4 w-4" /></button>
+                        <button type="button" onClick={() => void toggleActive(item)} className="ml-2 text-xs font-semibold text-slate-500 hover:text-slate-900">{item.is_active ? "Pasife al" : "Etkinleştir"}</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
       {dialog && <SubcontractorDialog item={dialog.item} onClose={() => setDialog(null)} onSaved={load} />}

@@ -1,6 +1,7 @@
 "use client";
 
 import { InfoHint } from "@/components/ui/info-hint";
+import { SubcontractorAssignmentBox } from "@/components/subcontractors/subcontractor-assignment";
 import Link from "next/link";
 import { formatServerDateTime } from "@/lib/utils";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -1475,6 +1476,11 @@ export default function WorkOrderDetailPage() {
               <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Son Güncelleme</p>
               <p className="mt-0.5 text-sm text-slate-700">{fmtDateTime(wo.updated_at ?? wo.created_at)}</p>
             </div>
+          )}
+          {/* Taşeron (yalnız yönetici): iş yükü ve puan taşeron kartında görünür; puan iş tamamlanınca verilir. */}
+          {isManager && (
+            <SubcontractorAssignmentBox target={{ work_order_id: wo.id }} doneHint={wo.status}
+              editable={wo.status !== "cancelled"} className="col-span-2" />
           )}
         </div>
       </div>

@@ -1275,8 +1275,10 @@ class WorkOrder(SQLModel, table=True):
     project_linked_at:    Optional[datetime]  = Field(default=None)
     project_linked_by:    Optional[UUID]      = Field(foreign_key="users.id", default=None)
     project_link_stage_id: Optional[UUID]     = Field(foreign_key="installation_project_stages.id", default=None)
+    # İşi yapan taşeron (isteğe bağlı): taşeron kartındaki iş yükü ve puan bu bağdan hesaplanır.
+    subcontractor_id:     Optional[UUID]      = Field(foreign_key="subcontractors.id", default=None, index=True)
 
-    public_links:         List["WorkOrderPublicLink"]      = Relationship(back_populates="work_order")
+    public_links:        List["WorkOrderPublicLink"]      = Relationship(back_populates="work_order")
     photos:               List["WorkOrderPhoto"]           = Relationship(back_populates="work_order")
     service_forms:        List["WorkOrderServiceForm"]     = Relationship(back_populates="work_order")
     whatsapp_messages:    List["WorkOrderWhatsappMessage"] = Relationship(back_populates="work_order")
@@ -1709,6 +1711,8 @@ class InstallationProjectStage(SQLModel, table=True):
     # Kapanış aşaması: sorumlu yönetici değilse aşamayı onaya gönderir, yönetici onaylayınca kapanır.
     approval_requested_at: Optional[datetime] = Field(default=None)
     approval_requested_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    # Adımı yapan taşeron (isteğe bağlı): taşeron kartındaki iş yükü ve puan bu bağdan hesaplanır.
+    subcontractor_id: Optional[UUID] = Field(foreign_key="subcontractors.id", default=None, index=True)
 
 
 class InstallationChecklistTemplate(SQLModel, table=True):
@@ -1885,6 +1889,27 @@ class Subcontractor(SQLModel, table=True):
     competency: Optional[str] = Field(default=None, max_length=16)
     notes: Optional[str] = Field(default=None)
     is_active: bool = Field(default=True)
+    created_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
+    created_at: datetime = Field(default_factory=utc_now, nullable=False)
+    updated_at: datetime = Field(default_factory=utc_now, nullable=False)
+
+
+class SubcontractorRating(SQLModel, table=True):
+    """Tamamlanan iş emri ya da proje adımı için taşerona verilen 1–5 puan (iş başına tek puan)."""
+
+    __tablename__ = "subcontractor_ratings"
+    __table_args__ = (
+        CheckConstraint("score BETWEEN 1 AND 5", name="ck_subcontractor_rating_score"),
+        CheckConstraint("(work_order_id IS NULL) <> (stage_id IS NULL)", name="ck_subcontractor_rating_target"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(foreign_key="tenants.id", index=True)
+    subcontractor_id: UUID = Field(foreign_key="subcontractors.id", index=True)
+    work_order_id: Optional[UUID] = Field(foreign_key="work_orders.id", default=None, unique=True)
+    stage_id: Optional[UUID] = Field(foreign_key="installation_project_stages.id", default=None, unique=True)
+    score: int
+    note: Optional[str] = Field(default=None, max_length=500)
     created_by: Optional[UUID] = Field(foreign_key="users.id", default=None)
     created_at: datetime = Field(default_factory=utc_now, nullable=False)
     updated_at: datetime = Field(default_factory=utc_now, nullable=False)

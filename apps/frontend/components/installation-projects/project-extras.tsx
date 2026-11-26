@@ -486,9 +486,9 @@ function CostColumn({ projectId, kind, costs, canEnter, onChanged, onError }: {
         {linked > 0 && (
           <li className="py-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium text-slate-800">{costs.actual.linked_work_orders_label ?? "Bağlı iş emirleri"}
+              <span className="text-sm font-medium text-slate-800">{costs.actual.linked_work_orders_label ?? "Kullanılan malzeme"}
                 <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">otomatik</span>
-                <InfoHint text="Projeye bağlanan arıza/bakım iş emirlerinin proje deposundan düşen malzemesi (katalog fiyatıyla). Ürün maliyetini girerken bu tutarı dahil etmeyin." />
+                <InfoHint text="İş emirlerinde proje deposundan kullanılan malzeme (katalog fiyatıyla). Ürün maliyetine yalnız katalog dışı ürünleri girin; bu tutarı tekrar eklemeyin." />
               </span>
               <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-slate-900">₺{money(linked)}</span>
             </div>

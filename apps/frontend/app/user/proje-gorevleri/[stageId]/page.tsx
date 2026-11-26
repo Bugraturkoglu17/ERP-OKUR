@@ -68,10 +68,10 @@ export default function ProjectTaskPage() {
   if (!task) return <div className="mx-auto max-w-xl rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">{error || "Görev bulunamadı."}</div>;
 
   const { stage, project } = task;
-  const open = project.status === "active" && stage.status === "in_progress";
+  // "Adımı Tamamla" daima açık: sırası gelmemiş adım da tamamlanabilir.
+  const open = project.status === "active" && stage.status !== "completed";
   const locked = project.status !== "active" || stage.status === "completed";
   const pending = Boolean(stage.approval_requested_at);
-  const allOk = stage.requirements.every((r) => r.ok);
   const stageDocs = task.documents.filter((d) => d.stage_id === stage.id);
   const planned = task.materials.filter((m) => Number(m.planned_quantity) > 0);
 
@@ -173,7 +173,7 @@ export default function ProjectTaskPage() {
       <section className="erp-section-card">
         <div className="space-y-4 p-5">
           <div>
-            <p className="text-xs font-semibold text-slate-600">Aşamanın kapanması için</p>
+            <p className="text-xs font-semibold text-slate-600">Aşama şartları (tamamlamayı engellemez)</p>
             <ul className="mt-2 space-y-1.5">{stage.requirements.map((req) => (
               <li key={req.label} className={`flex items-start gap-2 text-sm ${req.ok ? "text-emerald-700" : "text-slate-600"}`}>{req.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />}{req.label}</li>
             ))}</ul>
@@ -182,14 +182,13 @@ export default function ProjectTaskPage() {
             <textarea disabled={locked} value={note} onChange={(e) => setNote(e.target.value)} onBlur={() => { if ((stage.note ?? "") !== note) void run(() => updateStage(stage.id, { note }), "Not kaydedilemedi."); }} rows={3} placeholder="Ölçüler, müşteri talebi, dikkat edilecekler" className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50" /></label>
           {open && !pending && (stage.needs_approval ? (
             <button type="button" disabled={busy} onClick={() => void run(() => updateStage(stage.id, { action: "request_approval" }), "Onaya gönderilemedi.", "Kapanış yöneticiye onaya gönderildi.")} className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Kapanışı yöneticiye onaya gönder
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}Kapanışı Yöneticiye Onaya Gönder
             </button>
           ) : (
-            <button type="button" disabled={busy} onClick={() => void run(() => updateStage(stage.id, { action: "complete" }), "Aşama tamamlanamadı.", "Aşama tamamlandı. Sonraki aşama başladı.")} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}Aşamayı tamamla
+            <button type="button" disabled={busy} onClick={() => void run(() => updateStage(stage.id, { action: "complete" }), "Aşama tamamlanamadı.", "Adım tamamlandı.")} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}Adımı Tamamla
             </button>
           ))}
-          {open && !pending && !allOk && <p className="text-center text-xs text-slate-500">Eksik şartlar varken basarsanız hangi şartın eksik olduğu yazılır.</p>}
         </div>
       </section>
     </div>
