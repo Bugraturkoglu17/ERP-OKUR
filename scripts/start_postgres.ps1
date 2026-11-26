@@ -4,7 +4,13 @@
 # Cikis kodu: 0 = veritabani hazir, 1 = baslatilamadi.
 $ErrorActionPreference = "SilentlyContinue"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path.TrimEnd("\")
-$bin = Join-Path $root "local-data\pgvenv\Lib\site-packages\pgserver\pginstall\bin"
+. (Join-Path $PSScriptRoot "pg_bin.ps1")
+$bin = Get-OkurPgBin $root
+if (-not $bin) {
+    Write-Host "PostgreSQL programlari (pg_ctl.exe) bulunamadi."
+    Write-Host "Kurulum klasorunu OKUR_PG_BIN ortam degiskeniyle belirtin (or. C:\...\pgsql\bin)."
+    exit 1
+}
 $data = Join-Path $root "local-data\pgdata"
 $log = Join-Path $root "local-data\postgres.log"
 

@@ -1,7 +1,6 @@
 @echo off
 rem Okur ERP: PostgreSQL (5433), API (8001) ve arayuzu (3001, uretim modu) baslatir, uygulama penceresinde acar.
 for %%I in ("%~dp0..") do set "ROOT=%%~fI"
-set "PGBIN=%ROOT%\local-data\pgvenv\Lib\site-packages\pgserver\pginstall\bin"
 set "NOWIN="
 if /i "%~1"=="/nowindow" set "NOWIN=1"
 title Okur ERP aciliyor

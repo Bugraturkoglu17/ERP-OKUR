@@ -5,7 +5,9 @@
 # guncel surumu baslatir. Boylece kisayol her zaman tamamen bu projeyi calistirir.
 $ErrorActionPreference = "SilentlyContinue"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path.TrimEnd("\")
-$pgctl = Join-Path $root "local-data\pgvenv\Lib\site-packages\pgserver\pginstall\bin\pg_ctl.exe"
+. (Join-Path $PSScriptRoot "pg_bin.ps1")
+$pgBin = Get-OkurPgBin $root
+$pgctl = if ($pgBin) { Join-Path $pgBin "pg_ctl.exe" } else { "pg_ctl.exe" }
 
 function Get-Chain([int]$processId) {
     # Surecin kendisi ve en fazla 3 ust sureci (venv python ve "cmd /c" sarmalayicilari icin).
