@@ -410,7 +410,9 @@ export interface paths {
          * Yeni proje oluştur — sadece Yönetici.
          * @description Yeni şantiye projesi oluşturur.
          *     branch_id verilmişse hiyerarşi doğrulaması yapılır.
-         *     Verilmemişse tenant'ın ilk branch'i otomatik kullanılır (wizard akışı için).
+         *     branch_id yok ama region_id varsa mağazaya özel yeni bir şube (konum) açılır:
+         *     her mağaza kendi şubesine bağlıdır, yeni mağaza başka mağazanın şubesine eklenmez.
+         *     İkisi de yoksa tenant'ın ilk branch'i otomatik kullanılır (wizard akışı için).
          */
         post: operations["create_project_api_v1_projects_post"];
         delete?: never;
@@ -914,7 +916,8 @@ export interface paths {
          * @description İstatistik ekranı için proje ve maliyet özeti (yalnızca yönetici).
          *
          *     Para toplamlarına iptal edilen projeler katılmaz. "Hedefe oran" yalnızca hem hedeflenen
-         *     hem gerçekleşen maliyeti girilmiş projelerde hesaplanır.
+         *     hem gerçekleşen maliyeti girilmiş projelerde hesaplanır. Satış tutarları KDV hariçtir.
+         *     Gerçek kâr yalnızca tamamlanan projelerde hesaplanır: fatura tutarı (yoksa satış fiyatı) − gerçekleşen maliyet.
          */
         get: operations["project_stats_api_v1_installation_projects_stats_get"];
         put?: never;
@@ -981,6 +984,29 @@ export interface paths {
         head?: never;
         /** Update Project */
         patch: operations["update_project_api_v1_installation_projects__project_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/installation-projects/{project_id}/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Billing
+         * @description Satış fiyatı, KDV, fatura no / tarihi / vadesi / tutarı ve fatura tarafı. Yalnızca yönetici girer.
+         *
+         *     Fatura çoğu zaman proje kapandıktan sonra kesildiği için kapanmış projede de güncellenebilir;
+         *     yalnızca iptal edilmiş projede değiştirilemez.
+         */
+        put: operations["save_billing_api_v1_installation_projects__project_id__billing_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/installation-projects/stages/{stage_id}": {
@@ -3272,6 +3298,34 @@ export interface components {
             backup_target_id: string;
             /** Backup Target Label */
             backup_target_label?: string | null;
+        };
+        /** BillingSave */
+        BillingSave: {
+            /** Sale Price */
+            sale_price?: number | string | null;
+            /**
+             * Sale Price Includes Vat
+             * @default false
+             */
+            sale_price_includes_vat: boolean;
+            /** Vat Rate */
+            vat_rate?: number | string | null;
+            /** Invoice No */
+            invoice_no?: string | null;
+            /** Invoice Date */
+            invoice_date?: string | null;
+            /** Invoice Due Date */
+            invoice_due_date?: string | null;
+            /** Invoice Amount */
+            invoice_amount?: number | string | null;
+            /** Invoice Title */
+            invoice_title?: string | null;
+            /** Invoice Tax Office */
+            invoice_tax_office?: string | null;
+            /** Invoice Tax No */
+            invoice_tax_no?: string | null;
+            /** Invoice Address */
+            invoice_address?: string | null;
         };
         /** Body_create_report_api_v1_work_orders__work_order_id__reports_post */
         Body_create_report_api_v1_work_orders__work_order_id__reports_post: {
@@ -8905,6 +8959,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["app__api__v1__routes__installation_projects__ProjectUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_billing_api_v1_installation_projects__project_id__billing_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingSave"];
             };
         };
         responses: {
