@@ -1,39 +1,41 @@
 "use client";
 
-import { InfoHint } from "@/components/ui/info-hint";
-import { formatServerDateTime, isPastDue, localToday, parseServerDate } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertCircle, ArrowRight, CalendarDays, CalendarPlus, CircleAlert, Clock3,
+  AlertCircle, CalendarDays, CalendarPlus, ChevronRight, CircleAlert, Clock3,
   Filter, Plus, Search, Store, UserRound,
 } from "lucide-react";
+import { InfoHint } from "@/components/ui/info-hint";
+import { cn, formatServerDateTime, isPastDue, localToday, parseServerDate } from "@/lib/utils";
 import {
   CATEGORY_LABEL, CREATABLE_CATEGORIES, PRIORITY_LABEL, STATUS_LABEL,
   getManagerWorkOrders, getTeamUsers,
   type TeamUser, type WorkOrder, type WorkOrderCategory,
   type WorkOrderPriority, type WorkOrderStatus,
 } from "@/services/managerWorkOrders";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Badge } from "@/components/shadcn/badge";
+import { Button } from "@/components/shadcn/button";
+import { Card, CardContent } from "@/components/shadcn/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/shadcn/empty";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
+import { Progress } from "@/components/shadcn/progress";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/shadcn/select";
+import { Skeleton } from "@/components/shadcn/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
 
-const TABS: { key: Exclude<WorkOrderStatus, "cancelled">; label: string }[] = [
+type Tab = Exclude<WorkOrderStatus, "cancelled">;
+const TABS: { key: Tab; label: string }[] = [
   { key: "planned", label: "Planlanacak" },
   { key: "in_progress", label: "Devam Edenler" },
   { key: "completed", label: "Tamamlananlar" },
 ];
+const ALL = "all";
 
-const priorityStyle: Record<WorkOrderPriority, string> = {
-  normal: "bg-slate-100 text-slate-600",
-  important: "bg-amber-50 text-amber-700",
-  critical: "bg-red-50 text-red-700",
-};
-
-const statusStyle: Record<WorkOrderStatus, string> = {
-  planned: "bg-blue-50 text-blue-700",
-  in_progress: "bg-amber-50 text-amber-700",
-  completed: "bg-emerald-50 text-emerald-700",
-  cancelled: "bg-slate-100 text-slate-500",
-};
+type BadgeVariant = "muted" | "warning" | "destructive" | "info" | "success";
+const PRIORITY_BADGE: Record<WorkOrderPriority, BadgeVariant> = { normal: "muted", important: "warning", critical: "destructive" };
+const STATUS_BADGE: Record<WorkOrderStatus, BadgeVariant> = { planned: "info", in_progress: "warning", completed: "success", cancelled: "muted" };
 
 function dateLabel(value: string | null) {
   if (!value) return "Termin yok";
@@ -57,17 +59,35 @@ function getWarnings(order: WorkOrder) {
   const warnings: { label: string; tone: string }[] = [];
   const now = new Date();
   if (order.due_date?.slice(0, 10) === localToday(now)) warnings.push({ label: "Bugün Terminli", tone: "text-amber-700" });
-  if (isPastDue(order.due_date, now)) warnings.push({ label: "Gecikti", tone: "text-red-700" });
+  if (isPastDue(order.due_date, now)) warnings.push({ label: "Gecikti", tone: "text-destructive" });
   const staleDays = (now.getTime() - new Date(order.updated_at).getTime()) / 86_400_000;
-  if (staleDays > 3) warnings.push({ label: "Uzun Süredir Güncellenmedi", tone: "text-slate-600" });
-  if (order.has_critical_report) warnings.push({ label: "Kritik Rapor", tone: "text-red-700" });
+  if (staleDays > 3) warnings.push({ label: "Uzun Süredir Güncellenmedi", tone: "text-muted-foreground" });
+  if (order.has_critical_report) warnings.push({ label: "Kritik Rapor", tone: "text-destructive" });
   return warnings;
+}
+
+/** Filtre seçimi: shadcn Select boş değer almaz; "Tümü" seçeneği ALL ile tutulur. */
+function FilterSelect({ value, onChange, placeholder, options, label }: {
+  value: string; onChange: (value: string) => void; placeholder: string; label: string;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <Select value={value || ALL} onValueChange={(next) => onChange(next === ALL ? "" : next)}>
+      <SelectTrigger aria-label={label}><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value={ALL}>{placeholder}</SelectItem>
+          {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
 }
 
 export default function ManagerWorkOrdersPage() {
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [users, setUsers] = useState<TeamUser[]>([]);
-  const [activeTab, setActiveTab] = useState<Exclude<WorkOrderStatus, "cancelled">>("planned");
+  const [activeTab, setActiveTab] = useState<Tab>("planned");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<WorkOrderCategory | "">("");
   const [priority, setPriority] = useState<WorkOrderPriority | "">("");
@@ -120,108 +140,120 @@ export default function ManagerWorkOrdersPage() {
     });
   }, [orders, statusFilter, overdueOnly, activeTab, query, category, priority, assignee]);
 
+  // Sekme yalnız "sekme durumu" süzgecinde ve gecikenler süzgeci kapalıyken seçili görünür.
+  const tabValue = statusFilter === "current" && !overdueOnly ? activeTab : "";
+
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="mx-auto flex max-w-7xl flex-col gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">İş Emirleri<InfoHint text="Arıza, tadilat ve yeni yapım görevlerini oluşturun, atayın ve takip edin." /></h1>
-        </div>
-        <Link href="/manager/is-emirleri/yeni" className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 active:scale-[0.98]">
-          <Plus className="h-4 w-4" /> İş Emri Oluştur
-        </Link>
+        <h1 className="text-2xl font-bold tracking-tight">İş Emirleri<InfoHint text="Arıza, tadilat ve yeni yapım görevlerini oluşturun, atayın ve takip edin." /></h1>
+        <Button asChild><Link href="/manager/is-emirleri/yeni"><Plus data-icon="inline-start" />İş Emri Oluştur</Link></Button>
       </header>
 
-      <nav className="grid grid-cols-3 overflow-hidden rounded-xl border border-slate-200 bg-white" aria-label="İş emri durumları">
-        {TABS.map((tab) => (
-          <button key={tab.key} onClick={() => { setActiveTab(tab.key); setStatusFilter("current"); setOverdueOnly(false); }} className={`flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap border-r border-slate-100 px-1.5 py-3 text-[11px] font-semibold tracking-[-0.01em] transition last:border-r-0 sm:px-3 sm:text-sm ${activeTab === tab.key && statusFilter === "current" && !overdueOnly ? "bg-slate-950 text-white" : "text-slate-500 hover:bg-slate-50"}`}>
-            <span>{tab.label}</span>
-            <span className="shrink-0 text-[10px] tabular-nums opacity-60 sm:text-xs">{counts[tab.key]}</span>
-          </button>
-        ))}
-      </nav>
+      <Tabs value={tabValue} onValueChange={(value) => { setActiveTab(value as Tab); setStatusFilter("current"); setOverdueOnly(false); }}>
+        <TabsList className="grid h-auto w-full grid-cols-3" aria-label="İş emri durumları">
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key} className="gap-1.5 py-2 text-xs sm:text-sm">
+              {tab.label}<span className="tabular-nums opacity-60">{counts[tab.key]}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Başlık, mağaza kodu veya çalışan ara" className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500" />
-          </label>
-          {/* Mobilde 4 tam genişlik <select> ekranın yarısını kaplıyordu —
-              artık tek bir "Filtreler" butonu altında toplandı; masaüstünde
-              (lg+) yine hep açık. */}
-          <button type="button" onClick={() => setFiltersOpen((v) => !v)}
-            className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors lg:hidden ${
-              activeFilterCount > 0 || filtersOpen ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}>
-            <Filter className="h-4 w-4" /> Filtreler
-            {activeFilterCount > 0 && <span className="rounded-full bg-blue-600 px-1.5 text-[11px] font-bold text-white tabular-nums">{activeFilterCount}</span>}
-          </button>
-        </div>
+      <Card>
+        <CardContent className="flex flex-col gap-2 p-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <InputGroup className="flex-1">
+              <InputGroupAddon><Search /></InputGroupAddon>
+              <InputGroupInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Başlık, mağaza kodu veya çalışan ara" aria-label="İş emri ara" />
+            </InputGroup>
+            {/* Mobilde süzgeçler tek "Filtreler" düğmesi altında; masaüstünde (lg+) hep açık. */}
+            <Button variant="outline" onClick={() => setFiltersOpen((v) => !v)} aria-expanded={filtersOpen}
+              className={cn("lg:hidden", (activeFilterCount > 0 || filtersOpen) && "border-primary/40 bg-primary/5 text-primary")}>
+              <Filter data-icon="inline-start" />Filtreler
+              {activeFilterCount > 0 && <Badge className="ml-1 px-1.5 tabular-nums">{activeFilterCount}</Badge>}
+            </Button>
+          </div>
+          <div className={cn(filtersOpen ? "grid" : "hidden", "gap-2 sm:grid-cols-2 lg:grid lg:grid-cols-4")}>
+            <FilterSelect label="İş tipi" value={category} onChange={(v) => setCategory(v as WorkOrderCategory | "")} placeholder="Tüm İş Tipleri"
+              options={CREATABLE_CATEGORIES.map((value) => ({ value, label: CATEGORY_LABEL[value] }))} />
+            <FilterSelect label="Öncelik" value={priority} onChange={(v) => setPriority(v as WorkOrderPriority | "")} placeholder="Tüm Öncelikler"
+              options={Object.entries(PRIORITY_LABEL).map(([value, label]) => ({ value, label }))} />
+            <FilterSelect label="Çalışan" value={assignee} onChange={setAssignee} placeholder="Tüm Çalışanlar"
+              options={users.map((user) => ({ value: user.id, label: user.full_name }))} />
+            <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value as "current" | "cancelled"); setOverdueOnly(false); }}>
+              <SelectTrigger aria-label="Durum"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="current">Sekme Durumu</SelectItem>
+                  <SelectItem value="cancelled">İptal Edilenler</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className={`${filtersOpen ? "grid" : "hidden"} mt-2 gap-2 sm:grid-cols-2 lg:mt-2 lg:grid lg:grid-cols-4`}>
-          <select value={category} onChange={(event) => setCategory(event.target.value as WorkOrderCategory | "")} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 outline-none focus:border-blue-500">
-            <option value="">Tüm İş Tipleri</option>
-            {CREATABLE_CATEGORIES.map((value) => <option key={value} value={value}>{CATEGORY_LABEL[value]}</option>)}
-          </select>
-          <select value={priority} onChange={(event) => setPriority(event.target.value as WorkOrderPriority | "")} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 outline-none focus:border-blue-500">
-            <option value="">Tüm Öncelikler</option>
-            {Object.entries(PRIORITY_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-          <select value={assignee} onChange={(event) => setAssignee(event.target.value)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 outline-none focus:border-blue-500">
-            <option value="">Tüm Çalışanlar</option>
-            {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
-          </select>
-          <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value as "current" | "cancelled"); setOverdueOnly(false); }} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 outline-none focus:border-blue-500">
-            <option value="current">Sekme Durumu</option>
-            <option value="cancelled">İptal Edilenler</option>
-          </select>
-        </div>
-      </section>
+      {overdueOnly && (
+        <Alert variant="destructive" className="flex items-center justify-between gap-3">
+          <AlertDescription className="font-semibold">Yalnızca termini geçmiş işler gösteriliyor.</AlertDescription>
+          <Button variant="outline" size="sm" onClick={() => { setOverdueOnly(false); setActiveTab("in_progress"); }}>Filtreyi kaldır</Button>
+        </Alert>
+      )}
 
-      {overdueOnly && <div className="flex items-center justify-between rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700"><span className="font-semibold">Yalnızca termini geçmiş işler gösteriliyor.</span><button type="button" onClick={() => { setOverdueOnly(false); setActiveTab("in_progress"); }} className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold shadow-sm hover:bg-red-100">Filtreyi kaldır</button></div>}
-
-      {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="h-4 w-4" />{error}</div>}
+      {error && <Alert variant="destructive"><AlertCircle /><AlertDescription>{error}</AlertDescription></Alert>}
 
       {loading ? (
-        <div className="space-y-2" aria-busy="true">{Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-28 rounded-xl" />)}</div>
+        <div className="flex flex-col gap-2" aria-busy="true">{Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-28" />)}</div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-6 py-16 text-center">
-          <Filter className="mx-auto h-8 w-8 text-slate-300" />
-          <h2 className="mt-3 text-sm font-semibold text-slate-800">İş emri bulunamadı</h2>
-          <p className="mt-1 text-sm text-slate-500">Arama veya filtre kriterlerinizi değiştirerek tekrar deneyin.</p>
-        </div>
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><Filter /></EmptyMedia>
+            <EmptyTitle>İş emri bulunamadı</EmptyTitle>
+            <EmptyDescription>Arama veya filtre kriterlerinizi değiştirerek tekrar deneyin.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {filtered.map((order) => {
             const warnings = getWarnings(order);
             const progress = order.status === "completed" ? 100 : order.status === "in_progress" ? 50 : 0;
             return (
-              <article key={order.id} className="rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-300">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
+              <Card key={order.id} className="transition-colors hover:border-foreground/20">
+                <CardContent className="flex flex-col gap-4 p-4 xl:flex-row xl:items-center">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate text-sm font-semibold text-slate-950">{order.title}</h2>
-                      <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${priorityStyle[order.priority]}`}>{PRIORITY_LABEL[order.priority]}</span>
-                      <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${statusStyle[order.status]}`}>{STATUS_LABEL[order.status]}</span>
+                      <h2 className="truncate text-sm font-semibold">{order.title}</h2>
+                      <Badge variant={PRIORITY_BADGE[order.priority]}>{PRIORITY_LABEL[order.priority]}</Badge>
+                      <Badge variant={STATUS_BADGE[order.status]}>{STATUS_LABEL[order.status]}</Badge>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
-                      <span className="flex items-center gap-1.5"><Store className="h-3.5 w-3.5" />{order.store_name} <span className="font-mono text-slate-400">{order.store_code}</span></span>
-                      <span className="flex items-center gap-1.5"><UserRound className="h-3.5 w-3.5" />{order.assigned_to_name}</span>
-                      <span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{dateLabel(order.due_date)}</span>
-                      <span className="flex items-center gap-1.5" title="İş emrinin verildiği tarih ve saat"><CalendarPlus className="h-3.5 w-3.5" />Verildi: {formatServerDateTime(order.created_at)}</span>
-                      <span className="flex items-center gap-1.5" title={`Son güncelleme: ${formatServerDateTime(order.updated_at)}`}><Clock3 className="h-3.5 w-3.5" />{updatedLabel(order.updated_at)}</span>
+                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5"><Store className="size-3.5" />{order.store_name} <span className="font-mono opacity-70">{order.store_code}</span></span>
+                      <span className="flex items-center gap-1.5"><UserRound className="size-3.5" />{order.assigned_to_name}</span>
+                      <span className="flex items-center gap-1.5"><CalendarDays className="size-3.5" />{dateLabel(order.due_date)}</span>
+                      <span className="flex items-center gap-1.5" title="İş emrinin verildiği tarih ve saat"><CalendarPlus className="size-3.5" />Verildi: {formatServerDateTime(order.created_at)}</span>
+                      <span className="flex items-center gap-1.5" title={`Son güncelleme: ${formatServerDateTime(order.updated_at)}`}><Clock3 className="size-3.5" />{updatedLabel(order.updated_at)}</span>
                     </div>
-                    {warnings.length > 0 && <div className="mt-2 flex flex-wrap gap-3">{warnings.map((warning) => <span key={warning.label} className={`flex items-center gap-1 text-[11px] font-medium ${warning.tone}`}><CircleAlert className="h-3 w-3" />{warning.label}</span>)}</div>}
+                    {warnings.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-3">
+                        {warnings.map((warning) => <span key={warning.label} className={cn("flex items-center gap-1 text-[11px] font-medium", warning.tone)}><CircleAlert className="size-3" />{warning.label}</span>)}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-4 xl:w-72">
                     <div className="min-w-0 flex-1">
-                      <div className="flex justify-between text-[11px] text-slate-500"><span>{CATEGORY_LABEL[order.category]}{order.installation_project_name ? ` · ${order.installation_project_name}` : ""}</span><span>{progress}%</span></div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${progress}%` }} /></div>
+                      <div className="flex justify-between gap-2 text-[11px] text-muted-foreground">
+                        <span className="truncate">{CATEGORY_LABEL[order.category]}{order.installation_project_name ? ` · ${order.installation_project_name}` : ""}</span>
+                        <span>{progress}%</span>
+                      </div>
+                      <Progress value={progress} className="mt-1 h-1.5" aria-label={`İlerleme %${progress}`} />
                     </div>
-                    <Link href={`/manager/is-emirleri/${order.id}`} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Detayı Gör <ArrowRight className="h-3.5 w-3.5" /></Link>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/manager/is-emirleri/${order.id}`}>Detayı Gör<ChevronRight data-icon="inline-end" /></Link>
+                    </Button>
                   </div>
-                </div>
-              </article>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

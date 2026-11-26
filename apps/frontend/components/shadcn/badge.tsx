@@ -29,12 +29,13 @@ const badgeVariants = cva(
 )
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {}
 
+// <span>: rozet metin içinde (<p>) de kullanılabilsin; <div> olunca hydration hatası veriyordu.
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <span data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props} />
   )
 }
 

@@ -5,6 +5,23 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
 
 ## Açık
 
+- [ ] **DEVİR (26.11.2026 gece) · shadcn tasarım dönüşümü — yarıda kaldı, buradan devam.**
+  Kurulum: `.claude/skills/shadcn` (kurallar SKILL.md), bileşenler `apps/frontend/components/shadcn/` (Radix, Tailwind v3).
+  label/separator üzerine yazılmadı (CLI sorar, "hayır" denir); field.tsx `--view` ile elle eklendi. Badge artık `<span>`.
+  Tema: `--accent` nötr gri, `--sidebar` #0c1520 (globals.css). Önizleme için `npx next dev --port 3002` kullanıldı.
+  Kullanıcı kuralları: İstatistikler'e (analiz) DOKUNMA; Raporlar sorusu cevapsız → dokunma, sor. Her gruptan sonra
+  ekran görüntüsü + onay, sonra commit (hafıza: once-gorsel-onay). Sismik verisiyle çelişki çıkarsa haber ver.
+  Bitti (commit'li): örnek Taşeron Kartları (cdcacc0), 1. grup iskelet/giriş/bildirim (6d82103),
+  2. grup yönetici listeleri: İş Emirleri, Projeler, Mağaza Kartı (projects/page.tsx; daire menü yerine araç çubuğu),
+  Kullanıcılar, Depo & Stok (retail-stock-page.tsx). 2. grup ekranları tarayıcıda denendi, konsol hatası yok;
+  kullanıcıya ekran görüntüsü gösterilmeden kredi bitti → ilk iş g2 görsellerini (.playwright-mcp/g2_*.png) göster, onay al.
+  Kalan gruplar: 3) detay ve formlar (iş emri detayı `app/is-emirleri/[id]`, yeni iş emri, yeni proje, mağaza kartı
+  detayı, StoreFormModal, TransferDialog, MaterialCatalog, MaterialPicker, proje detayının kalan kısımları,
+  project-extras.tsx), 4) panolar (Genel Bakış, Genel Arşiv, Sistem Yedeği; İstatistikler HARİÇ, Raporlar sorulacak),
+  5) saha kullanıcısı ekranları (user/dashboard, islerim, proje-gorevleri ve [stageId], profil).
+  Önceki DEVİR (kontrol listesi penceresi + termin) ve "Adımı Tamamla daima açık", malzeme Excel, taşeron puan/iş yükü
+  kodlandı ve commit'li (cfc1543) ama tarayıcıda tek tek denenmedi.
+
 - [ ] **DEVİR (26.11.2026 akşam) · Keşif / kontrol listesi şablonu — kodlandı, henüz derlenip denenmedi.**
   Yapılan: firma kontrol listesi şablonu (tablo `installation_checklist_templates`, migration `20261126_03`
   uygulandı), `GET/PUT /installation-projects/checklist-templates` (kaydedince devam eden projelerin tamamlanmamış

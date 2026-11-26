@@ -1,16 +1,23 @@
 "use client";
 
-import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, FolderKanban, Plus, Search } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { formatServerDate } from "@/lib/utils";
+import { AlertCircle, ChevronRight, FolderKanban, Plus, Search } from "lucide-react";
+import { InfoHint } from "@/components/ui/info-hint";
+import { cn, formatServerDate } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Badge } from "@/components/shadcn/badge";
+import { Button } from "@/components/shadcn/button";
+import { Card, CardContent } from "@/components/shadcn/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/shadcn/empty";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
+import { Progress } from "@/components/shadcn/progress";
+import { Skeleton } from "@/components/shadcn/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/shadcn/toggle-group";
 import { PROJECT_STATUS_LABEL, listProjects, type ProjectStatus, type ProjectSummary } from "@/services/installationProjects";
 
-const STATUS_TONE: Record<ProjectStatus, string> = {
-  active: "bg-blue-50 text-blue-700", completed: "bg-emerald-50 text-emerald-700", cancelled: "bg-slate-100 text-slate-500",
-};
+const STATUS_BADGE: Record<ProjectStatus, "info" | "success" | "muted"> = { active: "info", completed: "success", cancelled: "muted" };
+const STATUSES: ProjectStatus[] = ["active", "completed", "cancelled"];
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -35,67 +42,77 @@ export default function ProjectsPage() {
   }, [projects, tab, query]);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto flex max-w-6xl flex-col gap-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">Projeler<InfoHint text="Yeni soğutma kurulumlarını keşiften kapanışa kadar aşama aşama takip edin." /></h1>
-        </div>
-        <Link href="/manager/projeler/yeni" className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"><Plus className="h-4 w-4" />Yeni Proje</Link>
+        <h1 className="text-2xl font-bold tracking-tight">Projeler<InfoHint text="Yeni soğutma kurulumlarını keşiften kapanışa kadar aşama aşama takip edin." /></h1>
+        <Button asChild><Link href="/manager/projeler/yeni"><Plus data-icon="inline-start" />Yeni Proje</Link></Button>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {(["active", "completed", "cancelled"] as ProjectStatus[]).map((value) => (
-          <button key={value} type="button" onClick={() => setTab(value)} className={`rounded-xl px-3.5 py-2 text-xs font-semibold ${tab === value ? "bg-slate-950 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}>
-            {PROJECT_STATUS_LABEL[value]} ({counts[value]})
-          </button>
-        ))}
-        <div className="relative ml-auto min-w-0 flex-1 basis-60 sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Proje veya mağaza ara" className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500" />
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <ToggleGroup type="single" size="sm" value={tab} onValueChange={(value) => value && setTab(value as ProjectStatus)} aria-label="Proje durumu">
+          {STATUSES.map((value) => (
+            <ToggleGroupItem key={value} value={value} className="px-3">{PROJECT_STATUS_LABEL[value]} ({counts[value]})</ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <InputGroup className="ml-auto w-full sm:w-72">
+          <InputGroupAddon><Search /></InputGroupAddon>
+          <InputGroupInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Proje veya mağaza ara" aria-label="Proje ara" />
+        </InputGroup>
       </div>
 
-      {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="h-4 w-4" />{error}</div>}
+      {error && <Alert variant="destructive"><AlertCircle /><AlertDescription>{error}</AlertDescription></Alert>}
 
-      {loading ? <div className="space-y-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
-        : visible.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-            <FolderKanban className="mx-auto h-8 w-8 text-slate-300" />
-            <p className="mt-3 font-semibold text-slate-700">{tab === "active" ? "Devam eden proje yok" : "Bu listede proje yok"}</p>
-            {tab === "active" && <p className="mt-1 text-sm text-slate-500">Yeni bir kurulum için &quot;Yeni Proje&quot; ile başlayın.</p>}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {visible.map((p) => {
-              const pct = p.stages_total ? Math.round((p.stages_done / p.stages_total) * 100) : 0;
-              return (
-                <Link key={p.id} href={`/manager/projeler/${p.id}`} className="group block rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 sm:p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="flex min-w-0 items-center gap-2"><span className="truncate font-semibold text-slate-900">{p.name}</span><span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">{p.project_type_label}</span></p>
-                      <p className="mt-0.5 truncate text-xs text-slate-500">{p.store_name ?? "Yer bilgisi yok"}{p.store_no ? ` · ${p.store_no}` : ""}{p.manager_name ? ` · Sorumlu: ${p.manager_name}` : ""}{p.member_count ? ` · ${p.member_count} kişi atandı` : ""}</p>
+      {loading ? (
+        <div className="flex flex-col gap-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-28" />)}</div>
+      ) : visible.length === 0 ? (
+        <Empty className="border border-dashed">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><FolderKanban /></EmptyMedia>
+            <EmptyTitle>{tab === "active" ? "Devam eden proje yok" : "Bu listede proje yok"}</EmptyTitle>
+            {tab === "active" && <EmptyDescription>Yeni bir kurulum için &quot;Yeni Proje&quot; ile başlayın.</EmptyDescription>}
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {visible.map((p) => {
+            const pct = p.stages_total ? Math.round((p.stages_done / p.stages_total) * 100) : 0;
+            return (
+              <Link key={p.id} href={`/manager/projeler/${p.id}`} className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <Card className="transition-colors group-hover:border-foreground/20">
+                  <CardContent className="flex flex-col gap-3 p-4 sm:p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="flex min-w-0 items-center gap-2">
+                          <span className="truncate font-semibold">{p.name}</span>
+                          <Badge variant="muted" className="shrink-0">{p.project_type_label}</Badge>
+                        </p>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {p.store_name ?? "Yer bilgisi yok"}{p.store_no ? ` · ${p.store_no}` : ""}{p.manager_name ? ` · Sorumlu: ${p.manager_name}` : ""}{p.member_count ? ` · ${p.member_count} kişi atandı` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {p.overdue && <Badge variant="destructive">Hedef tarih geçti</Badge>}
+                        <Badge variant={STATUS_BADGE[p.status]}>{PROJECT_STATUS_LABEL[p.status]}</Badge>
+                        <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {p.overdue && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">Hedef tarih geçti</span>}
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_TONE[p.status]}`}>{PROJECT_STATUS_LABEL[p.status]}</span>
-                      <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500" />
+                    <div className="flex items-center gap-3">
+                      <Progress value={pct} className="h-2 flex-1" aria-label={`${p.stages_done}/${p.stages_total} aşama`} />
+                      <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">{p.stages_done}/{p.stages_total} aşama</span>
                     </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${pct}%` }} /></div>
-                    <span className="whitespace-nowrap text-xs tabular-nums text-slate-500">{p.stages_done}/{p.stages_total} aşama</span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                    {p.current_stage && <span className={p.current_stage_overdue ? "font-semibold text-red-700" : ""}>Şu an: {p.current_stage}{p.current_stage_overdue ? " (gecikti)" : ""}</span>}
-                    {p.closing_pending && <span className="rounded bg-amber-50 px-1.5 font-semibold text-amber-700">Kapanış onayı bekliyor</span>}
-                    {p.target_date && <span>Hedef: {formatServerDate(p.target_date)}</span>}
-                    <span>{p.work_order_count} iş emri</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      {p.current_stage && <span className={cn(p.current_stage_overdue && "font-semibold text-destructive")}>Şu an: {p.current_stage}{p.current_stage_overdue ? " (gecikti)" : ""}</span>}
+                      {p.closing_pending && <Badge variant="warning">Kapanış onayı bekliyor</Badge>}
+                      {p.target_date && <span>Hedef: {formatServerDate(p.target_date)}</span>}
+                      <span>{p.work_order_count} iş emri</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

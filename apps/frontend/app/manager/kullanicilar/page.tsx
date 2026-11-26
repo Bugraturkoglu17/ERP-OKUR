@@ -1,17 +1,40 @@
 "use client";
 
-import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useMemo, useState } from "react";
-import { Edit3, Eye, EyeOff, Info, KeyRound, Loader2, Mail, Phone, Plus, Search, ShieldCheck, Trash2, UserCheck, UserX, X } from "lucide-react";
+import { Edit3, Eye, EyeOff, Info, KeyRound, Mail, MoreHorizontal, Phone, Plus, Search, ShieldCheck, Trash2, UserCheck, UserX, Users } from "lucide-react";
+import { InfoHint } from "@/components/ui/info-hint";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import { ToolbarDock, type ToolbarDockAction } from "@/components/ui/toolbar-dock";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/shadcn/alert-dialog";
+import { Avatar, AvatarFallback } from "@/components/shadcn/avatar";
+import { Badge } from "@/components/shadcn/badge";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/shadcn/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/shadcn/dropdown-menu";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/shadcn/empty";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/shadcn/field";
+import { Input } from "@/components/shadcn/input";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/shadcn/input-group";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/shadcn/select";
+import { Separator } from "@/components/shadcn/separator";
+import { Skeleton } from "@/components/shadcn/skeleton";
+import { Spinner } from "@/components/shadcn/spinner";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
 
 type UserRow = { id: string; full_name: string; email: string; phone?: string; is_active: boolean; default_role?: string; force_password_change: boolean; onboarding_complete: boolean };
 type FormState = { first_name: string; last_name: string; email: string; phone: string; password: string; role: "user" | "manager"; is_active: boolean };
+type Confirm = { kind: "delete" | "reset"; user: UserRow };
+type BadgeVariant = "success" | "muted" | "warning" | "info" | "secondary";
 
 const emptyForm: FormState = { first_name: "", last_name: "", email: "", phone: "", password: "", role: "user", is_active: true };
-const inputClass = "mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-400";
 
 function splitName(fullName: string) {
   const parts = fullName.trim().split(/\s+/);
@@ -28,9 +51,53 @@ function displayName(user: UserRow) {
   return uiRole(user) === "ADMIN" ? "Geliştirici Admin" : user.full_name;
 }
 
+const initialsOf = (name: string) => name.split(" ").map((part) => part[0]).slice(0, 2).join("").toLocaleUpperCase("tr-TR");
+const roleLabelOf = (role: string) => role === "ADMIN" ? "Geliştirici Admin" : role === "MANAGER" ? "Yönetici" : "Kullanıcı";
+const statusOf = (user: UserRow) => !user.is_active ? "Pasif" : user.force_password_change || !user.onboarding_complete ? "İlk giriş bekliyor" : "Aktif";
+const STATUS_BADGE: Record<string, BadgeVariant> = { "Aktif": "success", "Pasif": "muted", "İlk giriş bekliyor": "warning" };
+const ROLE_BADGE: Record<string, BadgeVariant> = { ADMIN: "secondary", MANAGER: "info", USER: "muted" };
+
 function errorMessage(cause: unknown) {
   const detail = (cause as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
   return typeof detail === "string" ? detail : cause instanceof Error ? cause.message : "İşlem tamamlanamadı.";
+}
+
+type Action = { key: string; label: string; icon: typeof Info; onClick: () => void; danger?: boolean };
+
+function RowActions({ actions, label }: { actions: Action[]; label: string }) {
+  const main = actions.filter((a) => !a.danger);
+  const danger = actions.filter((a) => a.danger);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="size-8" aria-label={`${label} işlemleri`}><MoreHorizontal /></Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuGroup>
+          {main.map(({ key, label: text, icon: Icon, onClick }) => <DropdownMenuItem key={key} onSelect={onClick}><Icon />{text}</DropdownMenuItem>)}
+        </DropdownMenuGroup>
+        {danger.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {danger.map(({ key, label: text, icon: Icon, onClick }) => (
+                <DropdownMenuItem key={key} onSelect={onClick} className="text-destructive focus:text-destructive"><Icon />{text}</DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ProtectedMark({ title }: { title: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild><span className="text-muted-foreground" aria-label={title}><ShieldCheck className="size-4" /></span></TooltipTrigger>
+      <TooltipContent>{title}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 export default function ManagerUsersPage() {
@@ -44,7 +111,9 @@ export default function ManagerUsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [infoUser, setInfoUser] = useState<UserRow | null>(null);
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
   const [issuedPassword, setIssuedPassword] = useState<{ name: string; password: string } | null>(null);
 
@@ -67,21 +136,21 @@ export default function ManagerUsersPage() {
     return users.filter((user) => `${user.full_name} ${user.email} ${user.phone ?? ""}`.toLocaleLowerCase("tr-TR").includes(needle));
   }, [query, users]);
 
-  const openCreate = () => { setEditing(null); setForm(emptyForm); setError(""); setModalOpen(true); };
+  const openCreate = () => { setEditing(null); setForm(emptyForm); setFormError(""); setModalOpen(true); };
   const openEdit = (user: UserRow) => {
     const name = splitName(user.full_name);
     setEditing(user);
     setForm({ ...emptyForm, ...name, email: user.email.endsWith("@sismik.local") ? "" : user.email, phone: user.phone ?? "", role: uiRole(user) === "MANAGER" ? "manager" : "user", is_active: user.is_active });
-    setError("");
+    setFormError("");
     setModalOpen(true);
   };
 
   const save = async () => {
-    if (!form.first_name.trim() || !form.last_name.trim()) return setError("Ad ve soyad zorunludur.");
-    if (!form.phone.trim()) return setError("Telefon numarası zorunludur.");
-    if (!editing && form.password.length < 8) return setError("Geçici şifre en az 8 karakter olmalıdır.");
+    if (!form.first_name.trim() || !form.last_name.trim()) return setFormError("Ad ve soyad zorunludur.");
+    if (!form.phone.trim()) return setFormError("Telefon numarası zorunludur.");
+    if (!editing && form.password.length < 8) return setFormError("Geçici şifre en az 8 karakter olmalıdır.");
     setSaving(true);
-    setError("");
+    setFormError("");
     try {
       const payload = { full_name: `${form.first_name.trim()} ${form.last_name.trim()}`, phone: form.phone.trim(), roles: [form.role], is_active: form.is_active };
       if (editing) await apiPatch(`/auth/users/${editing.id}`, currentUser?.role === "ADMIN" ? payload : { full_name: payload.full_name, phone: payload.phone, is_active: payload.is_active });
@@ -89,7 +158,7 @@ export default function ManagerUsersPage() {
       setModalOpen(false);
       await load();
     } catch (cause) {
-      setError(errorMessage(cause));
+      setFormError(errorMessage(cause));
     } finally {
       setSaving(false);
     }
@@ -101,7 +170,6 @@ export default function ManagerUsersPage() {
   };
 
   const remove = async (user: UserRow) => {
-    if (!window.confirm(`${user.full_name} hesabını KALICI olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)) return;
     setError("");
     setNotice("");
     try {
@@ -114,7 +182,6 @@ export default function ManagerUsersPage() {
   };
 
   const resetPassword = async (user: UserRow) => {
-    if (!window.confirm(`${user.full_name} için yeni bir geçici şifre oluşturulsun mu? Eski şifre ve açık oturumlar geçersiz olur; kullanıcı verileri korunur.`)) return;
     setError("");
     try {
       const result = await apiPost<{ temporary_password: string }>(`/auth/users/${user.id}/temporary-password`);
@@ -131,154 +198,243 @@ export default function ManagerUsersPage() {
     const isProtected = protectedAdmin || protectedManager;
     const isSelf = user.id === currentUser?.id;
     const visibleName = displayName(user);
-    const accountStatus = !user.is_active ? "Pasif" : user.force_password_change || !user.onboarding_complete ? "İlk giriş bekliyor" : "Aktif";
-    const status = accountStatus === "Aktif"
-      ? { label: accountStatus, pill: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500", text: "text-emerald-700" }
-      : accountStatus === "Pasif"
-        ? { label: accountStatus, pill: "bg-slate-100 text-slate-500", dot: "bg-slate-400", text: "text-slate-500" }
-        : { label: accountStatus, pill: "bg-amber-100 text-amber-700", dot: "bg-amber-500", text: "text-amber-700" };
-    const actions: ToolbarDockAction[] = [
+    const status = statusOf(user);
+    const actions: Action[] = [
       { key: "info", label: "Bilgiler", icon: Info, onClick: () => setInfoUser(user) },
       ...(isProtected ? [] : [
-        { key: "edit", label: "Düzenle", icon: Edit3, onClick: () => openEdit(user) } as ToolbarDockAction,
-        ...(!isSelf ? [{ key: "reset-password", label: "Geçici şifre oluştur", icon: KeyRound, onClick: () => resetPassword(user) } as ToolbarDockAction] : []),
+        { key: "edit", label: "Düzenle", icon: Edit3, onClick: () => openEdit(user) },
+        ...(!isSelf ? [{ key: "reset-password", label: "Geçici şifre oluştur", icon: KeyRound, onClick: () => setConfirm({ kind: "reset", user }) }] : []),
       ]),
       ...(!isProtected && !isSelf ? [
-        { key: "toggle", label: user.is_active ? "Pasif yap" : "Aktif yap", icon: user.is_active ? UserX : UserCheck, onClick: () => toggleActive(user) } as ToolbarDockAction,
-        { key: "delete", label: "Hesabı sil", icon: Trash2, variant: "danger", onClick: () => remove(user) } as ToolbarDockAction,
+        { key: "toggle", label: user.is_active ? "Pasif yap" : "Aktif yap", icon: user.is_active ? UserX : UserCheck, onClick: () => void toggleActive(user) },
+        { key: "delete", label: "Hesabı sil", icon: Trash2, danger: true, onClick: () => setConfirm({ kind: "delete", user }) },
       ] : []),
     ];
     return {
       user, role, visibleName, status, isProtected, actions,
-      roleLabel: role === "ADMIN" ? "Geliştirici Admin" : role === "MANAGER" ? "Yönetici" : "Kullanıcı",
-      initials: visibleName.split(" ").map((part) => part[0]).slice(0, 2).join("").toLocaleUpperCase("tr-TR"),
+      roleLabel: roleLabelOf(role), initials: initialsOf(visibleName),
       protectedTitle: protectedAdmin ? "Admin hesabı korunur" : "Yönetici hesabını yalnızca geliştirici admin düzenleyebilir/silebilir",
     };
   });
 
+  const isAdmin = currentUser?.role === "ADMIN";
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Ekip yönetimi</p><h1 className="mt-1 text-2xl font-bold text-slate-950">Kullanıcılar<InfoHint text="Kullanıcı ve yönetici hesaplarını, ilk girişlerini ve durumlarını yönetin." /></h1></div>
-        <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"><Plus className="h-4 w-4" />Yeni Hesap</button>
-      </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-5">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Ekip yönetimi</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">Kullanıcılar<InfoHint text="Kullanıcı ve yönetici hesaplarını, ilk girişlerini ve durumlarını yönetin." /></h1>
+        </div>
+        <Button onClick={openCreate}><Plus data-icon="inline-start" />Yeni Hesap</Button>
+      </header>
 
-      <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ad, e-posta veya telefon ara" className={`${inputClass} mt-0 pl-9`} /></div>
-      {error && !modalOpen && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-      {notice && !modalOpen && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{notice}</p>}
+      <InputGroup className="w-full sm:w-80">
+        <InputGroupAddon><Search /></InputGroupAddon>
+        <InputGroupInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ad, e-posta veya telefon ara" aria-label="Kullanıcı ara" />
+      </InputGroup>
+      {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+      {notice && <Alert className="border-amber-200 bg-amber-50 text-amber-900"><AlertDescription>{notice}</AlertDescription></Alert>}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        {loading ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Kullanıcılar yükleniyor</div>
-        ) : rows.length === 0 ? (
-          <p className="py-16 text-center text-sm text-slate-500">Eşleşen kullanıcı bulunamadı.</p>
-        ) : (
-          <>
-            {/* Telefon: tablo yerine sade liste. Dört sütun dar ekrana sığmıyordu;
-                rol etiketi iki satıra bölünüp bozuluyor, tablo yana kayıyordu. */}
-            <ul className="divide-y divide-slate-100 sm:hidden">
-              {rows.map(({ user, initials, visibleName, roleLabel, status, isProtected, protectedTitle, actions }) => (
-                <li key={user.id} className="flex items-center gap-3 px-4 py-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">{initials}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-900">{visibleName}</p>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                      <span className="truncate">{roleLabel}</span>
-                      <span aria-hidden className="text-slate-300">·</span>
-                      <span className="inline-flex shrink-0 items-center gap-1">
-                        <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-                        <span className={status.text}>{status.label}</span>
-                      </span>
-                    </p>
-                  </div>
-                  {isProtected && <span title={protectedTitle} className="shrink-0 text-slate-300"><ShieldCheck className="h-4 w-4" /></span>}
-                  <ToolbarDock actions={actions} panelClassName="w-48" triggerClassName="bg-transparent text-slate-400 hover:bg-transparent hover:text-slate-800" />
-                </li>
-              ))}
-            </ul>
-
-            {/* Masaüstü: tablo. */}
-            <div className="hidden overflow-x-auto sm:block">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
-                    <th className="px-4 py-3 font-medium">Ad Soyad</th>
-                    <th className="px-4 py-3 font-medium">Rol</th>
-                    <th className="px-4 py-3 font-medium">Durum</th>
-                    <th className="px-4 py-3 text-right font-medium">İşlem</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {rows.map(({ user, initials, visibleName, roleLabel, role, status, isProtected, protectedTitle, actions }) => (
-                    <tr key={user.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">{initials}</span>
-                          <span className="font-medium text-slate-800">{visibleName}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${role === "ADMIN" ? "bg-indigo-100 text-indigo-700" : role === "MANAGER" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>{roleLabel}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${status.pill}`}>{status.label}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          {isProtected && <span title={protectedTitle} className="text-indigo-400"><ShieldCheck className="h-3.5 w-3.5" /></span>}
-                          <ToolbarDock actions={actions} direction="down" align="end" className="justify-end" />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
-
-      {issuedPassword && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true"><div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl"><h2 className="font-bold text-slate-900">Geçici şifre hazır</h2><p className="mt-2 text-sm text-slate-600">{issuedPassword.name} bu şifreyle giriş yapınca yeni şifre oluşturmalıdır. Şifre yalnızca burada bir kez gösterilir.</p><div className="mt-4 flex items-center gap-2"><code className="min-w-0 flex-1 select-all break-all rounded-lg bg-slate-100 px-3 py-2 text-sm">{issuedPassword.password}</code><button onClick={() => void navigator.clipboard.writeText(issuedPassword.password)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">Kopyala</button></div><button onClick={() => setIssuedPassword(null)} className="mt-5 w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">Kapat</button></div></div>}
-
-      {infoUser && (() => {
-        const infoRole = uiRole(infoUser);
-        const infoStatus = !infoUser.is_active ? "Pasif" : infoUser.force_password_change || !infoUser.onboarding_complete ? "İlk giriş bekliyor" : "Aktif";
-        const hasEmail = !infoUser.email.endsWith("@sismik.local");
-        return (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 p-3 sm:items-center" role="dialog" aria-modal="true" onClick={() => setInfoUser(null)}>
-            <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">{displayName(infoUser).split(" ").map((part) => part[0]).slice(0, 2).join("").toLocaleUpperCase("tr-TR")}</span>
+      {loading ? (
+        <div className="flex flex-col gap-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-14" />)}</div>
+      ) : rows.length === 0 ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><Users /></EmptyMedia>
+            <EmptyTitle>Eşleşen kullanıcı bulunamadı</EmptyTitle>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <Card className="overflow-hidden">
+          {/* Telefon: tablo yerine sade liste (dört sütun dar ekrana sığmıyor). */}
+          <ul className="divide-y sm:hidden">
+            {rows.map(({ user, initials, visibleName, roleLabel, status, isProtected, protectedTitle, actions }) => (
+              <li key={user.id} className="flex items-center gap-3 px-4 py-3">
+                <Avatar className="size-9"><AvatarFallback className="text-xs font-semibold">{initials}</AvatarFallback></Avatar>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-slate-900">{displayName(infoUser)}</p>
-                  <p className="text-xs text-slate-400">{infoRole === "ADMIN" ? "Geliştirici Admin" : infoRole === "MANAGER" ? "Yönetici" : "Kullanıcı"} · {infoStatus}</p>
+                  <p className="truncate text-sm font-semibold">{visibleName}</p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="truncate">{roleLabel}</span><span aria-hidden>·</span><span className="shrink-0">{status}</span>
+                  </p>
                 </div>
-                <button onClick={() => setInfoUser(null)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button>
-              </div>
-              <dl className="divide-y divide-slate-100 px-5 py-1 text-sm">
+                {isProtected && <ProtectedMark title={protectedTitle} />}
+                <RowActions actions={actions} label={visibleName} />
+              </li>
+            ))}
+          </ul>
+
+          {/* Masaüstü: tablo. */}
+          <div className="hidden sm:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-4">Ad Soyad</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead>Durum</TableHead>
+                  <TableHead className="pr-4 text-right">İşlem</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map(({ user, initials, visibleName, roleLabel, role, status, isProtected, protectedTitle, actions }) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="pl-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-8"><AvatarFallback className="text-xs font-semibold">{initials}</AvatarFallback></Avatar>
+                        <span className="font-medium">{visibleName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell><Badge variant={ROLE_BADGE[role]}>{roleLabel}</Badge></TableCell>
+                    <TableCell><Badge variant={STATUS_BADGE[status]}>{status}</Badge></TableCell>
+                    <TableCell className="pr-4">
+                      <div className="flex items-center justify-end gap-1">
+                        {isProtected && <ProtectedMark title={protectedTitle} />}
+                        <RowActions actions={actions} label={visibleName} />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
+      {/* Silme / geçici şifre onayı */}
+      <AlertDialog open={confirm !== null} onOpenChange={(open) => { if (!open) setConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirm?.kind === "delete" ? "Hesap kalıcı olarak silinsin mi?" : "Geçici şifre oluşturulsun mu?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirm?.kind === "delete"
+                ? `${confirm.user.full_name} hesabı kalıcı olarak silinecek. Bu işlem geri alınamaz.`
+                : `${confirm?.user.full_name} için yeni bir geçici şifre oluşturulacak. Eski şifre ve açık oturumlar geçersiz olur; kullanıcı verileri korunur.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+            <AlertDialogAction
+              className={confirm?.kind === "delete" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
+              onClick={() => { if (!confirm) return; void (confirm.kind === "delete" ? remove(confirm.user) : resetPassword(confirm.user)); setConfirm(null); }}>
+              {confirm?.kind === "delete" ? "Kalıcı Olarak Sil" : "Şifre Oluştur"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Oluşturulan geçici şifre (yalnız bir kez gösterilir) */}
+      <Dialog open={issuedPassword !== null} onOpenChange={(open) => { if (!open) setIssuedPassword(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Geçici şifre hazır</DialogTitle>
+            <DialogDescription>{issuedPassword?.name} bu şifreyle giriş yapınca yeni şifre oluşturmalıdır. Şifre yalnızca burada bir kez gösterilir.</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2">
+            <code className="min-w-0 flex-1 select-all break-all rounded-md bg-muted px-3 py-2 text-sm">{issuedPassword?.password}</code>
+            <Button variant="outline" onClick={() => issuedPassword && void navigator.clipboard.writeText(issuedPassword.password)}>Kopyala</Button>
+          </div>
+          <DialogFooter><Button className="w-full" onClick={() => setIssuedPassword(null)}>Kapat</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Kullanıcı bilgileri */}
+      <Dialog open={infoUser !== null} onOpenChange={(open) => { if (!open) setInfoUser(null); }}>
+        <DialogContent className="gap-0 p-0 sm:max-w-sm">
+          {infoUser && (
+            <>
+              <DialogHeader className="flex-row items-center gap-3 space-y-0 px-5 py-4 text-left">
+                <Avatar className="size-10"><AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">{initialsOf(displayName(infoUser))}</AvatarFallback></Avatar>
+                <div className="min-w-0 flex-1">
+                  <DialogTitle className="truncate text-base">{displayName(infoUser)}</DialogTitle>
+                  <DialogDescription className="text-xs">{roleLabelOf(uiRole(infoUser))} · {statusOf(infoUser)}</DialogDescription>
+                </div>
+              </DialogHeader>
+              <Separator />
+              <dl className="flex flex-col divide-y px-5 py-1 text-sm">
                 <div className="flex items-center gap-3 py-3">
-                  <Mail className="h-4 w-4 shrink-0 text-slate-400" />
-                  <span className="min-w-0 flex-1 break-words text-slate-700">{hasEmail ? infoUser.email : "E-posta tanımlı değil"}</span>
+                  <Mail className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 break-words">{infoUser.email.endsWith("@sismik.local") ? "E-posta tanımlı değil" : infoUser.email}</span>
                 </div>
                 <div className="flex items-center gap-3 py-3">
-                  <Phone className="h-4 w-4 shrink-0 text-slate-400" />
-                  <span className="min-w-0 flex-1 text-slate-700">{infoUser.phone || "Telefon tanımlı değil"}</span>
+                  <Phone className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1">{infoUser.phone || "Telefon tanımlı değil"}</span>
                 </div>
               </dl>
-            </div>
-          </div>
-        );
-      })()}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
-      {modalOpen && <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 p-3 sm:items-center sm:p-4" role="dialog" aria-modal="true"><div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"><div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4"><div><h2 className="font-bold text-slate-900">{editing ? "Hesabı Düzenle" : "Yeni Hesap"}</h2><p className="mt-0.5 text-xs text-slate-400">Admin rolü bu ekrandan atanamaz.</p></div><button onClick={() => setModalOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button></div><div className="grid min-h-0 gap-4 overflow-y-auto p-5 sm:grid-cols-2">
-        <label className="block text-xs font-medium text-slate-600">Ad *<input value={form.first_name} onChange={(event) => setForm({ ...form, first_name: event.target.value })} className={inputClass} /></label>
-        <label className="block text-xs font-medium text-slate-600">Soyad *<input value={form.last_name} onChange={(event) => setForm({ ...form, last_name: event.target.value })} className={inputClass} /></label>
-        <label className="block text-xs font-medium text-slate-600">Telefon *<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className={inputClass} /></label>
-        <label className="block text-xs font-medium text-slate-600">E-posta (isteğe bağlı)<input type="email" disabled={Boolean(editing)} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className={inputClass} /></label>
-        <label className="block text-xs font-medium text-slate-600">Rol *<select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as FormState["role"] })} className={inputClass} disabled={currentUser?.role !== "ADMIN"}><option value="user">Kullanıcı</option>{currentUser?.role === "ADMIN" && <option value="manager">Yönetici</option>}</select></label>
-        <label className="block text-xs font-medium text-slate-600">Hesap durumu *<select value={form.is_active ? "active" : "passive"} onChange={(event) => setForm({ ...form, is_active: event.target.value === "active" })} className={inputClass}><option value="active">Aktif</option><option value="passive">Pasif</option></select></label>
-        {!editing && <label className="block text-xs font-medium text-slate-600 sm:col-span-2">Geçici şifre *<div className="relative"><input type={showPassword ? "text" : "password"} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} className={`${inputClass} pr-10`} /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 translate-y-0.5 text-slate-400">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div><span className="mt-1 block font-normal text-slate-400">Kullanıcı ilk girişte otomatik olarak yeni şifre ekranına yönlendirilir.</span></label>}
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 sm:col-span-2">{error}</p>}</div><div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4"><button onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700">Vazgeç</button><button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving && <Loader2 className="h-4 w-4 animate-spin" />}Kaydet</button></div></div></div>}
+      {/* Yeni hesap / düzenle */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Hesabı Düzenle" : "Yeni Hesap"}</DialogTitle>
+            <DialogDescription>Admin rolü bu ekrandan atanamaz.</DialogDescription>
+          </DialogHeader>
+          <FieldGroup className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="k-ad">Ad *</FieldLabel>
+              <Input id="k-ad" value={form.first_name} onChange={(event) => setForm({ ...form, first_name: event.target.value })} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="k-soyad">Soyad *</FieldLabel>
+              <Input id="k-soyad" value={form.last_name} onChange={(event) => setForm({ ...form, last_name: event.target.value })} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="k-tel">Telefon *</FieldLabel>
+              <Input id="k-tel" inputMode="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
+            </Field>
+            <Field data-disabled={Boolean(editing) || undefined}>
+              <FieldLabel htmlFor="k-eposta">E-posta (isteğe bağlı)</FieldLabel>
+              <Input id="k-eposta" type="email" disabled={Boolean(editing)} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+            </Field>
+            <Field data-disabled={!isAdmin || undefined}>
+              <FieldLabel htmlFor="k-rol">Rol *</FieldLabel>
+              <Select value={form.role} onValueChange={(value) => setForm({ ...form, role: value as FormState["role"] })} disabled={!isAdmin}>
+                <SelectTrigger id="k-rol"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="user">Kullanıcı</SelectItem>
+                    {isAdmin && <SelectItem value="manager">Yönetici</SelectItem>}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="k-durum">Hesap durumu *</FieldLabel>
+              <Select value={form.is_active ? "active" : "passive"} onValueChange={(value) => setForm({ ...form, is_active: value === "active" })}>
+                <SelectTrigger id="k-durum"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="active">Aktif</SelectItem>
+                    <SelectItem value="passive">Pasif</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            {!editing && (
+              <Field className="sm:col-span-2">
+                <FieldLabel htmlFor="k-sifre">Geçici şifre *</FieldLabel>
+                <InputGroup>
+                  <InputGroupInput id="k-sifre" type={showPassword ? "text" : "password"} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton size="icon-xs" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}>
+                      {showPassword ? <EyeOff /> : <Eye />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+                <FieldDescription>Kullanıcı ilk girişte otomatik olarak yeni şifre ekranına yönlendirilir.</FieldDescription>
+              </Field>
+            )}
+            {formError && <Alert variant="destructive" className="sm:col-span-2"><AlertDescription>{formError}</AlertDescription></Alert>}
+          </FieldGroup>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalOpen(false)}>Vazgeç</Button>
+            <Button onClick={() => void save()} disabled={saving}>{saving && <Spinner data-icon="inline-start" />}Kaydet</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
