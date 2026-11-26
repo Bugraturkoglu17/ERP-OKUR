@@ -649,6 +649,14 @@ function ModalShell({ title, description, busy = false, onClose, footer, childre
   );
 }
 
+// Özet'in alt kartları (bağlı iş emirleri, atananlar) sabit yükseklikte ve birbirine eşit; içerik fazlaysa kart içinde kayar.
+const SUMMARY_CARD = "flex h-80 flex-col overflow-hidden";
+
+/** Ad soyadın baş harfleri (kişi satırındaki yuvarlak). */
+function initials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toLocaleUpperCase("tr-TR") ?? "").join("") || "?";
+}
+
 /** Kart başlığı (shadcn CardHeader + CardTitle): başlık solda, işlem sağda, altında ayraç. */
 function SectionHeader({ title, right }: { title: string; right?: ReactNode }) {
   return (
@@ -753,12 +761,12 @@ function StageEventsDialog({ projectId, onClose }: { projectId: string; onClose:
 function WorkOrdersCard({ project, inUserPanel }: { project: ProjectDetail; inUserPanel: boolean }) {
   const open = project.work_orders.filter((wo) => !["completed", "cancelled"].includes(normalizeStatus(wo.status))).length;
   return (
-    <Card>
+    <Card className={SUMMARY_CARD}>
       <SectionHeader title={`Bağlı iş emirleri (${project.work_orders.length})`} right={open ? <span className={TXT.meta}>{open} açık</span> : undefined} />
       {project.work_orders.length === 0 ? (
-        <p className={`px-5 py-8 text-center ${TXT.meta}`}>Projeye bağlı iş emri yok.</p>
+        <p className={`flex flex-1 items-center justify-center px-5 ${TXT.meta}`}>Projeye bağlı iş emri yok.</p>
       ) : (
-        <ul className="divide-y divide-slate-100">
+        <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
           {project.work_orders.map((wo) => {
             const status = normalizeStatus(wo.status);
             return (
@@ -819,21 +827,25 @@ function MembersDialog({ project, users, onClose, onChanged }: {
 /** Özet: projeye atananlar; yönetici "Düzenle" ile kişi ekler/çıkarır. */
 function MembersSummary({ project, onEdit }: { project: ProjectDetail; onEdit?: () => void }) {
   return (
-    <Card>
+    <Card className={SUMMARY_CARD}>
       <SectionHeader title={`Projeye atananlar (${project.members.length})`} right={onEdit && (
         <Button variant="outline" size="sm" onClick={onEdit}>Düzenle</Button>
       )} />
       {project.members.length === 0 ? (
-        <p className={`px-5 py-8 text-center ${TXT.meta}`}>Projeye atanan kişi yok.</p>
+        <p className={`flex flex-1 items-center justify-center px-5 ${TXT.meta}`}>Projeye atanan kişi yok.</p>
       ) : (
-        <ul className="flex flex-wrap gap-2 p-5">
-          {project.members.map((member) => (
-            <li key={member.id}>
-              <Badge variant="muted" className="gap-1.5 px-2.5 py-1">
-                {member.name}{member.id === project.manager_user_id && <span className="text-slate-500">· sorumlu</span>}
-              </Badge>
-            </li>
-          ))}
+        <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
+          {[...project.members]
+            .sort((a, b) => Number(b.id === project.manager_user_id) - Number(a.id === project.manager_user_id))
+            .map((member) => (
+              <li key={member.id} className="flex items-center gap-3 px-5 py-2.5">
+                <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-slate-600">
+                  {initials(member.name)}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{member.name}</span>
+                {member.id === project.manager_user_id && <Badge variant="info" className="shrink-0">Proje sorumlusu</Badge>}
+              </li>
+            ))}
         </ul>
       )}
     </Card>
