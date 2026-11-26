@@ -115,7 +115,8 @@ body > div {
   --secondary-foreground: 215 28% 18%;
   --muted: 210 16% 93%;
   --muted-foreground: 215 14% 48%;
-  --accent: 38 92% 50%;
+  /* shadcn: accent = seçili/üzerine gelinen öğenin hafif zemini (toggle, menü, ghost düğme). Nötr kalmalı. */
+  --accent: 210 20% 92%;
   --accent-foreground: 215 28% 10%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
@@ -144,8 +145,8 @@ body > div {
   --secondary-foreground: 210 30% 90%;
   --muted: 215 22% 18%;
   --muted-foreground: 215 18% 58%;
-  --accent: 38 92% 50%;
-  --accent-foreground: 215 28% 10%;
+  --accent: 215 22% 20%;
+  --accent-foreground: 210 30% 94%;
   --destructive: 0 60% 42%;
   --destructive-foreground: 0 0% 100%;
   --border: 215 22% 20%;
