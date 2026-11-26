@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import {
-  AlertCircle, Check, CheckCircle2, Circle, ClipboardList, FileText, History, Link2, Loader2,
+  AlertCircle, ArrowRight, Check, CheckCircle2, ChevronRight, Circle, ClipboardList, FileText, History, Link2, Loader2,
   Package, Plus, X, XCircle,
 } from "lucide-react";
 import { apiGet, getRequestErrorMessage } from "@/lib/api";
@@ -459,7 +459,7 @@ export default function ProjectDetailPage() {
       <Skeleton className="h-10 w-56" />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-20" />)}</div>
       <Skeleton className="h-48" />
-      <div className="grid gap-4 xl:grid-cols-2"><Skeleton className="h-40" /><Skeleton className="h-40" /></div>
+      <div className="grid gap-4 xl:grid-cols-2"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
     </div>
   );
   if (!project) return <div className="mx-auto max-w-xl rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">{error || "Proje bulunamadı."}</div>;
@@ -564,7 +564,8 @@ export default function ProjectDetailPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 xl:grid-cols-2">
+          {/* items-start: açılan kart yanındakini uzatmaz. */}
+          <div className="grid items-start gap-4 xl:grid-cols-2">
             <WorkOrdersCard project={project} inUserPanel={inUserPanel} />
             <MembersSummary project={project} onEdit={editable ? () => setMembersOpen(true) : undefined} />
           </div>
@@ -649,8 +650,32 @@ function ModalShell({ title, description, busy = false, onClose, footer, childre
   );
 }
 
-// Özet'in alt kartları (bağlı iş emirleri, atananlar) sabit yükseklikte ve birbirine eşit; içerik fazlaysa kart içinde kayar.
-const SUMMARY_CARD = "flex h-80 flex-col overflow-hidden";
+/**
+ * Özet'in açılır kartı: başlık satırına tıklayınca liste altında açılır (varsayılan kapalı). Kartlar birbirinin
+ * yüksekliğini etkilemez; açık liste en fazla ~8 satır yüksekliğindedir, fazlası içinde kayar.
+ */
+function CollapsibleCard({ title, meta, action, children }: { title: string; meta?: ReactNode; action?: ReactNode; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex min-h-14 items-center gap-2 pr-4">
+        <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)}
+          className="flex min-h-14 flex-1 items-center gap-2.5 px-5 text-left hover:bg-muted/50">
+          <ChevronRight aria-hidden="true" className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")} />
+          <span className={TXT.title}>{title}</span>
+          {meta && <span className={cn("ml-auto", TXT.meta)}>{meta}</span>}
+        </button>
+        {action}
+      </div>
+      {open && (
+        <>
+          <Separator />
+          <div className="max-h-[26rem] overflow-y-auto">{children}</div>
+        </>
+      )}
+    </Card>
+  );
+}
 
 /** Ad soyadın baş harfleri (kişi satırındaki yuvarlak). */
 function initials(name: string): string {
@@ -757,39 +782,36 @@ function StageEventsDialog({ projectId, onClose }: { projectId: string; onClose:
   );
 }
 
-/** Özet: projeye bağlı iş emirleri (yalnız görüntüleme; bağlama sağ üstteki butondan). */
+/** Özet: projeye bağlı iş emirleri (yalnız görüntüleme; bağlama sağ üstteki butondan). Satıra tıklayınca iş emri açılır. */
 function WorkOrdersCard({ project, inUserPanel }: { project: ProjectDetail; inUserPanel: boolean }) {
   const open = project.work_orders.filter((wo) => !["completed", "cancelled"].includes(normalizeStatus(wo.status))).length;
   return (
-    <Card className={SUMMARY_CARD}>
-      <SectionHeader title={`Bağlı iş emirleri (${project.work_orders.length})`} right={open ? <span className={TXT.meta}>{open} açık</span> : undefined} />
+    <CollapsibleCard title={`Bağlı iş emirleri (${project.work_orders.length})`} meta={open ? `${open} açık` : undefined}>
       {project.work_orders.length === 0 ? (
-        <p className={`flex flex-1 items-center justify-center px-5 ${TXT.meta}`}>Projeye bağlı iş emri yok.</p>
+        <p className={`px-5 py-6 text-center ${TXT.meta}`}>Projeye bağlı iş emri yok.</p>
       ) : (
-        <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
+        <ul className="divide-y divide-slate-100">
           {project.work_orders.map((wo) => {
             const status = normalizeStatus(wo.status);
             return (
               <li key={wo.id}>
-                <Link href={`${inUserPanel ? "/user/islerim" : "/manager/is-emirleri"}/${wo.id}`} className="flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Badge variant={wo.work_type === "project" ? "muted" : "warning"} className="shrink-0">{wo.work_type_label}</Badge>
-                      <span className="truncate text-sm font-medium text-slate-900">{wo.title}</span>
-                    </div>
-                    <p className={`mt-1 ${TXT.meta}`}>{wo.assigned_to_name ?? "Atanmadı"} · Verildi {formatServerDate(wo.created_at)}</p>
-                    {wo.linked_at && (
-                      <p className={`mt-0.5 ${TXT.meta}`}>Bağlandı {formatServerDate(wo.linked_at)}{wo.linked_by_name ? ` · ${wo.linked_by_name}` : ""}{wo.link_stage_name ? ` · ${wo.link_stage_name} aşamasında` : ""}</p>
-                    )}
+                <Link href={`${inUserPanel ? "/user/islerim" : "/manager/is-emirleri"}/${wo.id}`} className="block px-5 py-3 hover:bg-muted/50">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Badge variant={wo.work_type === "project" ? "muted" : "warning"} className="shrink-0">{wo.work_type_label}</Badge>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{wo.title}</span>
+                    <Badge variant={WO_STATUS_BADGE[status] ?? "info"} className="shrink-0">{STATUS_LABEL[status]}</Badge>
                   </div>
-                  <Badge variant={WO_STATUS_BADGE[status] ?? "info"} className="shrink-0">{STATUS_LABEL[status]}</Badge>
+                  <p className={cn("mt-1 truncate", TXT.meta)}>
+                    {wo.assigned_to_name ?? "Atanmadı"} · Termin {wo.due_date ? formatServerDate(wo.due_date) : "—"}
+                    {wo.linked_at ? ` · Bağlandı ${formatServerDate(wo.linked_at)}${wo.link_stage_name ? ` (${wo.link_stage_name})` : ""}` : ""}
+                  </p>
                 </Link>
               </li>
             );
           })}
         </ul>
       )}
-    </Card>
+    </CollapsibleCard>
   );
 }
 
@@ -827,28 +849,33 @@ function MembersDialog({ project, users, onClose, onChanged }: {
 /** Özet: projeye atananlar; yönetici "Düzenle" ile kişi ekler/çıkarır. */
 function MembersSummary({ project, onEdit }: { project: ProjectDetail; onEdit?: () => void }) {
   return (
-    <Card className={SUMMARY_CARD}>
-      <SectionHeader title={`Projeye atananlar (${project.members.length})`} right={onEdit && (
-        <Button variant="outline" size="sm" onClick={onEdit}>Düzenle</Button>
-      )} />
+    <CollapsibleCard title={`Projeye atananlar (${project.members.length})`}
+      action={onEdit && <Button variant="outline" size="sm" onClick={onEdit}>Düzenle</Button>}>
       {project.members.length === 0 ? (
-        <p className={`flex flex-1 items-center justify-center px-5 ${TXT.meta}`}>Projeye atanan kişi yok.</p>
+        <p className={`px-5 py-6 text-center ${TXT.meta}`}>Projeye atanan kişi yok.</p>
       ) : (
-        <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
+        <ul className="divide-y divide-slate-100">
           {[...project.members]
             .sort((a, b) => Number(b.id === project.manager_user_id) - Number(a.id === project.manager_user_id))
-            .map((member) => (
-              <li key={member.id} className="flex items-center gap-3 px-5 py-2.5">
-                <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-slate-600">
-                  {initials(member.name)}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{member.name}</span>
-                {member.id === project.manager_user_id && <Badge variant="info" className="shrink-0">Proje sorumlusu</Badge>}
-              </li>
-            ))}
+            .map((member) => {
+              const isManager = member.id === project.manager_user_id;
+              const steps = project.stages.filter((s) => s.responsible_user_id === member.id);
+              return (
+                <li key={member.id} className="flex items-center gap-3 px-5 py-3">
+                  <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-slate-600">
+                    {initials(member.name)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-900">{member.name}</p>
+                    <p className={cn("truncate", TXT.meta)}>{steps.length ? `Sorumlu: ${steps.map((s) => s.name).join(", ")}` : "Adım sorumluluğu yok"}</p>
+                  </div>
+                  <Badge variant={isManager ? "info" : "muted"} className="shrink-0">{isManager ? "Proje sorumlusu" : "Atanan"}</Badge>
+                </li>
+              );
+            })}
         </ul>
       )}
-    </Card>
+    </CollapsibleCard>
   );
 }
 
