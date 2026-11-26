@@ -1,8 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
 import { apiGet } from "@/lib/api";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Button } from "@/components/shadcn/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/shadcn/dialog";
+import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/shadcn/field";
+import { Input } from "@/components/shadcn/input";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/shadcn/select";
+import { Spinner } from "@/components/shadcn/spinner";
+import { Textarea } from "@/components/shadcn/textarea";
 import { createStore, updateStore, type Store } from "@/services/stores";
 import { TURKEY_CITIES, matchTurkeyCity } from "@/lib/turkey-cities";
 
@@ -129,90 +136,78 @@ export function StoreFormModal({ mode, initial, projectId, existingDescription, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="store-form-title" className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 id="store-form-title" className="text-sm font-bold text-slate-900">
-            {mode === "create" ? "Yeni Mağaza Ekle" : "Mağaza Bilgilerini Düzenle"}
-          </h2>
-          <button type="button" onClick={onClose} aria-label="Kapat"><X className="h-5 w-5 text-slate-400 hover:text-slate-700" /></button>
-        </div>
-        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[75vh] px-6 py-5 space-y-4">
-          {mode === "create" && (
-            <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Konum Bilgisi</p>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Mağaza Zinciri *</label>
-                <select required value={form.customer_id} onChange={e => onCustomerChange(e.target.value)}
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
-                  <option value="">Zincir seçin...</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Bölge *</label>
-                <select required value={form.region_id} onChange={e => onRegionChange(e.target.value)}
-                  disabled={!form.customer_id}
-                  className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none disabled:opacity-50">
-                  <option value="">Bölge seçin...</option>
-                  {regions.map(r => <option key={r.id} value={r.id}>{r.city}</option>)}
-                </select>
-              </div>
-            </div>
-          )}
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{mode === "create" ? "Yeni Mağaza Ekle" : "Mağaza Bilgilerini Düzenle"}</DialogTitle>
+          <DialogDescription className="sr-only">Mağaza kartı bilgileri</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup className="gap-4">
+            {mode === "create" && (
+              <FieldSet className="gap-3 rounded-lg border bg-muted/50 p-4">
+                <FieldLegend variant="label" className="mb-0 text-[11px] uppercase tracking-wide text-muted-foreground">Konum Bilgisi</FieldLegend>
+                <Field>
+                  <FieldLabel htmlFor="mf-zincir">Mağaza Zinciri *</FieldLabel>
+                  <Select value={form.customer_id || undefined} onValueChange={onCustomerChange}>
+                    <SelectTrigger id="mf-zincir"><SelectValue placeholder="Zincir seçin..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field data-disabled={!form.customer_id || undefined}>
+                  <FieldLabel htmlFor="mf-bolge">Bölge *</FieldLabel>
+                  <Select value={form.region_id || undefined} onValueChange={onRegionChange} disabled={!form.customer_id}>
+                    <SelectTrigger id="mf-bolge"><SelectValue placeholder="Bölge seçin..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>{regions.map(r => <SelectItem key={r.id} value={r.id}>{r.city}</SelectItem>)}</SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </FieldSet>
+            )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Mağaza Adı *</label>
-              <input required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                placeholder="Örn: Migros Ataşehir MMM" />
+            <Field>
+              <FieldLabel htmlFor="mf-ad">Mağaza Adı *</FieldLabel>
+              <Input id="mf-ad" required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Örn: Migros Ataşehir MMM" />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field>
+                <FieldLabel htmlFor="mf-kod">Mağaza Kodu</FieldLabel>
+                <Input id="mf-kod" value={form.project_no} onChange={e => setForm(p => ({ ...p, project_no: e.target.value }))} placeholder="Örn: 3421" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="mf-sehir">Şehir</FieldLabel>
+                <Select value={form.sehir || undefined} onValueChange={(value) => setForm(p => ({ ...p, sehir: value }))}>
+                  <SelectTrigger id="mf-sehir"><SelectValue placeholder="Şehir seçin..." /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectGroup>
+                      {/* Listede olmayan eski bir değer silinmesin diye seçenek olarak korunur. */}
+                      {form.sehir && !TURKEY_CITIES.includes(form.sehir) && <SelectItem value={form.sehir}>{form.sehir}</SelectItem>}
+                      {TURKEY_CITIES.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field className="col-span-2 sm:col-span-1">
+                <FieldLabel htmlFor="mf-tel">Telefon</FieldLabel>
+                <Input id="mf-tel" inputMode="tel" value={form.tel1} onChange={e => setForm(p => ({ ...p, tel1: e.target.value }))} placeholder="0XXX XXX XX XX" />
+              </Field>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Mağaza Kodu</label>
-              <input value={form.project_no} onChange={e => setForm(p => ({ ...p, project_no: e.target.value }))}
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                placeholder="Örn: 3421" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Şehir</label>
-              <select value={form.sehir} onChange={e => setForm(p => ({ ...p, sehir: e.target.value }))}
-                className="w-full rounded-lg border bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
-                <option value="">Şehir seçin...</option>
-                {/* Listede olmayan eski bir değer silinmesin diye seçenek olarak korunur. */}
-                {form.sehir && !TURKEY_CITIES.includes(form.sehir) && <option value={form.sehir}>{form.sehir}</option>}
-                {TURKEY_CITIES.map(city => <option key={city} value={city}>{city}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Telefon</label>
-              <input value={form.tel1} onChange={e => setForm(p => ({ ...p, tel1: e.target.value }))}
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                placeholder="0XXX XXX XX XX" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Adres</label>
-              <textarea rows={2} value={form.adres} onChange={e => setForm(p => ({ ...p, adres: e.target.value }))}
-                className="w-full rounded-lg border px-3 py-2 text-sm resize-none focus:border-blue-500 focus:outline-none"
-                placeholder="Tam adres..." />
-            </div>
-          </div>
+            <Field>
+              <FieldLabel htmlFor="mf-adres">Adres</FieldLabel>
+              <Textarea id="mf-adres" rows={2} value={form.adres} onChange={e => setForm(p => ({ ...p, adres: e.target.value }))} placeholder="Tam adres..." className="resize-none" />
+            </Field>
 
-          {err && <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{err}</p>}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              Vazgeç
-            </button>
-            <button type="submit" disabled={busy}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50">
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {mode === "create" ? "Mağaza Oluştur" : "Kaydet"}
-            </button>
-          </div>
+            {err && <Alert variant="destructive"><AlertDescription>{err}</AlertDescription></Alert>}
+          </FieldGroup>
+          <DialogFooter className="mt-6">
+            <Button type="button" variant="outline" onClick={onClose}>Vazgeç</Button>
+            <Button type="submit" disabled={busy}>{busy && <Spinner data-icon="inline-start" />}{mode === "create" ? "Mağaza Oluştur" : "Kaydet"}</Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

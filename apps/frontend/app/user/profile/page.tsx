@@ -2,8 +2,17 @@
 
 import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 import { apiGet, apiPatch } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Avatar, AvatarFallback } from "@/components/shadcn/avatar";
+import { Badge } from "@/components/shadcn/badge";
+import { Button } from "@/components/shadcn/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/shadcn/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/shadcn/field";
+import { Input } from "@/components/shadcn/input";
+import { Spinner } from "@/components/shadcn/spinner";
 
 interface UserProfile {
   id: string;
@@ -67,86 +76,53 @@ export default function UserProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
-      </div>
-    );
+    return <div className="flex justify-center py-24"><Spinner className="size-6" /></div>;
   }
 
   if (!profile) {
-    return <p className="text-sm text-slate-400">Profil yüklenemedi.</p>;
+    return <Alert variant="destructive" className="max-w-md"><AlertDescription>Profil yüklenemedi.</AlertDescription></Alert>;
   }
 
   return (
-    <div className="max-w-md space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Profilim<InfoHint text="Kişisel bilgileriniz" /></h1>
-      </div>
+    <div className="flex max-w-md flex-col gap-6">
+      <h1 className="text-2xl font-bold tracking-tight">Profilim<InfoHint text="Kişisel bilgileriniz" /></h1>
 
-      <div className="flex items-center gap-4 rounded-xl bg-white border border-slate-200 p-5">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-100 text-teal-700 text-lg font-bold">
-          {profile.full_name.slice(0, 2).toUpperCase()}
-        </div>
-        <div>
-          <p className="text-base font-semibold text-slate-900">{profile.full_name}</p>
-          <p className="text-sm text-slate-500">{profile.email}</p>
-          <span className="inline-block mt-1 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-medium text-teal-700">
-            {ROLE_LABEL[profile.default_role] ?? profile.default_role}
-          </span>
-        </div>
-      </div>
+      <Card>
+        <CardContent className="flex items-center gap-4 p-5">
+          <Avatar className="size-14"><AvatarFallback className="bg-primary/10 text-lg font-bold text-primary">{profile.full_name.slice(0, 2).toLocaleUpperCase("tr-TR")}</AvatarFallback></Avatar>
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold">{profile.full_name}</p>
+            <p className="truncate text-sm text-muted-foreground">{profile.email}</p>
+            <Badge variant="info" className="mt-1">{ROLE_LABEL[profile.default_role] ?? profile.default_role}</Badge>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="rounded-xl bg-white border border-slate-200 p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-slate-700">Bilgilerimi Düzenle</h2>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Ad Soyad</label>
-          <input
-            type="text"
-            value={fullName}
-            onChange={(event) => setFullName(event.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">E-posta</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="E-posta isteğe bağlı"
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Telefon</label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+90 5xx xxx xx xx"
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none"
-          />
-        </div>
-
-        {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-        <p className="text-xs text-slate-500">Telefonu değiştirdiğinizde yeni numaranızla giriş yapabilirsiniz.</p>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className={`w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
-            saved
-              ? "bg-emerald-500 text-white"
-              : "bg-teal-500 text-white hover:bg-teal-600 disabled:opacity-50"
-          }`}
-        >
-          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          {saved ? "Kaydedildi!" : "Kaydet"}
-        </button>
-      </div>
+      <Card>
+        <CardHeader className="px-5 pb-0 pt-5"><CardTitle className="text-sm">Bilgilerimi Düzenle</CardTitle></CardHeader>
+        <CardContent className="p-5">
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="profil-ad">Ad Soyad</FieldLabel>
+              <Input id="profil-ad" type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="profil-eposta">E-posta</FieldLabel>
+              <Input id="profil-eposta" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="E-posta isteğe bağlı" />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="profil-tel">Telefon</FieldLabel>
+              <Input id="profil-tel" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+90 5xx xxx xx xx" />
+              <FieldDescription>Telefonu değiştirdiğinizde yeni numaranızla giriş yapabilirsiniz.</FieldDescription>
+            </Field>
+            {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+            <Button onClick={() => void handleSave()} disabled={saving} className={cn("w-full", saved && "bg-emerald-600 hover:bg-emerald-600")}>
+              {saving ? <Spinner data-icon="inline-start" /> : saved && <Check data-icon="inline-start" />}
+              {saved ? "Kaydedildi" : "Kaydet"}
+            </Button>
+          </FieldGroup>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,11 +1,17 @@
 "use client";
 
-import { formatServerDateTime } from "@/lib/utils";
+import { cn, formatServerDateTime } from "@/lib/utils";
 import { Suspense, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { ClipboardList, Search, X } from "lucide-react";
 import { apiGet } from "@/lib/api";
+import { Badge } from "@/components/shadcn/badge";
+import { Button } from "@/components/shadcn/button";
+import { Card } from "@/components/shadcn/card";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/shadcn/empty";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
+import { Skeleton } from "@/components/shadcn/skeleton";
 
 type WorkOrder = {
   id: string;
@@ -21,13 +27,8 @@ type WorkOrder = {
   created_at?: string;
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  planned:   "bg-blue-100 text-blue-700",
-  draft:     "bg-slate-100 text-slate-600",
-  sent:      "bg-blue-100 text-blue-700",
-  started:   "bg-orange-100 text-orange-700",
-  completed: "bg-emerald-100 text-emerald-700",
-  failed:    "bg-red-100 text-red-700",
+const STATUS_BADGE: Record<string, "info" | "muted" | "warning" | "success" | "destructive"> = {
+  planned: "info", draft: "muted", sent: "info", started: "warning", completed: "success", failed: "destructive",
 };
 
 function statusLabel(status: string) {
@@ -79,73 +80,51 @@ function IslerimContent() {
   }, [orders, q, statusFilter]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">İşlerim</h1>
-        <p className="mt-1 text-sm text-slate-500">
+    <div className="mx-auto flex max-w-4xl flex-col gap-5">
+      <header>
+        <h1 className="text-2xl font-bold tracking-tight">İşlerim</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           {loading ? "Yükleniyor..." : `${filtered.length} iş emri${statusFilter ? ` — ${STATUS_GROUP_LABEL[statusFilter] ?? statusFilter}` : " atanmış"}`}
         </p>
-      </div>
+      </header>
 
       {statusFilter && (
-        <button
-          type="button"
-          onClick={() => router.push("/user/islerim")}
-          className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-        >
-          {STATUS_GROUP_LABEL[statusFilter] ?? statusFilter}
-          <X className="h-3.5 w-3.5" />
-        </button>
+        <Button variant="outline" size="sm" className="w-fit rounded-full border-primary/30 bg-primary/5 text-primary" onClick={() => router.push("/user/islerim")}>
+          {STATUS_GROUP_LABEL[statusFilter] ?? statusFilter}<X data-icon="inline-end" />
+        </Button>
       )}
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Ara…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none"
-        />
-      </div>
+      <InputGroup>
+        <InputGroupAddon><Search /></InputGroupAddon>
+        <InputGroupInput type="text" placeholder="Ara…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="İş emri ara" />
+      </InputGroup>
 
       {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-xl border border-slate-200 bg-slate-50" />
-          ))}
-        </div>
+        <div className="flex flex-col gap-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white py-20 text-center">
-          <p className="text-sm text-slate-400">
-            {q
-              ? "Aramayla eşleşen iş emri bulunamadı."
-              : statusFilter
-                ? `${STATUS_GROUP_LABEL[statusFilter] ?? statusFilter} durumunda iş emri yok.`
-                : "Henüz atanmış iş emri yok."}
-          </p>
-        </div>
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><ClipboardList /></EmptyMedia>
+            <EmptyTitle className="text-sm font-normal text-muted-foreground">
+              {q ? "Aramayla eşleşen iş emri bulunamadı." : statusFilter ? `${STATUS_GROUP_LABEL[statusFilter] ?? statusFilter} durumunda iş emri yok.` : "Henüz atanmış iş emri yok."}
+            </EmptyTitle>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {filtered.map((wo) => (
-            <Link
-              key={wo.id}
-              href={`/user/islerim/${wo.id}`}
-              className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3.5 transition-colors hover:border-teal-300 hover:bg-teal-50/30"
-            >
-              <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${PRIORITY_DOT[wo.priority] ?? "bg-slate-400"}`} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-800">
-                  {wo.project_name ?? "Mağaza bilgisi yok"} - {wo.title}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-400">
-                  {wo.project_no ? `Mağaza kodu: ${wo.project_no} | ` : ""}{wo.work_type_label}{wo.installation_project_name ? ` · ${wo.installation_project_name}` : ""}
-                </p>
-                {wo.created_at && <p className="mt-0.5 text-[11px] text-slate-400">Verildi: {formatServerDateTime(wo.created_at)}</p>}
-              </div>
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLOR[wo.status] ?? "bg-slate-100 text-slate-500"}`}>
-                {statusLabel(wo.status)}
-              </span>
+            <Link key={wo.id} href={`/user/islerim/${wo.id}`} className="group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Card className="flex items-center gap-4 px-4 py-3.5 transition-colors group-hover:border-foreground/20">
+                <span className={cn("size-2.5 shrink-0 rounded-full", PRIORITY_DOT[wo.priority] ?? "bg-slate-400")} aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{wo.project_name ?? "Mağaza bilgisi yok"} - {wo.title}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {wo.project_no ? `Mağaza kodu: ${wo.project_no} | ` : ""}{wo.work_type_label}{wo.installation_project_name ? ` · ${wo.installation_project_name}` : ""}
+                  </p>
+                  {wo.created_at && <p className="mt-0.5 text-[11px] text-muted-foreground">Verildi: {formatServerDateTime(wo.created_at)}</p>}
+                </div>
+                <Badge variant={STATUS_BADGE[wo.status] ?? "muted"} className="shrink-0">{statusLabel(wo.status)}</Badge>
+              </Card>
             </Link>
           ))}
         </div>

@@ -3,8 +3,15 @@
 import { InfoHint } from "@/components/ui/info-hint";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Ban, CheckCircle2, CircleDashed, Clock3, History, Loader2 } from "lucide-react";
+import { Ban, CheckCircle2, ChevronRight, CircleDashed, Clock3, History } from "lucide-react";
 import { apiGet } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Badge } from "@/components/shadcn/badge";
+import { Button } from "@/components/shadcn/button";
+import { Card, CardHeader, CardTitle } from "@/components/shadcn/card";
+import { Separator } from "@/components/shadcn/separator";
+import { Skeleton } from "@/components/shadcn/skeleton";
 import DocumentQuickSearch from "@/components/dashboard/document-quick-search";
 import { MetricCard } from "@/components/dashboard/metric-card";
 
@@ -31,12 +38,11 @@ const STATUS_LABEL: Record<string, string> = {
   failed: "İptal Edildi", cancelled: "İptal Edildi",
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  planned: "bg-blue-50 text-blue-700", draft: "bg-slate-100 text-slate-700", sent: "bg-blue-50 text-blue-700",
-  approval_pending: "bg-blue-50 text-blue-700", started: "bg-amber-50 text-amber-700",
-  material_waiting: "bg-orange-50 text-orange-700", revisit: "bg-violet-50 text-violet-700",
-  completed: "bg-emerald-50 text-emerald-700", approved: "bg-emerald-50 text-emerald-700",
-  failed: "bg-red-50 text-red-700", cancelled: "bg-red-50 text-red-700",
+type BadgeVariant = "info" | "muted" | "warning" | "success" | "destructive" | "secondary";
+const STATUS_BADGE: Record<string, BadgeVariant> = {
+  planned: "info", draft: "muted", sent: "info", approval_pending: "info", started: "warning",
+  material_waiting: "warning", revisit: "secondary", completed: "success", approved: "success",
+  failed: "destructive", cancelled: "destructive",
 };
 
 function orderTitle(order: WorkOrder) {
@@ -52,26 +58,37 @@ function formatDate(value?: string) {
 
 function OrderList({ orders, emptyText }: { orders: WorkOrder[]; emptyText: string }) {
   if (orders.length === 0) {
-    return <p className="px-5 py-10 text-center text-sm text-slate-400">{emptyText}</p>;
+    return <p className="px-5 py-10 text-center text-sm text-muted-foreground">{emptyText}</p>;
   }
 
   return (
-    <ul className="divide-y divide-slate-100">
+    <ul className="divide-y">
       {orders.slice(0, 5).map(order => (
         <li key={order.id}>
-          <Link href={`/user/islerim/${order.id}`} className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-slate-50 active:bg-slate-100">
+          <Link href={`/user/islerim/${order.id}`} className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-accent">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-800">{orderTitle(order)}</p>
-              {order.project_no && <p className="mt-0.5 text-xs text-slate-400">Mağaza kodu: {order.project_no}</p>}
+              <p className="truncate text-sm font-semibold">{orderTitle(order)}</p>
+              {order.project_no && <p className="mt-0.5 text-xs text-muted-foreground">Mağaza kodu: {order.project_no}</p>}
             </div>
-            <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold ${STATUS_COLOR[order.status] ?? "bg-slate-100 text-slate-600"}`}>
-              {STATUS_LABEL[order.status] ?? order.status}
-            </span>
-            <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
+            <Badge variant={STATUS_BADGE[order.status] ?? "muted"} className="shrink-0">{STATUS_LABEL[order.status] ?? order.status}</Badge>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
           </Link>
         </li>
       ))}
     </ul>
+  );
+}
+
+function Section({ title, hint, action, children }: { title: string; hint: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="flex-row items-center justify-between space-y-0 px-5 py-4">
+        <CardTitle className="text-sm">{title}<InfoHint text={hint} /></CardTitle>
+        {action}
+      </CardHeader>
+      <Separator />
+      {children}
+    </Card>
   );
 }
 
@@ -104,65 +121,49 @@ export default function UserDashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Genel Bakış<InfoHint text="Atanan işlerin güncel durumu ve son hareketleri" /></h1>
-      </header>
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl font-bold tracking-tight">Genel Bakış<InfoHint text="Atanan işlerin güncel durumu ve son hareketleri" /></h1>
 
       <DocumentQuickSearch />
 
-      {error && <p className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="İş emri özeti">
         {stats.map((stat) => <MetricCard key={stat.label} {...stat} value={loading ? "…" : stat.value} />)}
       </section>
 
       {loading ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-16 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" /> İşler yükleniyor
-        </div>
+        <div className="grid gap-4 xl:grid-cols-2"><Skeleton className="h-64" /><Skeleton className="h-64" /></div>
       ) : (
         <section className="grid gap-4 xl:grid-cols-2">
-          <div className="erp-section-card">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div><h2 className="text-sm font-semibold text-slate-800">Yeni gelen işler<InfoHint text="Süreci başlatılmayı bekleyen iş emirleri" /></h2></div>
-              <span className="text-sm font-bold tabular-nums text-blue-700">{planned.length}</span>
-            </div>
+          <Section title="Yeni gelen işler" hint="Süreci başlatılmayı bekleyen iş emirleri" action={<span className="text-sm font-bold tabular-nums text-primary">{planned.length}</span>}>
             <OrderList orders={planned} emptyText="Planlanacak iş emri yok." />
-          </div>
-
-          <div className="erp-section-card">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div><h2 className="text-sm font-semibold text-slate-800">Aktif işlerim<InfoHint text="Sahada devam eden iş emirleri" /></h2></div>
-              <Link href="/user/islerim" className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-800">Tümünü gör <ArrowRight className="h-3.5 w-3.5" /></Link>
-            </div>
+          </Section>
+          <Section title="Aktif işlerim" hint="Sahada devam eden iş emirleri"
+            action={<Button variant="link" size="sm" asChild className="h-auto p-0 text-xs"><Link href="/user/islerim">Tümünü gör<ChevronRight data-icon="inline-end" /></Link></Button>}>
             <OrderList orders={active} emptyText="Aktif iş emri yok." />
-          </div>
+          </Section>
         </section>
       )}
 
-      <section className="erp-section-card">
-        <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
-          <History className="h-4 w-4 text-slate-400" />
-          <div><h2 className="text-sm font-semibold text-slate-800">Son hareketler<InfoHint text="İş emirlerindeki en son durum değişiklikleri" /></h2></div>
-        </div>
+      <Section title="Son hareketler" hint="İş emirlerindeki en son durum değişiklikleri" action={<History className="size-4 text-muted-foreground" />}>
         {!loading && recent.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">Henüz hareket bulunmuyor.</p>
+          <p className="px-5 py-10 text-center text-sm text-muted-foreground">Henüz hareket bulunmuyor.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y">
             {recent.map(order => (
               <li key={order.id} className="flex items-center gap-3 px-5 py-3.5">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${COMPLETED_STATUSES.includes(order.status) ? "bg-emerald-500" : ACTIVE_STATUSES.includes(order.status) ? "bg-amber-500" : CANCELLED_STATUSES.includes(order.status) ? "bg-red-500" : "bg-blue-500"}`} />
+                <span className={cn("size-2 shrink-0 rounded-full", COMPLETED_STATUSES.includes(order.status) ? "bg-emerald-500" : ACTIVE_STATUSES.includes(order.status) ? "bg-amber-500" : CANCELLED_STATUSES.includes(order.status) ? "bg-red-500" : "bg-blue-500")} />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/user/islerim/${order.id}`} className="block truncate text-sm font-medium text-slate-800 hover:text-blue-700">{orderTitle(order)}</Link>
-                  <p className="mt-0.5 text-xs text-slate-400">Durum: {STATUS_LABEL[order.status] ?? order.status}</p>
+                  <Link href={`/user/islerim/${order.id}`} className="block truncate text-sm font-medium hover:text-primary">{orderTitle(order)}</Link>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Durum: {STATUS_LABEL[order.status] ?? order.status}</p>
                 </div>
-                <time className="shrink-0 text-xs text-slate-400">{formatDate(order.updated_at ?? order.created_at)}</time>
+                <time className="shrink-0 text-xs text-muted-foreground">{formatDate(order.updated_at ?? order.created_at)}</time>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Section>
     </div>
   );
 }

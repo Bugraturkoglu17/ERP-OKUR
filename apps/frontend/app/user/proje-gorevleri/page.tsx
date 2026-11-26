@@ -1,11 +1,28 @@
 "use client";
 
-import { InfoHint } from "@/components/ui/info-hint";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, FolderKanban, Loader2 } from "lucide-react";
-import { formatServerDate } from "@/lib/utils";
+import { AlertCircle, ChevronRight, FolderKanban } from "lucide-react";
+import { InfoHint } from "@/components/ui/info-hint";
+import { cn, formatServerDate } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import { Badge } from "@/components/shadcn/badge";
+import { Card } from "@/components/shadcn/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/shadcn/empty";
+import { Skeleton } from "@/components/shadcn/skeleton";
 import { getMyStages, listProjects, type MyStage, type ProjectSummary } from "@/services/installationProjects";
+
+/** Liste satırı: kart görünümlü bağlantı. */
+function RowLink({ href, muted = false, children }: { href: string; muted?: boolean; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <Card className={cn("flex items-center gap-3 px-4 py-3.5 transition-colors group-hover:border-foreground/20", muted && "opacity-80")}>
+        {children}
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+      </Card>
+    </Link>
+  );
+}
 
 export default function ProjectTasksPage() {
   const [items, setItems] = useState<MyStage[]>([]);
@@ -22,46 +39,46 @@ export default function ProjectTasksPage() {
   const waiting = items.filter((i) => i.status === "planned");
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">Proje Görevlerim<InfoHint text="Atandığınız projeler ve sorumlusu olduğunuz aşamalar. Sırası gelen aşamayı buradan yürütüp tamamlarsınız." /></h1>
-      </header>
+    <div className="mx-auto flex max-w-3xl flex-col gap-5">
+      <h1 className="text-2xl font-bold tracking-tight">Proje Görevlerim<InfoHint text="Atandığınız projeler ve sorumlusu olduğunuz aşamalar. Aşamayı buradan yürütüp tamamlarsınız." /></h1>
 
       {!loading && projects.length > 0 && (
         <section>
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Atandığım projeler ({projects.length})</h2>
-          <ul className="space-y-2">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Atandığım projeler ({projects.length})</h2>
+          <ul className="flex flex-col gap-2">
             {projects.map((p) => (
               <li key={p.id}>
-                <Link href={`/user/projeler/${p.id}`} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 transition hover:border-slate-300">
-                  <FolderKanban className="h-5 w-5 shrink-0 text-blue-600" />
+                <RowLink href={`/user/projeler/${p.id}`}>
+                  <FolderKanban className="size-5 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
-                    <p className="flex min-w-0 items-center gap-2"><span className="truncate text-sm font-semibold text-slate-900">{p.name}</span><span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600">{p.project_type_label}</span></p>
-                    <p className="truncate text-xs text-slate-500">{p.store_name ?? "Yer bilgisi yok"}{p.current_stage ? ` · Şu an: ${p.current_stage}` : ""} · {p.stages_done}/{p.stages_total} aşama</p>
+                    <p className="flex min-w-0 items-center gap-2"><span className="truncate text-sm font-semibold">{p.name}</span><Badge variant="muted" className="shrink-0">{p.project_type_label}</Badge></p>
+                    <p className="truncate text-xs text-muted-foreground">{p.store_name ?? "Yer bilgisi yok"}{p.current_stage ? ` · Şu an: ${p.current_stage}` : ""} · {p.stages_done}/{p.stages_total} aşama</p>
                   </div>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
-                </Link>
+                </RowLink>
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="h-4 w-4" />{error}</div>}
+      {error && <Alert variant="destructive"><AlertCircle /><AlertDescription>{error}</AlertDescription></Alert>}
 
-      {loading ? <p className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Yükleniyor</p>
-        : items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-            <FolderKanban className="mx-auto h-8 w-8 text-slate-300" />
-            <p className="mt-3 font-semibold text-slate-700">{projects.length > 0 ? "Sorumlusu olduğunuz aşama yok" : "Size atanmış proje veya görev yok"}</p>
-            <p className="mt-1 text-sm text-slate-500">Yönetici sizi bir projeye atadığında ya da bir aşamanın sorumlusu yaptığında burada görünür.</p>
-          </div>
-        ) : (
-          <>
-            <TaskGroup title="Sıra sizde" items={active} empty="Şu an sırası gelmiş görev yok." />
-            {waiting.length > 0 && <TaskGroup title="Sırası bekleyen" items={waiting} empty="" muted />}
-          </>
-        )}
+      {loading ? (
+        <div className="flex flex-col gap-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16" />)}</div>
+      ) : items.length === 0 ? (
+        <Empty className="border border-dashed">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><FolderKanban /></EmptyMedia>
+            <EmptyTitle>{projects.length > 0 ? "Sorumlusu olduğunuz aşama yok" : "Size atanmış proje veya görev yok"}</EmptyTitle>
+            <EmptyDescription>Yönetici sizi bir projeye atadığında ya da bir aşamanın sorumlusu yaptığında burada görünür.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <>
+          <TaskGroup title="Sıra sizde" items={active} empty="Şu an sırası gelmiş görev yok." />
+          {waiting.length > 0 && <TaskGroup title="Sırası bekleyen" items={waiting} empty="" muted />}
+        </>
+      )}
     </div>
   );
 }
@@ -69,23 +86,22 @@ export default function ProjectTasksPage() {
 function TaskGroup({ title, items, empty, muted = false }: { title: string; items: MyStage[]; empty: string; muted?: boolean }) {
   return (
     <section>
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{title} ({items.length})</h2>
-      {items.length === 0 ? <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">{empty}</p> : (
-        <ul className="space-y-2">
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title} ({items.length})</h2>
+      {items.length === 0 ? <p className="rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground">{empty}</p> : (
+        <ul className="flex flex-col gap-2">
           {items.map((item) => (
             <li key={item.stage_id}>
-              <Link href={`/user/proje-gorevleri/${item.stage_id}`} className={`flex items-center gap-3 rounded-xl border bg-white px-4 py-3.5 transition hover:border-slate-300 ${muted ? "border-slate-100 opacity-80" : "border-slate-200"}`}>
-                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${muted ? "bg-slate-100 text-slate-500" : "bg-blue-600 text-white"}`}>{item.stage_order}</span>
+              <RowLink href={`/user/proje-gorevleri/${item.stage_id}`} muted={muted}>
+                <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold", muted ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground")}>{item.stage_order}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-900">{item.stage_name}</p>
-                  <p className="truncate text-xs text-slate-500">{item.project_name}{item.store_name ? ` · ${item.store_name}` : ""}</p>
-                  <div className="mt-1 flex flex-wrap gap-2 text-[11px]">
-                    {item.planned_end && <span className={item.overdue ? "font-semibold text-red-700" : "text-slate-400"}>Planlanan bitiş: {formatServerDate(item.planned_end)}{item.overdue ? " (gecikti)" : ""}</span>}
-                    {item.approval_pending && <span className="rounded bg-amber-50 px-1.5 font-semibold text-amber-700">Yönetici onayı bekliyor</span>}
+                  <p className="truncate text-sm font-semibold">{item.stage_name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{item.project_name}{item.store_name ? ` · ${item.store_name}` : ""}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+                    {item.planned_end && <span className={item.overdue ? "font-semibold text-destructive" : "text-muted-foreground"}>Planlanan bitiş: {formatServerDate(item.planned_end)}{item.overdue ? " (gecikti)" : ""}</span>}
+                    {item.approval_pending && <Badge variant="warning">Yönetici onayı bekliyor</Badge>}
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
-              </Link>
+              </RowLink>
             </li>
           ))}
         </ul>

@@ -9,12 +9,19 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
   Kurulum: `.claude/skills/shadcn` (kurallar SKILL.md), bileşenler `apps/frontend/components/shadcn/` (Radix, Tailwind v3).
   label/separator üzerine yazılmadı (CLI sorar, "hayır" denir); field.tsx `--view` ile elle eklendi. Badge artık `<span>`.
   Tema: `--accent` nötr gri, `--sidebar` #0c1520 (globals.css). Önizleme için `npx next dev --port 3002` kullanıldı.
-  Kullanıcı kuralları: İstatistikler'e (analiz) DOKUNMA; Raporlar sorusu cevapsız → dokunma, sor. Her gruptan sonra
+  Kullanıcı kuralları: İstatistikler ve Raporlar'a (analiz) DOKUNMA (Raporlar için de "dokunma" dendi). Her gruptan sonra
   ekran görüntüsü + onay, sonra commit (hafıza: once-gorsel-onay). Sismik verisiyle çelişki çıkarsa haber ver.
   Bitti (commit'li): örnek Taşeron Kartları (cdcacc0), 1. grup iskelet/giriş/bildirim (6d82103),
   2. grup yönetici listeleri: İş Emirleri, Projeler, Mağaza Kartı (projects/page.tsx; daire menü yerine araç çubuğu),
   Kullanıcılar, Depo & Stok (retail-stock-page.tsx). 2. grup ekranları tarayıcıda denendi, konsol hatası yok;
   kullanıcıya ekran görüntüsü gösterilmeden kredi bitti → ilk iş g2 görsellerini (.playwright-mcp/g2_*.png) göster, onay al.
+  3. grup DEVAM EDİYOR (commit'siz, diskte): bitenler → Yeni Proje, Yeni İş Emri, StoreFormModal, TransferDialog
+  ("Tümünü aktar" onayı AlertDialog), MaterialCatalog (Table), MaterialPicker (Dialog). tsc/eslint temiz, tarayıcıda denenmedi.
+  5. grup DEVAM EDİYOR (commit'siz): bitenler → user/dashboard, islerim, proje-gorevleri, proje-gorevleri/[stageId],
+  ortak MetricCard (tema renkleri), user/profile (yönetici profili de aynı sayfa). 5. grup TAMAM.
+  4. grup: manager/dashboard bitti. Kalan: sistem-yedegi, genel-arsiv (+TransferModal), document-quick-search.
+  3. grupta kalan büyükler: is-emirleri/[id] (1661 satır), projects/[id] + sekmeleri, project-extras, stage-files,
+  completion-panel, projeler/[id] (kalan kısım).
   Kalan gruplar: 3) detay ve formlar (iş emri detayı `app/is-emirleri/[id]`, yeni iş emri, yeni proje, mağaza kartı
   detayı, StoreFormModal, TransferDialog, MaterialCatalog, MaterialPicker, proje detayının kalan kısımları,
   project-extras.tsx), 4) panolar (Genel Bakış, Genel Arşiv, Sistem Yedeği; İstatistikler HARİÇ, Raporlar sorulacak),

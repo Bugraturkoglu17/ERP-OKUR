@@ -1,8 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ArrowRight, ArrowRightLeft, Check, Loader2, Search, X } from "lucide-react";
+import { AlertCircle, ArrowRight, ArrowRightLeft, Check, Search } from "lucide-react";
 import { apiGet, apiPost, getRequestErrorMessage } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/shadcn/alert";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from "@/components/shadcn/alert-dialog";
+import { Button } from "@/components/shadcn/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/shadcn/dialog";
+import { Field, FieldLabel } from "@/components/shadcn/field";
+import { Input } from "@/components/shadcn/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/shadcn/select";
+import { Separator } from "@/components/shadcn/separator";
+import { Spinner } from "@/components/shadcn/spinner";
 import { formatQuantity, parseQuantity, quantityForApi, quantityProblem, sanitizeQuantityInput } from "@/lib/quantity";
 import { MaterialTitle, foldText } from "@/components/retail-stock/material-picker";
 import { brand } from "@/lib/brand";
@@ -62,8 +76,9 @@ export function TransferDialog({ depots, manager, initialSourceId, staffNames = 
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [confirmAll, setConfirmAll] = useState(false);
 
-  const source = depots.find((depot) => depot.id === sourceId);
+  const source =depots.find((depot) => depot.id === sourceId);
   const target = depots.find((depot) => depot.id === targetId);
   const targets = targetsOf(sourceId);
 
@@ -113,9 +128,10 @@ export function TransferDialog({ depots, manager, initialSourceId, staffNames = 
     setSearch("");
   }
 
+  /** "Tümünü aktar" onaylanınca tüm kalemlerin miktarı depodaki miktar olarak doldurulur. */
   function transferAll() {
+    setConfirmAll(false);
     if (rows.length === 0) return;
-    if (!window.confirm(`${rows.length} kalemin tamamı ${source ? depotLabel(source) : "kaynak depo"} deposundan ${target ? depotLabel(target) : "hedef depo"} deposuna aktarılacak. Devam edilsin mi?`)) return;
     setQuantities(Object.fromEntries(rows.map((row) => [row.material_id, String(Number(row.quantity)).replace(".", ",")])));
   }
 
@@ -143,87 +159,114 @@ export function TransferDialog({ depots, manager, initialSourceId, staffNames = 
     } finally { setBusy(false); }
   }
 
-  const selectClass = "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#d90070]";
+  const NO_TARGET = "none";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 backdrop-blur-sm sm:items-center sm:p-3" role="presentation"
-      onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-      <div role="dialog" aria-modal="true" aria-label="Depo aktarımı" className="flex max-h-[94dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90dvh] sm:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#bd0063]">{brand("OKUR DEPO", "DEPO")}</p><h2 className="mt-1 text-lg font-bold text-slate-950">{manager ? "Depo aktarımı" : "Ana depoya iade"}</h2></div>
-          <button type="button" onClick={onClose} aria-label="Kapat" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
+      <DialogContent className="flex max-h-[94dvh] flex-col gap-0 overflow-hidden p-0 sm:max-h-[90dvh] sm:max-w-2xl">
+        <DialogHeader className="px-5 py-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#bd0063]">{brand("OKUR DEPO", "DEPO")}</p>
+          <DialogTitle>{manager ? "Depo aktarımı" : "Ana depoya iade"}</DialogTitle>
+          <DialogDescription className="sr-only">Kaynak ve hedef depoyu seçip aktarılacak malzemelerin miktarını yazın.</DialogDescription>
+        </DialogHeader>
+        <Separator />
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
           <div className="grid items-end gap-2 sm:grid-cols-[1fr_auto_1fr]">
-            <label className="block text-xs font-semibold text-slate-600">Nereden
-              <select value={sourceId} onChange={(event) => changeSource(event.target.value)} className={selectClass}>
-                {sources.map((depot) => <option key={depot.id} value={depot.id}>{depotLabel(depot)}</option>)}
-              </select>
-            </label>
-            {manager ? <button type="button" onClick={swap} aria-label="Yönü değiştir" className="mx-auto mb-0.5 rounded-xl border border-slate-200 p-2.5 text-slate-500 hover:border-[#d90070]/40 hover:text-[#d90070]"><ArrowRightLeft className="h-4 w-4" /></button> : <ArrowRight className="mx-auto mb-3 hidden h-4 w-4 text-slate-300 sm:block" />}
-            <label className="block text-xs font-semibold text-slate-600">Nereye
-              <select value={targetId} onChange={(event) => setTargetId(event.target.value)} className={selectClass}>
-                {targets.length === 0 ? <option value="">Hedef depo yok</option> : targets.length > 1 && <option value="">Araç seçin</option>}
-                {targets.map((depot) => <option key={depot.id} value={depot.id}>{depotLabel(depot)}</option>)}
-              </select>
-            </label>
+            <Field>
+              <FieldLabel htmlFor="ak-nereden">Nereden</FieldLabel>
+              <Select value={sourceId} onValueChange={changeSource}>
+                <SelectTrigger id="ak-nereden"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectGroup>{sources.map((depot) => <SelectItem key={depot.id} value={depot.id}>{depotLabel(depot)}</SelectItem>)}</SelectGroup></SelectContent>
+              </Select>
+            </Field>
+            {manager
+              ? <Button variant="outline" size="icon" onClick={swap} aria-label="Yönü değiştir" className="mx-auto"><ArrowRightLeft /></Button>
+              : <ArrowRight className="mx-auto mb-3 hidden size-4 text-muted-foreground sm:block" />}
+            <Field>
+              <FieldLabel htmlFor="ak-nereye">Nereye</FieldLabel>
+              <Select value={targetId || NO_TARGET} onValueChange={(value) => setTargetId(value === NO_TARGET ? "" : value)} disabled={targets.length === 0}>
+                <SelectTrigger id="ak-nereye"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {(targets.length === 0 || targets.length > 1) && <SelectItem value={NO_TARGET}>{targets.length === 0 ? "Hedef depo yok" : "Araç seçin"}</SelectItem>}
+                    {targets.map((depot) => <SelectItem key={depot.id} value={depot.id}>{depotLabel(depot)}</SelectItem>)}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 flex-1 basis-56"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ürün adı, kodu veya kategori ara" className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-base outline-none focus:border-[#d90070] sm:text-sm" /></div>
-            <button type="button" onClick={transferAll} disabled={loading || rows.length === 0} className="rounded-xl bg-slate-950 px-3.5 py-2.5 text-xs font-semibold text-white disabled:opacity-40">Tümünü aktar</button>
-            <button type="button" onClick={() => setQuantities({})} disabled={selected.length === 0} className="rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-600 disabled:opacity-40">Temizle</button>
+            <InputGroup className="min-w-0 flex-1 basis-56">
+              <InputGroupAddon><Search /></InputGroupAddon>
+              <InputGroupInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ürün adı, kodu veya kategori ara" aria-label="Ürün ara" className="text-base sm:text-sm" />
+            </InputGroup>
+            <Button onClick={() => setConfirmAll(true)} disabled={loading || rows.length === 0}>Tümünü aktar</Button>
+            <Button variant="outline" onClick={() => setQuantities({})} disabled={selected.length === 0}>Temizle</Button>
           </div>
 
-          {loading ? <p className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400"><Loader2 className="h-4 w-4 animate-spin" />Stok yükleniyor…</p>
-            : rows.length === 0 ? <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">Kaynak depoda aktarılabilecek stok yok.</p>
-            : matching.length === 0 ? <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">Aramayla eşleşen ürün yok.</p>
-            : <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+          {loading ? <div className="flex justify-center py-10"><Spinner /></div>
+            : rows.length === 0 ? <p className="rounded-md bg-muted px-4 py-8 text-center text-sm text-muted-foreground">Kaynak depoda aktarılabilecek stok yok.</p>
+            : matching.length === 0 ? <p className="rounded-md bg-muted px-4 py-8 text-center text-sm text-muted-foreground">Aramayla eşleşen ürün yok.</p>
+            : <ul className="divide-y rounded-lg border">
               {visible.map((row) => {
                 const problem = problemOf(row);
                 const chosen = Boolean(quantities[row.material_id]) && !problem;
                 return (
-                  <li key={row.material_id} className={`px-3 py-2 ${problem ? "bg-red-50" : chosen ? "bg-[#fff6fa]" : ""}`}>
+                  <li key={row.material_id} className={cn("px-3 py-2", problem ? "bg-destructive/5" : chosen && "bg-[#fff6fa]")}>
                     <div className="flex items-center gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-xs font-semibold leading-snug text-slate-900"><MaterialTitle sku={row.sku} name={row.name} spec={row.spec} /></p>
-                        <p className="mt-0.5 truncate text-[11px] text-slate-500">Stok: <span className="font-semibold text-slate-700">{formatQuantity(row.quantity)} {row.unit}</span></p>
+                        <p className="line-clamp-2 text-xs font-semibold leading-snug"><MaterialTitle sku={row.sku} name={row.name} spec={row.spec} /></p>
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">Stok: <span className="font-semibold text-foreground">{formatQuantity(row.quantity)} {row.unit}</span></p>
                       </div>
-                      <input inputMode="decimal" autoComplete="off" value={quantities[row.material_id] ?? ""} placeholder="Miktar" aria-label={`${row.name} aktarılacak miktar`}
+                      <Input inputMode="decimal" autoComplete="off" value={quantities[row.material_id] ?? ""} placeholder="Miktar" aria-label={`${row.name} aktarılacak miktar`}
+                        aria-invalid={Boolean(problem) || undefined}
                         onChange={(event) => setQuantity(row.material_id, sanitizeQuantityInput(event.target.value))}
-                        className="h-9 w-16 shrink-0 rounded-lg border border-slate-200 bg-white px-2 text-right text-base outline-none focus:border-[#d90070] sm:text-xs" />
-                      <button type="button" onClick={() => setFull(row)} className="h-9 w-16 shrink-0 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:border-[#d90070]/40">Tümü</button>
-                      {chosen && <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-label="Seçildi" />}
+                        className="h-9 w-16 shrink-0 px-2 text-right text-base sm:text-xs" />
+                      <Button variant="outline" size="sm" onClick={() => setFull(row)} className="h-9 w-16 shrink-0">Tümü</Button>
+                      {chosen && <Check className="size-4 shrink-0 text-emerald-600" aria-label="Seçildi" />}
                     </div>
-                    {problem && <p className="mt-1 text-[11px] font-medium text-red-700">{problem}</p>}
+                    {problem && <p className="mt-1 text-[11px] font-medium text-destructive">{problem}</p>}
                   </li>
                 );
               })}
             </ul>}
-          {matching.length > VISIBLE_LIMIT && <p className="rounded-xl bg-slate-50 px-4 py-3 text-center text-xs text-slate-500">{matching.length - VISIBLE_LIMIT} ürün daha var; aramayı daraltarak bulun.</p>}
+          {matching.length > VISIBLE_LIMIT && <p className="rounded-md bg-muted px-4 py-3 text-center text-xs text-muted-foreground">{matching.length - VISIBLE_LIMIT} ürün daha var; aramayı daraltarak bulun.</p>}
 
-          {selected.length > 0 && <div className="rounded-xl border border-[#d90070]/20 bg-[#fff6fa] p-3">
+          {selected.length > 0 && <div className="rounded-lg border border-[#d90070]/20 bg-[#fff6fa] p-3">
             <p className="text-xs font-bold text-[#bd0063]">Aktarılacaklar ({selected.length} kalem)</p>
-            <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto text-xs text-slate-700">
+            <ul className="mt-2 flex max-h-32 flex-col gap-1 overflow-y-auto text-xs">
               {selected.map((row) => <li key={row.material_id} className="flex items-start justify-between gap-3"><span className="min-w-0"><MaterialTitle sku={row.sku} name={row.name} spec={row.spec} /></span><span className="shrink-0 font-semibold">{formatQuantity(parseQuantity(quantities[row.material_id]))} {row.unit}</span></li>)}
             </ul>
           </div>}
 
-          <label className="block text-xs font-semibold text-slate-600">Not <span className="font-normal text-slate-400">(isteğe bağlı)</span>
-            <input value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#d90070]" /></label>
+          <Field>
+            <FieldLabel htmlFor="ak-not">Not <span className="font-normal text-muted-foreground">(isteğe bağlı)</span></FieldLabel>
+            <Input id="ak-not" value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} />
+          </Field>
         </div>
 
         {/* Uyarı, kaydırılan listenin altında kaybolmasın diye düğmelerin hemen üstünde gösterilir. */}
-        {error && <div role="alert" className="flex items-start gap-2 border-t border-rose-200 bg-rose-50 px-5 py-2.5 text-xs font-medium text-rose-700"><AlertCircle className="mt-px h-4 w-4 shrink-0" />{error}</div>}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-500">İptal</button>
-          <button type="button" onClick={() => void submit()} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-[#d90070] px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">
-            {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Aktar{selected.length > 0 ? ` (${selected.length} kalem)` : ""}
-          </button>
-        </div>
-      </div>
-    </div>
+        {error && <Alert variant="destructive" className="rounded-none border-x-0 border-b-0"><AlertCircle /><AlertDescription className="text-xs font-medium">{error}</AlertDescription></Alert>}
+        <DialogFooter className="border-t px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>İptal</Button>
+          <Button onClick={() => void submit()} disabled={busy}>{busy && <Spinner data-icon="inline-start" />}Aktar{selected.length > 0 ? ` (${selected.length} kalem)` : ""}</Button>
+        </DialogFooter>
+
+        <AlertDialog open={confirmAll} onOpenChange={setConfirmAll}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Tümü aktarılsın mı?</AlertDialogTitle>
+              <AlertDialogDescription>{rows.length} kalemin tamamı {source ? depotLabel(source) : "kaynak depo"} deposundan {target ? depotLabel(target) : "hedef depo"} deposuna aktarılacak.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Vazgeç</AlertDialogCancel>
+              <AlertDialogAction onClick={transferAll}>Tümünü Seç</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 }

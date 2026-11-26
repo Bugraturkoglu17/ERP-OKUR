@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { formatQuantity } from "@/lib/quantity";
 import { foldText } from "@/components/retail-stock/material-picker";
+import { Button } from "@/components/shadcn/button";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/shadcn/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/shadcn/table";
 
 export type CatalogMaterial = {
   id: string; sku: string; name: string; category: string | null; unit: string;
@@ -48,53 +52,63 @@ export function MaterialCatalog({ materials, manager, onEditThreshold }: {
   const price = (value?: string | null) => (value ? Number(value).toLocaleString("tr-TR", { maximumFractionDigits: 4 }) : "—");
 
   return <div className="p-4 sm:p-5">
-    <div><h2 className="font-semibold text-slate-900">Malzeme kataloğu<InfoHint text="Tanımlı tüm stok kartları ve bilgileri. Depodaki miktarlar için &quot;Stok Durumu&quot; sekmesine bakın." /></h2></div>
+    <h2 className="font-semibold">Malzeme kataloğu<InfoHint text="Tanımlı tüm stok kartları ve bilgileri. Depodaki miktarlar için &quot;Stok Durumu&quot; sekmesine bakın." /></h2>
 
     <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]">
-      <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Kod, ad, marka, tip veya kategori ara" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 pl-10 text-sm outline-none focus:border-[#d90070]" /></div>
-      <label className="flex items-center gap-2 text-xs text-slate-500">Sırala
-        <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700">
-          <option value="sku">Malzeme kodu</option>
-          <option value="name">Malzeme adı</option>
-          <option value="category">Kategori</option>
-          <option value="brand">Marka</option>
-        </select>
-      </label>
+      <InputGroup>
+        <InputGroupAddon><Search /></InputGroupAddon>
+        <InputGroupInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Kod, ad, marka, tip veya kategori ara" aria-label="Katalogda ara" />
+      </InputGroup>
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">Sırala
+        <Select value={sortKey} onValueChange={(value) => setSortKey(value as SortKey)}>
+          <SelectTrigger className="w-40" aria-label="Sıralama"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="sku">Malzeme kodu</SelectItem>
+              <SelectItem value="name">Malzeme adı</SelectItem>
+              <SelectItem value="category">Kategori</SelectItem>
+              <SelectItem value="brand">Marka</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
 
-    <p className="mt-3 text-xs tabular-nums text-slate-500">{rows.length === 0 ? "Eşleşen malzeme yok" : `${(current - 1) * PAGE_SIZE + 1}–${Math.min(current * PAGE_SIZE, rows.length)} / ${rows.length} malzeme`}</p>
+    <p className="mt-3 text-xs tabular-nums text-muted-foreground">{rows.length === 0 ? "Eşleşen malzeme yok" : `${(current - 1) * PAGE_SIZE + 1}–${Math.min(current * PAGE_SIZE, rows.length)} / ${rows.length} malzeme`}</p>
 
-    {visible.length > 0 && <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[760px] text-sm">
-        <thead><tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          <th className="px-3 py-2.5">Kod</th><th className="px-3 py-2.5">Malzeme</th><th className="px-3 py-2.5">Tip</th>
-          <th className="px-3 py-2.5">Marka</th><th className="px-3 py-2.5">Kategori</th><th className="px-3 py-2.5">Birim</th>
-          {manager && <th className="px-3 py-2.5 text-right">Birim fiyat</th>}
-          <th className="px-3 py-2.5 text-right">Kritik stok eşiği</th>
-        </tr></thead>
-        <tbody className="divide-y divide-slate-100">
-          {visible.map((item) => <tr key={item.id} className="align-top hover:bg-slate-50">
-            <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-slate-500">{item.sku}</td>
-            <td className="px-3 py-2.5 font-medium text-slate-900">{item.name}</td>
-            <td className="px-3 py-2.5 text-xs text-slate-600">{item.spec || "—"}</td>
-            <td className="px-3 py-2.5 text-xs text-slate-600">{item.brand || "—"}</td>
-            <td className="px-3 py-2.5 text-xs text-slate-600">{item.category || "—"}</td>
-            <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-600">{item.unit}</td>
-            {manager && <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-xs text-slate-700">{price(item.unit_price)}</td>}
-            <td className="whitespace-nowrap px-3 py-2.5 text-right text-xs">
+    {visible.length > 0 && <div className="mt-2 overflow-hidden rounded-lg border">
+      <Table className="min-w-[760px]">
+        <TableHeader>
+          <TableRow className="bg-muted/50">
+            <TableHead>Kod</TableHead><TableHead>Malzeme</TableHead><TableHead>Tip</TableHead>
+            <TableHead>Marka</TableHead><TableHead>Kategori</TableHead><TableHead>Birim</TableHead>
+            {manager && <TableHead className="text-right">Birim fiyat</TableHead>}
+            <TableHead className="text-right">Kritik stok eşiği</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {visible.map((item) => <TableRow key={item.id} className="align-top">
+            <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{item.sku}</TableCell>
+            <TableCell className="font-medium">{item.name}</TableCell>
+            <TableCell className="text-xs text-muted-foreground">{item.spec || "—"}</TableCell>
+            <TableCell className="text-xs text-muted-foreground">{item.brand || "—"}</TableCell>
+            <TableCell className="text-xs text-muted-foreground">{item.category || "—"}</TableCell>
+            <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{item.unit}</TableCell>
+            {manager && <TableCell className="whitespace-nowrap text-right text-xs tabular-nums">{price(item.unit_price)}</TableCell>}
+            <TableCell className="whitespace-nowrap text-right text-xs">
               {manager
-                ? <button type="button" onClick={() => onEditThreshold(item)} className="font-medium text-slate-600 underline-offset-2 hover:text-[#d90070] hover:underline">{Number(item.min_stock) > 0 ? `${formatQuantity(item.min_stock)} ${item.unit}` : "Eşik belirle"}</button>
-                : <span className="text-slate-600">{Number(item.min_stock) > 0 ? `${formatQuantity(item.min_stock)} ${item.unit}` : "—"}</span>}
-            </td>
-          </tr>)}
-        </tbody>
-      </table>
+                ? <Button variant="link" size="sm" onClick={() => onEditThreshold(item)} className="h-auto p-0 text-xs text-muted-foreground hover:text-[#d90070]">{Number(item.min_stock) > 0 ? `${formatQuantity(item.min_stock)} ${item.unit}` : "Eşik belirle"}</Button>
+                : <span className="text-muted-foreground">{Number(item.min_stock) > 0 ? `${formatQuantity(item.min_stock)} ${item.unit}` : "—"}</span>}
+            </TableCell>
+          </TableRow>)}
+        </TableBody>
+      </Table>
     </div>}
 
     {pageCount > 1 && <div className="mt-3 flex items-center justify-center gap-2 text-xs">
-      <button type="button" onClick={() => setPage(current - 1)} disabled={current === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 disabled:opacity-40">Önceki</button>
-      <span className="tabular-nums text-slate-500">Sayfa {current} / {pageCount}</span>
-      <button type="button" onClick={() => setPage(current + 1)} disabled={current === pageCount} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 disabled:opacity-40">Sonraki</button>
+      <Button variant="outline" size="sm" onClick={() => setPage(current - 1)} disabled={current === 1}>Önceki</Button>
+      <span className="tabular-nums text-muted-foreground">Sayfa {current} / {pageCount}</span>
+      <Button variant="outline" size="sm" onClick={() => setPage(current + 1)} disabled={current === pageCount}>Sonraki</Button>
     </div>}
   </div>;
 }
