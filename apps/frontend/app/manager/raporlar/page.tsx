@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowRight, FileText, Loader2, Search } from "lucide-react";
 import { apiGet } from "@/lib/api";
-import { getManagerWorkOrders, type WorkOrder } from "@/services/managerWorkOrders";
 
 type ReportPhoto = {
   id: string; file_name?: string; mime_type?: string; fresh_url?: string;
@@ -14,8 +13,9 @@ type Report = {
   id: string; work_order_id: string; title: string; description?: string;
   severity: "normal" | "important" | "critical"; created_by_name?: string;
   created_at: string; photos?: ReportPhoto[]; photo_count?: number;
+  work_order_title?: string | null; store_name?: string | null;
 };
-type ReportRow = Report & { order?: WorkOrder };
+type ReportRow = Report & { order?: { title: string; store_name: string } };
 
 const severityLabel = { normal: "Normal", important: "Önemli", critical: "Kritik" };
 const severityClass = {
@@ -35,14 +35,13 @@ export default function ManagerReportsPage() {
     let active = true;
     (async () => {
       try {
-        // Tek istek: tüm raporlar (fotoğraflarıyla) + iş emri özeti; iş emri başına istek atılmaz.
-        const [reports, orders] = await Promise.all([
-          apiGet<Report[]>("/work-orders/reports"),
-          getManagerWorkOrders(),
-        ]);
+        // Tek istek: raporlar fotoğrafları, iş emri başlığı ve mağaza adıyla gelir; iş emri listesi çekilmez.
+        const reports = await apiGet<Report[]>("/work-orders/reports");
         if (!active) return;
-        const orderById = new Map(orders.map((order) => [order.id, order]));
-        setRows(reports.map((report) => ({ ...report, order: orderById.get(report.work_order_id) })));
+        setRows(reports.map((report) => ({
+          ...report,
+          order: { title: report.work_order_title ?? "İş emri", store_name: report.store_name ?? "Mağaza bilgisi yok" },
+        })));
       } catch {
         if (active) setError("Raporlar yüklenemedi. Bağlantıyı kontrol edip tekrar deneyin.");
       } finally {

@@ -105,6 +105,23 @@ export async function getManagerWorkOrders(): Promise<WorkOrder[]> {
   return all.map(normalizeWorkOrder);
 }
 
+/** Ekran sayıları (sunucuda tek sorgu): durum grupları, geciken ve kişi başı iş yükü. */
+export type WorkOrderCounts = Record<WorkOrderStatus | "overdue", number>;
+export type WorkOrderSummary = { counts: WorkOrderCounts; by_user: Record<string, WorkOrderCounts> };
+export const getWorkOrderSummary = () => apiGet<WorkOrderSummary>("/work-orders/summary");
+
+/** Sunucu tarafı süzülmüş / sıralanmış tek sayfa (tüm liste çekilmez). */
+export type WorkOrderQuery = {
+  group?: WorkOrderStatus; overdue?: boolean; q?: string; category?: WorkOrderCategory | "";
+  priority?: WorkOrderPriority | ""; assignee?: string; assigned_only?: boolean;
+  sort?: "created" | "updated" | "priority_due"; limit: number; offset?: number;
+};
+export async function getWorkOrderPage(query: WorkOrderQuery): Promise<WorkOrder[]> {
+  const params = Object.fromEntries(Object.entries(query).filter(([, value]) => value !== undefined && value !== "" && value !== false));
+  const rows = await apiGet<BackendWorkOrder[]>("/work-orders", params);
+  return (Array.isArray(rows) ? rows : []).map(normalizeWorkOrder);
+}
+
 export async function getManagerWorkOrderById(id: string): Promise<WorkOrder> {
   return normalizeWorkOrder(await apiGet<BackendWorkOrder>(`/work-orders/${id}`));
 }

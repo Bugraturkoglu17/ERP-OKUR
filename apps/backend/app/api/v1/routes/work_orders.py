@@ -11,6 +11,7 @@ import secrets
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from typing import Annotated, List, Optional
 from uuid import UUID, uuid4
@@ -18,7 +19,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status, Request
 from pydantic import BaseModel, Field
 from pydantic import Field as SchemaField
-from sqlalchemy import delete, func, select, desc, text, update
+from sqlalchemy import and_, asc, case, delete, func, or_, select, desc, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_db, is_platform_admin
@@ -220,6 +221,8 @@ class WorkOrderReportPhotoRead(BaseModel):
 
 
 class WorkOrderReportRead(BaseModel):
+    work_order_title: Optional[str] = None  # Raporlar ekranı (toplu liste) için
+    store_name:       Optional[str] = None
     id:              UUID
     work_order_id:   UUID
     title:           str
@@ -660,6 +663,77 @@ async def create_work_order(
     return _enrich(wo, proj, [], [], link)
 
 
+# ── Liste süzgeçleri (sunucu tarafı sayfalama, 27.11.2026) ─────────────────────
+# Ekranlardaki durum grupları (services/managerWorkOrders.normalizeStatus ile birebir aynı).
+_GROUP_STATUSES = {
+    "in_progress": ("started", "material_waiting", "revisit"),
+    "completed":   ("completed", "approved"),
+    "cancelled":   ("cancelled", "failed"),
+}
+_NON_PLANNED = tuple(x for group in _GROUP_STATUSES.values() for x in group)
+_CATEGORY_TYPES = {"ariza": ("fault", "repair"), "tadilat": ("renovation", "maintenance"),
+                   "proje": ("project",), "yeni_yapim": ("manufacturing",)}
+_PRIORITY_API = {"normal": "normal", "important": "urgent", "critical": "critical"}
+_TR = ZoneInfo("Europe/Istanbul")
+
+
+def _status_group_expr():
+    return case(
+        (WorkOrder.status.in_(_GROUP_STATUSES["in_progress"]), "in_progress"),
+        (WorkOrder.status.in_(_GROUP_STATUSES["completed"]), "completed"),
+        (WorkOrder.status.in_(_GROUP_STATUSES["cancelled"]), "cancelled"),
+        else_="planned",
+    )
+
+
+def _overdue_expr():
+    """Termini bugünden (Türkiye günü) önce olan, tamamlanmamış / iptal edilmemiş iş."""
+    today = datetime.now(_TR).date()
+    return and_(WorkOrder.status.not_in(_GROUP_STATUSES["completed"] + _GROUP_STATUSES["cancelled"]),
+                WorkOrder.due_date.is_not(None), func.date(WorkOrder.due_date) < today)
+
+
+def _tr_lower(value):
+    """Türkçe büyük/küçük harf duyarsız arama. Veritabanı yerel ayarı Türkçe harfleri küçültmeyebilir;
+    İ→i, I→ı ve Ğ Ü Ş Ö Ç açıkça çevrilir, kalan harfleri lower() küçültür."""
+    return func.lower(func.translate(value, "İIĞÜŞÖÇ", "iığüşöç"))
+
+
+def _scope_filters(user: User) -> list:
+    filters = []
+    if user.tenant_id:
+        filters.append(WorkOrder.tenant_id == user.tenant_id)
+    if not _can_view_all_work_orders(user):
+        filters.append(WorkOrder.assigned_to_user_id == user.id)
+    return filters
+
+
+@router.get("/summary")
+async def work_order_summary(
+    db:   AsyncSession = Depends(get_db),
+    user: User         = Depends(get_current_user),
+) -> dict:
+    """Ekran sayıları tek sorguda: durum gruplarına göre adet, geciken ve kişi başı iş yükü."""
+    group = _status_group_expr().label("grp")
+    overdue = _overdue_expr().label("overdue")
+    rows = (await db.execute(
+        select(WorkOrder.assigned_to_user_id, group, overdue, func.count())
+        .where(*_scope_filters(user)).group_by(WorkOrder.assigned_to_user_id, group, overdue)
+    )).all()
+    counts = {"planned": 0, "in_progress": 0, "completed": 0, "cancelled": 0, "overdue": 0}
+    by_user: dict[str, dict[str, int]] = {}
+    for user_id, grp, is_overdue, n in rows:
+        counts[grp] += n
+        mine = by_user.setdefault(str(user_id), {"planned": 0, "in_progress": 0, "completed": 0, "cancelled": 0, "overdue": 0}) if user_id else None
+        if mine is not None:
+            mine[grp] += n
+        if is_overdue:
+            counts["overdue"] += n
+            if mine is not None:
+                mine["overdue"] += n
+    return {"counts": counts, "by_user": by_user}
+
+
 @router.get("", response_model=List[WorkOrderRead])
 async def list_work_orders(
     response: Response,
@@ -668,14 +742,40 @@ async def list_work_orders(
     work_type:  Optional[str]  = None,
     limit:      Optional[int]  = Query(None, ge=1, le=1000, description="Sayfa boyutu; verilmezse tüm kayıtlar"),
     offset:     int            = Query(0, ge=0),
+    group:      Optional[str]  = Query(None, description="planned | in_progress | completed | cancelled"),
+    overdue:    bool           = Query(False, description="Yalnız termini geçenler"),
+    q:          Optional[str]  = Query(None, max_length=100, description="Başlık, mağaza adı/kodu veya çalışan"),
+    category:   Optional[str]  = Query(None, description="ariza | tadilat | proje | yeni_yapim"),
+    priority:   Optional[str]  = Query(None, description="normal | important | critical"),
+    assignee:   Optional[UUID] = Query(None),
+    assigned_only: bool        = Query(False),
+    sort:       str            = Query("created", description="created | updated | priority_due"),
     db:   AsyncSession = Depends(get_db),
     user: User         = Depends(get_current_user),
 ):
-    filters = []
-    if user.tenant_id:
-        filters.append(WorkOrder.tenant_id == user.tenant_id)
-    if not _can_view_all_work_orders(user):
-        filters.append(WorkOrder.assigned_to_user_id == user.id)
+    filters = _scope_filters(user)
+    if group == "planned":
+        filters.append(WorkOrder.status.not_in(_NON_PLANNED))
+    elif group in _GROUP_STATUSES:
+        filters.append(WorkOrder.status.in_(_GROUP_STATUSES[group]))
+    if overdue:
+        filters.append(_overdue_expr())
+    if category in _CATEGORY_TYPES:
+        filters.append(WorkOrder.work_type.in_(_CATEGORY_TYPES[category]))
+    if priority in _PRIORITY_API:
+        filters.append(WorkOrder.priority == _PRIORITY_API[priority])
+    if assignee:
+        filters.append(WorkOrder.assigned_to_user_id == assignee)
+    if assigned_only:
+        filters.append(WorkOrder.assigned_to_user_id.is_not(None))
+    needle = (q or "").strip().replace("İ", "i").replace("I", "ı").lower()
+    if needle:
+        pattern = f"%{needle}%"
+        filters.append(or_(
+            _tr_lower(WorkOrder.title).like(pattern), _tr_lower(func.coalesce(WorkOrder.assigned_to_name, "")).like(pattern),
+            WorkOrder.project_id.in_(select(Project.id).where(or_(
+                _tr_lower(Project.name).like(pattern), _tr_lower(func.coalesce(Project.project_no, "")).like(pattern)))),
+        ))
     if project_id:
         filters.append(WorkOrder.project_id == project_id)
     if status:
@@ -686,7 +786,14 @@ async def list_work_orders(
     # Eskiden en yeni 500 kayıtla sınırlıydı; sınır aşılınca listeler ve istatistikler sessizce eksik kalıyordu.
     total = (await db.execute(select(func.count()).select_from(WorkOrder).where(*filters))).scalar_one()
     response.headers["X-Total-Count"] = str(total)
-    query = select(WorkOrder).where(*filters).order_by(desc(WorkOrder.created_at), desc(WorkOrder.id)).offset(offset)
+    if sort == "updated":
+        order = (desc(WorkOrder.updated_at), desc(WorkOrder.id))
+    elif sort == "priority_due":
+        rank = case((WorkOrder.priority == "critical", 0), (WorkOrder.priority == "urgent", 1), else_=2)
+        order = (asc(rank), asc(WorkOrder.due_date).nulls_last(), desc(WorkOrder.created_at))
+    else:
+        order = (desc(WorkOrder.created_at), desc(WorkOrder.id))
+    query = select(WorkOrder).where(*filters).order_by(*order).offset(offset)
     if limit is not None:
         query = query.limit(limit)
     result = await db.execute(query)
@@ -797,8 +904,20 @@ async def list_all_reports(
         query = query.where(WorkOrder.tenant_id == user.tenant_id)
     if not _can_view_all_work_orders(user):
         query = query.where(WorkOrder.assigned_to_user_id == user.id)
-    reports_r = await db.execute(query.order_by(desc(WorkOrderReport.created_at)).limit(limit))
-    return await _report_reads(reports_r.scalars().all(), db)
+    reports = (await db.execute(query.order_by(desc(WorkOrderReport.created_at)).limit(limit))).scalars().all()
+    out = await _report_reads(reports, db)
+    # Raporlar ekranı iş emri listesini çekmesin: başlık ve mağaza adı burada eklenir.
+    wo_ids = {rep.work_order_id for rep in reports}
+    if wo_ids:
+        info = {row.id: row for row in (await db.execute(
+            select(WorkOrder.id, WorkOrder.title, Project.name.label("store_name"))
+            .outerjoin(Project, Project.id == WorkOrder.project_id).where(WorkOrder.id.in_(wo_ids))
+        )).all()}
+        for item in out:
+            row = info.get(item.work_order_id)
+            if row:
+                item.work_order_title, item.store_name = row.title, row.store_name
+    return out
 
 
 @router.get("/{work_order_id}", response_model=WorkOrderRead)

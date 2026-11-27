@@ -52,11 +52,15 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
 - [ ] **Analiz · Aşama kayıt listesi:** Firma geneli kayıtlar (`/installation-projects/stage-events`) İstatistikler'de tablo
   ve/veya Excel olarak gösterilecek. (26.11.2026)
 
-- [ ] **Büyüme · Tüm iş emri yüklemesi:** Genel Bakış, İş Emirleri, Yeni İş Emri, İstatistikler, Raporlar tüm iş emirlerini
-  (500'lük sayfalarla) çekiyor; birkaç bin kayıtta sunucu tarafı filtre/sayfalama gerekir. Eski modüller
-  (bakım/tadilat/yeni yapım) `/projects?limit=5000` çekiyor. (27.11.2026)
+- [ ] **Büyüme · Kalan:** İstatistikler (dokunulmadı) ve eski modüller (bakım/tadilat/yeni yapım, `/projects?limit=5000`) hâlâ tüm listeyi çekiyor. (27.11.2026)
 
 ## Yapıldı
+
+- [x] **Sunucu tarafı sayfalama (27.11.2026):** `GET /work-orders/summary` (durum sayıları, geciken, kişi başı yük; tek sorgu),
+  `GET /work-orders` süzgeçleri (group, overdue, q — Türkçe harf duyarsız, category, priority, assignee, assigned_only,
+  sort). İş Emirleri 50'şer kayıt + "Daha fazla göster"; Genel Bakış özet + ilk 50 atanmış + son 6; Yeni İş Emri yalnız
+  özet; Raporlar başlık/mağazayı rapor uç noktasından alır. İndeksler `20261127_03`. Sekme sayfası 9 KB (tüm liste 102 KB,
+  89 kayıtta). Test: süzgeçler eski yöntemle birebir (24/24).
 
 - [x] **Marka geri açıldı (27.11.2026):** `.env.local`'den `NEXT_PUBLIC_HIDE_BRAND` silindi, arayüz derlendi.
 

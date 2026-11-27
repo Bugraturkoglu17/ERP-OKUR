@@ -27,7 +27,7 @@ import { getStoreById } from "@/services/stores";
 import { getProject, type ProjectDetail } from "@/services/installationProjects";
 import {
   CATEGORY_LABEL, CREATABLE_CATEGORIES, PRIORITY_LABEL, createWorkOrder, getCepDepots,
-  getManagerWorkOrders, getTeamUsers, type CepDepot, type TeamUser,
+  getTeamUsers, getWorkOrderSummary, type CepDepot, type TeamUser,
   type WorkOrderCategory, type WorkOrderPriority,
 } from "@/services/managerWorkOrders";
 import { getRequestErrorMessage } from "@/lib/api";
@@ -80,16 +80,15 @@ export default function NewWorkOrderPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    Promise.all([getTeamUsers(), getManagerWorkOrders(), getCepDepots()])
-      .then(([team, orders, cepDepots]) => {
+    // Çalışan yükü sunucudaki özetten gelir (tüm iş emirleri çekilmez).
+    Promise.all([getTeamUsers(), getWorkOrderSummary(), getCepDepots()])
+      .then(([team, summary, cepDepots]) => {
         setUsers(team);
         setDepots(cepDepots);
         const next: Record<string, { planned: number; active: number }> = {};
         team.forEach((user) => {
-          next[user.id] = {
-            planned: orders.filter((order) => order.assigned_to === user.id && order.status === "planned").length,
-            active: orders.filter((order) => order.assigned_to === user.id && order.status === "in_progress").length,
-          };
+          const mine = summary.by_user[user.id];
+          next[user.id] = { planned: mine?.planned ?? 0, active: mine?.in_progress ?? 0 };
         });
         setWorkloads(next);
       })

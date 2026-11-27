@@ -1,7 +1,7 @@
 "use client";
 
 import { InfoHint } from "@/components/ui/info-hint";
-import { cn, daysUntilDue, isPastDue } from "@/lib/utils";
+import { cn, daysUntilDue } from "@/lib/utils";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -10,8 +10,8 @@ import {
   ClipboardList, TimerReset, UsersRound,
 } from "lucide-react";
 import {
-  PRIORITY_LABEL, STATUS_LABEL, getManagerWorkOrders, getTeamUsers,
-  type TeamUser, type WorkOrder,
+  PRIORITY_LABEL, STATUS_LABEL, getTeamUsers, getWorkOrderPage, getWorkOrderSummary,
+  type TeamUser, type WorkOrder, type WorkOrderSummary,
 } from "@/services/managerWorkOrders";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import { Badge } from "@/components/shadcn/badge";
@@ -24,11 +24,6 @@ import DocumentQuickSearch from "@/components/dashboard/document-quick-search";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { useRefreshSignal } from "@/lib/refresh-signal";
 
-function isOverdue(order: WorkOrder, referenceTime: number | null) {
-  return Boolean(referenceTime) && !["completed", "cancelled"].includes(order.status) && isPastDue(order.due_date, new Date(referenceTime as number));
-}
-
-const priorityRank = { critical: 0, important: 1, normal: 2 } as const;
 const PRIORITY_BADGE = { critical: "destructive", important: "warning", normal: "muted" } as const;
 
 function deadlineLabel(order: WorkOrder, referenceTime: number | null) {
@@ -42,7 +37,10 @@ function deadlineLabel(order: WorkOrder, referenceTime: number | null) {
 }
 
 export default function ManagerDashboardPage() {
-  const [orders, setOrders] = useState<WorkOrder[]>([]);
+  // Tüm iş emirleri çekilmez: sayılar özetten, kısa listeler sıralı ve sınırlı sorgudan gelir.
+  const [summary, setSummary] = useState<WorkOrderSummary | null>(null);
+  const [assignedOrders, setAssignedOrders] = useState<WorkOrder[]>([]);
+  const [recent, setRecent] = useState<WorkOrder[]>([]);
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,32 +48,25 @@ export default function ManagerDashboardPage() {
 
   const refreshSignal = useRefreshSignal();
   useEffect(() => {
-    Promise.all([getManagerWorkOrders(), getTeamUsers()])
-      .then(([workOrders, team]) => { setOrders(workOrders); setUsers(team); setReferenceTime(Date.now()); })
+    Promise.all([
+      getWorkOrderSummary(), getTeamUsers(),
+      getWorkOrderPage({ assigned_only: true, sort: "priority_due", limit: 50 }),
+      getWorkOrderPage({ sort: "updated", limit: 6 }),
+    ])
+      .then(([counts, team, assigned, latest]) => {
+        setSummary(counts); setUsers(team); setAssignedOrders(assigned); setRecent(latest); setReferenceTime(Date.now());
+      })
       .catch(() => setError("Operasyon özeti yüklenemedi."))
       .finally(() => setLoading(false));
   }, [refreshSignal]);
 
+  const counts = summary?.counts;
   const kpis = useMemo(() => [
-    { label: "Planlanacak", value: orders.filter((item) => item.status === "planned").length, description: "Başlatılmayı bekleyen", href: "/manager/is-emirleri?tab=planned", icon: ClipboardList },
-    { label: "Devam Eden", value: orders.filter((item) => item.status === "in_progress").length, description: "Sahada işlem gören", href: "/manager/is-emirleri?tab=in_progress", icon: TimerReset },
-    { label: "Tamamlanan", value: orders.filter((item) => item.status === "completed").length, description: "Süreci kapanan", href: "/manager/is-emirleri?tab=completed", icon: CheckCircle2 },
-    { label: "Geciken", value: orders.filter((order) => isOverdue(order, referenceTime)).length, description: "Termini geçen", href: "/manager/is-emirleri?filter=overdue", icon: CalendarClock },
-  ], [orders, referenceTime]);
-
-  const assignedOrders = useMemo(() => [...orders]
-    .filter((order) => Boolean(order.assigned_to))
-    .sort((a, b) => {
-      const priorityDiff = priorityRank[a.priority] - priorityRank[b.priority];
-      if (priorityDiff !== 0) return priorityDiff;
-      if (!a.due_date) return 1;
-      if (!b.due_date) return -1;
-      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-    }), [orders]);
-
-  const recent = useMemo(() => [...orders]
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-    .slice(0, 6), [orders]);
+    { label: "Planlanacak", value: counts?.planned ?? 0, description: "Başlatılmayı bekleyen", href: "/manager/is-emirleri?tab=planned", icon: ClipboardList },
+    { label: "Devam Eden", value: counts?.in_progress ?? 0, description: "Sahada işlem gören", href: "/manager/is-emirleri?tab=in_progress", icon: TimerReset },
+    { label: "Tamamlanan", value: counts?.completed ?? 0, description: "Süreci kapanan", href: "/manager/is-emirleri?tab=completed", icon: CheckCircle2 },
+    { label: "Geciken", value: counts?.overdue ?? 0, description: "Termini geçen", href: "/manager/is-emirleri?filter=overdue", icon: CalendarClock },
+  ], [counts]);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -130,13 +121,13 @@ export default function ManagerDashboardPage() {
             : (
               <div className="divide-y">
                 {users.map((user) => {
-                  const mine = orders.filter((order) => order.assigned_to === user.id);
+                  const mine = summary?.by_user[user.id];
                   return (
                     <div key={user.id} className="grid grid-cols-[1fr_repeat(3,auto)] items-center gap-4 px-5 py-3">
                       <p className="truncate text-sm font-medium">{user.full_name || user.email}</p>
-                      <span className="text-center text-xs text-muted-foreground"><strong className="block text-sm text-foreground">{mine.filter((item) => item.status === "planned").length}</strong>Plan</span>
-                      <span className="text-center text-xs text-muted-foreground"><strong className="block text-sm text-foreground">{mine.filter((item) => item.status === "in_progress").length}</strong>Aktif</span>
-                      <span className="text-center text-xs text-muted-foreground"><strong className="block text-sm text-destructive">{mine.filter((order) => isOverdue(order, referenceTime)).length}</strong>Geciken</span>
+                      <span className="text-center text-xs text-muted-foreground"><strong className="block text-sm text-foreground">{mine?.planned ?? 0}</strong>Plan</span>
+                      <span className="text-center text-xs text-muted-foreground"><strong className="block text-sm text-foreground">{mine?.in_progress ?? 0}</strong>Aktif</span>
+                      <span className="text-center text-xs text-muted-foreground"><strong className="block text-sm text-destructive">{mine?.overdue ?? 0}</strong>Geciken</span>
                     </div>
                   );
                 })}

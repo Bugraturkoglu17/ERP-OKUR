@@ -10,8 +10,8 @@ import { InfoHint } from "@/components/ui/info-hint";
 import { cn, formatServerDateTime, isPastDue, localToday, parseServerDate } from "@/lib/utils";
 import {
   CATEGORY_LABEL, CREATABLE_CATEGORIES, PRIORITY_LABEL, STATUS_LABEL,
-  getManagerWorkOrders, getTeamUsers,
-  type TeamUser, type WorkOrder, type WorkOrderCategory,
+  getTeamUsers, getWorkOrderPage, getWorkOrderSummary,
+  type TeamUser, type WorkOrder, type WorkOrderCategory, type WorkOrderCounts,
   type WorkOrderPriority, type WorkOrderStatus,
 } from "@/services/managerWorkOrders";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
@@ -85,8 +85,15 @@ function FilterSelect({ value, onChange, placeholder, options, label }: {
   );
 }
 
+// Liste 50'şer kayıt gelir; süzme ve arama sunucuda yapılır (tüm iş emirleri çekilmez).
+const PAGE_SIZE = 50;
+
 export default function ManagerWorkOrdersPage() {
   const [orders, setOrders] = useState<WorkOrder[]>([]);
+  const [summary, setSummary] = useState<WorkOrderCounts | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("planned");
   const [query, setQuery] = useState("");
@@ -101,11 +108,40 @@ export default function ManagerWorkOrdersPage() {
 
   const refreshSignal = useRefreshSignal();
   useEffect(() => {
-    Promise.all([getManagerWorkOrders(), getTeamUsers()])
-      .then(([workOrders, team]) => { setOrders(workOrders); setUsers(team); })
-      .catch(() => setError("İş emirleri yüklenemedi. Lütfen tekrar deneyin."))
-      .finally(() => setLoading(false));
+    getTeamUsers().then(setUsers).catch(() => setUsers([]));
+  }, []);
+  useEffect(() => {
+    getWorkOrderSummary().then((data) => setSummary(data.counts)).catch(() => setSummary(null));
   }, [refreshSignal]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  const pageQuery = useMemo(() => ({
+    group: overdueOnly ? undefined : statusFilter === "cancelled" ? "cancelled" as const : activeTab,
+    overdue: overdueOnly, q: debouncedQuery, category, priority, assignee, limit: PAGE_SIZE,
+  }), [overdueOnly, statusFilter, activeTab, debouncedQuery, category, priority, assignee]);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true); setError("");
+    getWorkOrderPage(pageQuery)
+      .then((rows) => { if (active) { setOrders(rows); setHasMore(rows.length === PAGE_SIZE); } })
+      .catch(() => { if (active) setError("İş emirleri yüklenemedi. Lütfen tekrar deneyin."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [pageQuery, refreshSignal]);
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const rows = await getWorkOrderPage({ ...pageQuery, offset: orders.length });
+      setOrders((current) => [...current, ...rows.filter((row) => !current.some((item) => item.id === row.id))]);
+      setHasMore(rows.length === PAGE_SIZE);
+    } catch { setError("İş emirleri yüklenemedi. Lütfen tekrar deneyin."); }
+    finally { setLoadingMore(false); }
+  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -122,25 +158,9 @@ export default function ManagerWorkOrdersPage() {
 
   const activeFilterCount = (category ? 1 : 0) + (priority ? 1 : 0) + (assignee ? 1 : 0) + (statusFilter === "cancelled" ? 1 : 0);
 
-  const counts = useMemo(() => ({
-    planned: orders.filter((item) => item.status === "planned").length,
-    in_progress: orders.filter((item) => item.status === "in_progress").length,
-    completed: orders.filter((item) => item.status === "completed").length,
-  }), [orders]);
-
-  const filtered = useMemo(() => {
-    const search = query.trim().toLocaleLowerCase("tr-TR");
-    return orders.filter((item) => {
-      if (overdueOnly) {
-        if (!isOverdueOrder(item)) return false;
-      } else if (statusFilter === "cancelled" ? item.status !== "cancelled" : item.status !== activeTab) return false;
-      if (search && !`${item.title} ${item.store_name} ${item.store_code} ${item.assigned_to_name}`.toLocaleLowerCase("tr-TR").includes(search)) return false;
-      if (category && item.category !== category) return false;
-      if (priority && item.priority !== priority) return false;
-      if (assignee && item.assigned_to !== assignee) return false;
-      return true;
-    });
-  }, [orders, statusFilter, overdueOnly, activeTab, query, category, priority, assignee]);
+  // Sekme sayıları sunucudaki özetten gelir (süzgeçten bağımsız toplam).
+  const counts = { planned: summary?.planned ?? 0, in_progress: summary?.in_progress ?? 0, completed: summary?.completed ?? 0 };
+  const filtered = orders;
 
   // Sekme yalnız "sekme durumu" süzgecinde ve gecikenler süzgeci kapalıyken seçili görünür.
   const tabValue = statusFilter === "current" && !overdueOnly ? activeTab : "";
@@ -258,6 +278,11 @@ export default function ManagerWorkOrdersPage() {
               </Card>
             );
           })}
+          {hasMore && (
+            <Button variant="outline" className="self-center" onClick={() => void loadMore()} disabled={loadingMore}>
+              {loadingMore ? "Yükleniyor…" : "Daha fazla göster"}
+            </Button>
+          )}
         </div>
       )}
     </div>
