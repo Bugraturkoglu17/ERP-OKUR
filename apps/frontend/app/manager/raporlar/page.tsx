@@ -35,12 +35,14 @@ export default function ManagerReportsPage() {
     let active = true;
     (async () => {
       try {
-        const orders = await getManagerWorkOrders();
-        const reportGroups = await Promise.all(
-          orders.map((order) => apiGet<Report[]>(`/work-orders/${order.id}/reports`).catch(() => [])),
-        );
+        // Tek istek: tüm raporlar (fotoğraflarıyla) + iş emri özeti; iş emri başına istek atılmaz.
+        const [reports, orders] = await Promise.all([
+          apiGet<Report[]>("/work-orders/reports"),
+          getManagerWorkOrders(),
+        ]);
         if (!active) return;
-        setRows(reportGroups.flatMap((reports, index) => reports.map((report) => ({ ...report, order: orders[index] }))).sort((a, b) => b.created_at.localeCompare(a.created_at)));
+        const orderById = new Map(orders.map((order) => [order.id, order]));
+        setRows(reports.map((report) => ({ ...report, order: orderById.get(report.work_order_id) })));
       } catch {
         if (active) setError("Raporlar yüklenemedi. Bağlantıyı kontrol edip tekrar deneyin.");
       } finally {
