@@ -1346,10 +1346,15 @@ async def update_stage(stage_id: UUID, body: StageUpdate, db: AsyncSession = Dep
         if stage.status == "completed":
             raise HTTPException(409, "Bu aşama zaten tamamlanmış.")
         stages = await _stages(db, project.id)
-        # "Adımı Tamamla" / "Projeyi Kapat" daima açıktır (kullanıcı kararı, 26.11.2026): adım sırası ve
-        # adım şartları (kontrol listesi, belge, malzeme, iş emri, fatura vb.) tamamlamayı engellemez; şartlar yalnız bilgidir.
-        # Tek istisna en sondadır (kullanıcı kararı, 27.11.2026): projede açık iş emri varken son adım (kapanış)
-        # ne onaya gönderilir ne tamamlanır.
+        # Adım sırası ve diğer şartlar (belge, malzeme, fatura vb.) tamamlamayı engellemez; yalnız bilgidir (26.11.2026).
+        # Engelleyen iki kural var (kullanıcı kararları, 27.11.2026):
+        # 1) Kontrol listesi zorunludur: işaretlenmemiş madde varken adım tamamlanmaz / onaya gönderilmez.
+        # 2) Projede açık iş emri varken son adım (kapanış) ne onaya gönderilir ne tamamlanır.
+        open_items = (await db.execute(select(func.count()).select_from(InstallationProjectChecklistItem).where(
+            InstallationProjectChecklistItem.stage_id == stage.id, InstallationProjectChecklistItem.is_done == False  # noqa: E712
+        ))).scalar_one()
+        if open_items:
+            raise HTTPException(409, f"Kontrol listesinde işaretlenmemiş {open_items} madde var; liste tamamlanmadan adım tamamlanamaz.")
         if not any(s.stage_order > stage.stage_order for s in stages):
             if any(_status_value(wo.status) not in CLOSED_WORK_ORDER for wo in await _work_orders(db, project.id)):
                 raise HTTPException(409, "Açık iş emirleri kapatılmadan işlem tamamlanamaz.")
