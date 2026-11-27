@@ -197,6 +197,8 @@ class WorkOrderRead(BaseModel):
     photo_count:           int = 0
     has_service_form:      bool = False
     has_critical_report:   bool = False
+    # Liste ilerleme çubuğu: tamamlanan aşama / toplam aşama (detaydaki "Aşamalar" ile aynı hesap).
+    progress_pct:          int = 0
     installation_project_id:   Optional[UUID] = None
     installation_project_name: Optional[str] = None
     project_linked_at:     Optional[datetime] = None
@@ -829,6 +831,20 @@ async def list_work_orders(
         select(WorkOrderReport.work_order_id).where(WorkOrderReport.work_order_id.in_(wo_ids), WorkOrderReport.severity == "critical")
         .distinct())).scalars().all())
 
+    # İlerleme yüzdesi aşamalardan hesaplanır: süreç başlatılınca ilk aşama "devam ediyor" olur
+    # ama tamamlanan aşama yoksa ilerleme %0'dır. Son aşama (4) tamamlandıysa %100.
+    stage_rows = (await db.execute(
+        select(WorkOrderStage.work_order_id, WorkOrderStage.stage_order, WorkOrderStage.status)
+        .where(WorkOrderStage.work_order_id.in_(wo_ids)))).all()
+    stage_stats: dict = {}
+    for wo_id, order_no, stage_status in stage_rows:
+        total_done_final = stage_stats.setdefault(wo_id, [0, 0, False])
+        total_done_final[0] += 1
+        if stage_status == "completed":
+            total_done_final[1] += 1
+            if order_no == 4:
+                total_done_final[2] = True
+
     # Aktif linkler: en yeni önce sıralanır, work_order başına ilkini alırız.
     links_by_wo: dict = {}
     links_r = await db.execute(
@@ -853,6 +869,11 @@ async def list_work_orders(
         item.photo_count = photo_counts.get(wo.id, 0)
         item.has_service_form = wo.id in with_form
         item.has_critical_report = wo.id in with_critical
+        total, done, final_done = stage_stats.get(wo.id, (0, 0, False))
+        if _workflow_value(wo.status) in ("completed", "approved") or final_done:
+            item.progress_pct = 100
+        else:
+            item.progress_pct = round(done / total * 100) if total else 0
         out.append(item)
     return out
 

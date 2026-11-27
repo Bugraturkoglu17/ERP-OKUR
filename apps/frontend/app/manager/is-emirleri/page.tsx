@@ -239,7 +239,7 @@ export default function ManagerWorkOrdersPage() {
         <div className="flex flex-col gap-2">
           {filtered.map((order) => {
             const warnings = getWarnings(order);
-            const progress = order.status === "completed" ? 100 : order.status === "in_progress" ? 50 : 0;
+            const progress = order.status === "completed" ? 100 : order.progress_pct;
             return (
               <Card key={order.id} className="transition-colors hover:border-foreground/20">
                 <CardContent className="flex flex-col gap-4 p-4 xl:flex-row xl:items-center">

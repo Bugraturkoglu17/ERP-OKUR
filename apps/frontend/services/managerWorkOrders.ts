@@ -23,7 +23,7 @@ type BackendWorkOrder = {
   work_type: string; title: string; description?: string;
   assigned_to_name?: string; assigned_to_user_id?: string;
   priority: string; status: string; due_date?: string;
-  created_at: string; updated_at: string; photo_count?: number; has_critical_report?: boolean;
+  created_at: string; updated_at: string; photo_count?: number; has_critical_report?: boolean; progress_pct?: number;
   installation_project_id?: string | null; installation_project_name?: string | null;
 };
 
@@ -35,6 +35,8 @@ export type WorkOrder = {
   assigned_to: string; assigned_to_name: string; due_date: string | null;
   created_at: string; updated_at: string; photo_count: number;
   has_critical_report: boolean;
+  /** Tamamlanan aşama / toplam aşama (%); sunucuda hesaplanır. */
+  progress_pct: number;
   installation_project_id: string | null; installation_project_name: string | null;
 };
 
@@ -86,6 +88,7 @@ function normalizeWorkOrder(item: BackendWorkOrder): WorkOrder {
     updated_at: item.updated_at,
     photo_count: item.photo_count ?? 0,
     has_critical_report: item.has_critical_report ?? false,
+    progress_pct: item.progress_pct ?? 0,
     installation_project_id: item.installation_project_id ?? null,
     installation_project_name: item.installation_project_name ?? null,
   };
