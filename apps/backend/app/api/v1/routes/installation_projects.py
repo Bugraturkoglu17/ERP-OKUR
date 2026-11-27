@@ -142,6 +142,14 @@ def _is_manager(user: User) -> bool:
     return is_platform_admin(user) or role in {"admin", "manager"}
 
 
+def _active_in_tenant(person: Optional[User], tenant_id: UUID) -> bool:
+    """Kişi bu firmada aktif mi? Firmaya bağlı olmayan platform admini (canlıdaki geliştirici admin)
+    her firmada çalışabilir; projeyi oluşturan admin "Ben" ile sorumlu/atanan olabilsin diye."""
+    if not person or not person.is_active:
+        return False
+    return person.tenant_id == tenant_id or (person.tenant_id is None and is_platform_admin(person))
+
+
 def _require_manager(user: User) -> None:
     if not _is_manager(user):
         raise HTTPException(403, "Projeleri yalnızca yöneticiler yönetebilir.")
@@ -1064,7 +1072,7 @@ async def _set_members(db: AsyncSession, project: InstallationProject, user_ids:
     wanted = set(user_ids) | ({project.manager_user_id} if project.manager_user_id else set())
     for user_id in wanted:
         person = await db.get(User, user_id)
-        if not person or person.tenant_id != project.tenant_id or not person.is_active:
+        if not _active_in_tenant(person, project.tenant_id):
             raise HTTPException(400, "Projeye atanan kişiler bu firmada aktif kullanıcı olmalıdır.")
     existing = {row.user_id: row for row in (await db.execute(select(InstallationProjectMember).where(
         InstallationProjectMember.project_id == project.id))).scalars().all()}
@@ -1087,7 +1095,7 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
         raise HTTPException(404, "Mağaza / yer bulunamadı.")
     if body.manager_user_id:
         manager = await db.get(User, body.manager_user_id)
-        if not manager or manager.tenant_id != tenant_id or not manager.is_active:
+        if not _active_in_tenant(manager, tenant_id):
             raise HTTPException(400, "Proje sorumlusu bu firmada aktif bir kullanıcı olmalıdır.")
     if body.project_type not in PROJECT_TYPES:
         raise HTTPException(400, "Proje türü Mağaza, Soğuk oda veya Soğutma olmalıdır.")
@@ -1270,7 +1278,7 @@ async def update_project(project_id: UUID, body: ProjectUpdate, db: AsyncSession
         project.status = "cancelled"
     if "manager_user_id" in updates and updates["manager_user_id"]:
         manager = await db.get(User, updates["manager_user_id"])
-        if not manager or manager.tenant_id != project.tenant_id or not manager.is_active:
+        if not _active_in_tenant(manager, project.tenant_id):
             raise HTTPException(400, "Proje sorumlusu bu firmada aktif bir kullanıcı olmalıdır.")
         project.manager_user_id = manager.id
         # Yeni proje sorumlusu projeye otomatik atanır (önceki sorumlu atanmış olarak kalır).
@@ -1345,7 +1353,7 @@ async def update_stage(stage_id: UUID, body: StageUpdate, db: AsyncSession = Dep
     if "responsible_user_id" in updates:
         if updates["responsible_user_id"]:
             person = await db.get(User, updates["responsible_user_id"])
-            if not person or person.tenant_id != project.tenant_id or not person.is_active:
+            if not _active_in_tenant(person, project.tenant_id):
                 raise HTTPException(400, "Sorumlu bu firmada aktif bir kullanıcı olmalıdır.")
         if updates["responsible_user_id"] != stage.responsible_user_id:
             old_name = await _user_name(db, stage.responsible_user_id)
