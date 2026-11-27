@@ -21,7 +21,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel, Field as SchemaField
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -409,6 +409,26 @@ async def _material_status(db: AsyncSession, project: InstallationProject) -> li
             "note": line.note,
         })
     return rows
+
+
+async def _used_materials(db: AsyncSession, project_id: UUID) -> list[dict]:
+    """Projede kullanılan malzemeler: bağlı iş emirlerinde araçtan ve kapanışta ana depodan düşülenler."""
+    rows = (await db.execute(
+        select(RetailMovement.quantity, RetailMaterial.sku, RetailMaterial.name, RetailMaterial.unit,
+               RetailDepot.kind, RetailDepot.plate, RetailDepot.name.label("depot_name"),
+               WorkOrder.id.label("work_order_id"), WorkOrder.title.label("work_order_title"))
+        .join(RetailMaterial, RetailMaterial.id == RetailMovement.material_id)
+        .join(RetailDepot, RetailDepot.id == RetailMovement.source_depot_id)
+        .outerjoin(WorkOrder, WorkOrder.id == RetailMovement.work_order_id)
+        .where(RetailMovement.kind == "use", or_(RetailMovement.installation_project_id == project_id,
+                                                 WorkOrder.installation_project_id == project_id))
+        .order_by(RetailMovement.performed_at)
+    )).all()
+    return [{
+        "sku": r.sku, "name": r.name, "unit": r.unit, "quantity": r.quantity,
+        "depot": "Ana depo" if r.kind == "main" else " · ".join(x for x in (r.plate, r.depot_name) if x),
+        "depot_kind": r.kind, "work_order_id": r.work_order_id, "work_order_title": r.work_order_title,
+    } for r in rows]
 
 
 async def _material_shortages(db: AsyncSession, project: InstallationProject) -> list[dict]:
@@ -1174,6 +1194,7 @@ async def get_project(project_id: UUID, db: AsyncSession = Depends(get_db), user
         "stages": stage_rows, "documents": documents, "doc_types": DOC_TYPES,
         "phases": [{"code": code, "name": name} for code, name in PHASES],
         "materials": materials, "planned_cost": planned_cost, "used_cost": used_cost,
+        "used_materials": await _used_materials(db, project.id),
         "work_orders": [_work_order_row(wo, names, stage_names) for wo in work_orders],
     }
 

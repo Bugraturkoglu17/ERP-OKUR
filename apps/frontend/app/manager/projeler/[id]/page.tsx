@@ -417,6 +417,29 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
             </table>
           </div>
         )}
+        {/* Kullanılan malzemeler: ne kullanıldı, hangi depodan, hangi iş emrinde. */}
+        {!editing && (project.used_materials?.length ?? 0) > 0 && (
+          <div className="mt-5 overflow-x-auto border-t border-border pt-4">
+            <h3 className="mb-2 text-xs font-semibold text-foreground">Kullanılan malzemeler</h3>
+            <table className="w-full min-w-[560px] text-sm">
+              <thead><tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <th className="py-2 pr-3">Malzeme</th><th className="px-2 py-2 text-right">Adet</th><th className="px-2 py-2">Depo</th><th className="py-2 pl-2">İş emri</th>
+              </tr></thead>
+              <tbody className="divide-y divide-border">
+                {project.used_materials!.map((m, index) => (
+                  <tr key={index}>
+                    <td className="py-2 pr-3"><MaterialTitle sku={m.sku} name={m.name} className="text-sm" /></td>
+                    <td className="px-2 py-2 text-right tabular-nums">{qty(m.quantity)} {m.unit}</td>
+                    <td className="px-2 py-2"><Badge variant={m.depot_kind === "main" ? "secondary" : "outline"}>{m.depot}</Badge></td>
+                    <td className="py-2 pl-2">{m.work_order_id
+                      ? <Link href={`/manager/is-emirleri/${m.work_order_id}`} className="hover:underline">{m.work_order_title}</Link>
+                      : <span className="text-muted-foreground">Proje kapanışı</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   );

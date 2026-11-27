@@ -115,6 +115,9 @@ export type ProjectDetail = {
   created_at: string; completed_at: string | null;
   stages: ProjectStage[]; phases: ProjectPhase[]; documents: ProjectDocument[]; doc_types: Record<string, string>;
   materials: ProjectMaterial[]; planned_cost: string | null; used_cost: string | null;
+  /** Projede kullanılan malzemeler: hangi depodan (ana depo / araç) ve hangi iş emrinde. */
+  used_materials?: { sku: string; name: string; unit: string; quantity: string; depot: string;
+    depot_kind: "main" | "vehicle"; work_order_id: string | null; work_order_title: string | null }[];
   work_orders: ProjectWorkOrder[];
 };
 
