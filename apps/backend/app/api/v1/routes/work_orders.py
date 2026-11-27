@@ -438,6 +438,8 @@ async def _log_activity(
 
 
 _CLOSED_STATUSES = {"completed", "approved", "cancelled", "failed"}
+# Saha bağlantısından (oturumsuz) verilebilen durumlar.
+_PUBLIC_STATUSES = {"started", "completed", "failed", "material_waiting", "revisit"}
 _VALID_STATUSES = {status.value for status in WorkOrderStatus}
 
 
@@ -450,6 +452,9 @@ def _ensure_status_change_allowed(wo: WorkOrder, new_status: str) -> None:
     current = _workflow_value(wo.status)
     if current in _CLOSED_STATUSES and new_status != current and not (current == "completed" and new_status == "approved"):
         raise HTTPException(409, "Tamamlanmış veya iptal edilmiş iş emrinin durumu değiştirilemez.")
+    # Onay yalnız tamamlanmış işe verilir: aksi hâlde servis formu, nihai fotoğraf ve stok düşümü atlanırdı.
+    if new_status == "approved" and current not in ("completed", "approved"):
+        raise HTTPException(409, "Yalnızca tamamlanmış iş emri onaylanabilir.")
 
 
 async def _require_service_form(db: AsyncSession, wo: WorkOrder) -> None:
@@ -706,20 +711,16 @@ async def list_work_orders(
         inst_r = await db.execute(select(InstallationProject.id, InstallationProject.name).where(InstallationProject.id.in_(installation_ids)))
         installation_names = {row.id: row.name for row in inst_r}
 
-    photos_by_wo: dict = defaultdict(list)
-    photos_r = await db.execute(select(WorkOrderPhoto).where(WorkOrderPhoto.work_order_id.in_(wo_ids)))
-    for photo in photos_r.scalars().all():
-        photos_by_wo[photo.work_order_id].append(photo)
-
-    forms_by_wo: dict = defaultdict(list)
-    forms_r = await db.execute(select(WorkOrderServiceForm).where(WorkOrderServiceForm.work_order_id.in_(wo_ids)))
-    for form in forms_r.scalars().all():
-        forms_by_wo[form.work_order_id].append(form)
-
-    reports_by_wo: dict = defaultdict(list)
-    reports_r = await db.execute(select(WorkOrderReport).where(WorkOrderReport.work_order_id.in_(wo_ids)))
-    for report in reports_r.scalars().all():
-        reports_by_wo[report.work_order_id].append(report)
+    # Listede yalnız fotoğraf sayısı, "servis formu var mı" ve "kritik rapor var mı" gösterilir:
+    # satırların tamamı yerine gruplu sayımlar çekilir (iş emri sayısı arttıkça yük artmasın).
+    photo_counts = dict((await db.execute(
+        select(WorkOrderPhoto.work_order_id, func.count()).where(WorkOrderPhoto.work_order_id.in_(wo_ids))
+        .group_by(WorkOrderPhoto.work_order_id))).all())
+    with_form = set((await db.execute(
+        select(WorkOrderServiceForm.work_order_id).where(WorkOrderServiceForm.work_order_id.in_(wo_ids)).distinct())).scalars().all())
+    with_critical = set((await db.execute(
+        select(WorkOrderReport.work_order_id).where(WorkOrderReport.work_order_id.in_(wo_ids), WorkOrderReport.severity == "critical")
+        .distinct())).scalars().all())
 
     # Aktif linkler: en yeni önce sıralanır, work_order başına ilkini alırız.
     links_by_wo: dict = {}
@@ -733,17 +734,71 @@ async def list_work_orders(
 
     out = []
     for wo in wos:
-        out.append(_enrich(
+        item = _enrich(
             wo,
             projects_by_id.get(wo.project_id),
-            photos_by_wo.get(wo.id, []),
-            forms_by_wo.get(wo.id, []),
+            [], [],
             links_by_wo.get(wo.id),
-            reports_by_wo.get(wo.id, []),
+            [],
             region_names.get(getattr(projects_by_id.get(wo.project_id), "region_id", None)),
             installation_names.get(wo.installation_project_id),
+        )
+        item.photo_count = photo_counts.get(wo.id, 0)
+        item.has_service_form = wo.id in with_form
+        item.has_critical_report = wo.id in with_critical
+        out.append(item)
+    return out
+
+
+async def _report_reads(reports, db: AsyncSession, inventory_refs: Optional[dict] = None) -> list[WorkOrderReportRead]:
+    """Raporları fotoğraflarıyla döndürür; fotoğraflar tek sorguda çekilir (rapor başına sorgu yok)."""
+    if not reports:
+        return []
+    photos_r = await db.execute(
+        select(WorkOrderReportPhoto)
+        .where(WorkOrderReportPhoto.report_id.in_([rep.id for rep in reports]))
+        .order_by(WorkOrderReportPhoto.uploaded_at)
+    )
+    photos_by_report: dict[UUID, list] = {}
+    for p in photos_r.scalars().all():
+        try:
+            url = await storage.generate_presigned_url(p.file_key)
+        except Exception:
+            url = p.file_url
+        photos_by_report.setdefault(p.report_id, []).append(WorkOrderReportPhotoRead(
+            id=p.id, report_id=p.report_id,
+            file_name=p.file_name, file_size_bytes=p.file_size_bytes,
+            mime_type=p.mime_type, uploaded_by_name=p.uploaded_by_name,
+            uploaded_at=p.uploaded_at, fresh_url=url,
+            is_added_to_inventory=bool(inventory_refs) and p.file_key in inventory_refs,
+        ))
+    out = []
+    for rep in reports:
+        photo_reads = photos_by_report.get(rep.id, [])
+        out.append(WorkOrderReportRead(
+            id=rep.id, work_order_id=rep.work_order_id,
+            title=rep.title, description=rep.description,
+            severity=rep.severity, created_by_name=rep.created_by_name,
+            created_at=rep.created_at,
+            photo_count=len(photo_reads), photos=photo_reads,
         ))
     return out
+
+
+@router.get("/reports", response_model=List[WorkOrderReportRead])
+async def list_all_reports(
+    limit: int = Query(1000, ge=1, le=5000),
+    db:   AsyncSession = Depends(get_db),
+    user: User         = Depends(get_current_user),
+):
+    """Raporlar ekranı: erişilebilen tüm iş emirlerinin saha raporları tek istekte."""
+    query = select(WorkOrderReport).join(WorkOrder, WorkOrder.id == WorkOrderReport.work_order_id)
+    if user.tenant_id:
+        query = query.where(WorkOrder.tenant_id == user.tenant_id)
+    if not _can_view_all_work_orders(user):
+        query = query.where(WorkOrder.assigned_to_user_id == user.id)
+    reports_r = await db.execute(query.order_by(desc(WorkOrderReport.created_at)).limit(limit))
+    return await _report_reads(reports_r.scalars().all(), db)
 
 
 @router.get("/{work_order_id}", response_model=WorkOrderRead)
@@ -1262,6 +1317,10 @@ async def create_report(
     if not wo:
         raise HTTPException(404, "İş emri bulunamadı.")
     _ensure_work_order_access(wo, user)
+    if severity not in ("normal", "important", "critical"):
+        raise HTTPException(422, "Önem derecesi Normal, Önemli veya Kritik olmalı.")
+    if not title.strip():
+        raise HTTPException(422, "Rapor başlığı boş olamaz.")
 
     report = WorkOrderReport(
         id=uuid4(), work_order_id=wo.id,
@@ -1344,34 +1403,7 @@ async def list_reports(
     )
     reports = reports_r.scalars().all()
     _, inventory_refs = await _photo_inventory_refs(wo.project_id, db)
-
-    out = []
-    for rep in reports:
-        photos_r = await db.execute(
-            select(WorkOrderReportPhoto).where(WorkOrderReportPhoto.report_id == rep.id)
-        )
-        photos = photos_r.scalars().all()
-        photo_reads = []
-        for p in photos:
-            try:
-                url = await storage.generate_presigned_url(p.file_key)
-            except Exception:
-                url = p.file_url
-            photo_reads.append(WorkOrderReportPhotoRead(
-                id=p.id, report_id=p.report_id,
-                file_name=p.file_name, file_size_bytes=p.file_size_bytes,
-                mime_type=p.mime_type, uploaded_by_name=p.uploaded_by_name,
-                uploaded_at=p.uploaded_at, fresh_url=url,
-                is_added_to_inventory=p.file_key in inventory_refs,
-            ))
-        out.append(WorkOrderReportRead(
-            id=rep.id, work_order_id=rep.work_order_id,
-            title=rep.title, description=rep.description,
-            severity=rep.severity, created_by_name=rep.created_by_name,
-            created_at=rep.created_at,
-            photo_count=len(photo_reads), photos=photo_reads,
-        ))
-    return out
+    return await _report_reads(reports, db, inventory_refs)
 
 
 @router.delete("/{work_order_id}/reports/{report_id}", status_code=204)
@@ -1966,18 +1998,18 @@ async def public_submit_work_order(
     link, wo, proj = await _resolve_token(token, db)
 
     new_status = payload.status
+    # Saha bağlantısı iptal / onay veremez (yönetici işi); kapanmış iş bağlantıdan yeniden açılamaz.
+    if new_status not in _PUBLIC_STATUSES:
+        raise HTTPException(400, "Bu bağlantıdan bu durum verilemez.")
+    _ensure_status_change_allowed(wo, new_status)
 
-    # Zorunluluk kontrolleri
-    if new_status == "completed":
-        photos_r = await db.execute(select(WorkOrderPhoto).where(WorkOrderPhoto.work_order_id == wo.id))
-        photos = photos_r.scalars().all()
-        if len(photos) == 0:
-            raise HTTPException(400, "İşi tamamlandı olarak kapatmak için en az bir fotoğraf yüklemelisiniz.")
-
-        if _workflow_value(wo.work_type) == "maintenance":
-            forms_r = await db.execute(select(WorkOrderServiceForm).where(WorkOrderServiceForm.work_order_id == wo.id))
-            if not forms_r.scalars().first():
-                raise HTTPException(400, "Bakım işini tamamlamak için servis formu yüklemelisiniz.")
+    # Zorunluluk kontrolleri (uygulamadaki tamamlama kurallarıyla aynı: nihai fotoğraf + servis formu)
+    if new_status == "completed" and _workflow_value(wo.status) != "completed":
+        photo = (await db.execute(select(WorkOrderPhoto.id).where(
+            WorkOrderPhoto.work_order_id == wo.id, WorkOrderPhoto.photo_type == "completion").limit(1))).first()
+        if photo is None:
+            raise HTTPException(400, "İşi tamamlandı olarak kapatmak için en az bir nihai fotoğraf yüklemelisiniz.")
+        await _require_service_form(db, wo)
 
     if new_status == "completed" and _workflow_value(wo.status) != "completed" and wo.assigned_to_user_id:
         field_user = await db.get(User, wo.assigned_to_user_id)
