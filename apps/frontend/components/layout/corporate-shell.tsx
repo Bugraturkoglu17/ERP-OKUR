@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, RefreshCw, X, type LucideIcon } from "lucide-react";
+import { Loader2, Menu, RefreshCw, X, type LucideIcon } from "lucide-react";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { QuickSwitch } from "@/components/layout/quick-switch";
 import type { UserRole } from "@/lib/permissions";
@@ -16,6 +17,7 @@ import { HEADER_SLOT_ID } from "@/components/layout/header-slot";
 import { useMobileDrawer } from "@/hooks/use-mobile-drawer";
 import { Button } from "@/components/shadcn/button";
 import { requestRefresh } from "@/lib/refresh-signal";
+import { waitForRequestsIdle } from "@/lib/request-activity";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/shadcn/sheet";
 
 export type CorporateNavItem = { href: string; label: string; icon: LucideIcon };
@@ -89,19 +91,34 @@ function SidebarContent({ brandTone, title, navItems, mobile, onClose }: {
 
 /** Yazısız "Yenile": açık ekranın verisini ve bildirim sayacını yeniden çeker (sürekli sorgu yerine). */
 function RefreshButton({ onRemount }: { onRemount: () => void }) {
-  const [spinning, setSpinning] = useState(false);
+  const [loading, setLoading] = useState(false);
   return (
-    <Button
-      variant="outline" size="icon" aria-label="Yenile" title="Yenile" className="size-9 shrink-0"
-      onClick={() => {
-        // Sinyali dinleyen ekran verisini yerinde yeniler; dinleyen yoksa sayfa baştan kurulur.
-        if (!requestRefresh()) onRemount();
-        setSpinning(true);
-        window.setTimeout(() => setSpinning(false), 700);
-      }}
-    >
-      <RefreshCw className={cn(spinning && "animate-spin")} />
-    </Button>
+    <>
+      <Button
+        variant="outline" size="icon" aria-label="Yenile" title="Yenile" className="size-9 shrink-0" disabled={loading}
+        onClick={async () => {
+          (document.activeElement as HTMLElement | null)?.blur();
+          setLoading(true);
+          // Sinyali dinleyen ekran verisini yerinde yeniler; dinleyen yoksa sayfa baştan kurulur.
+          if (!requestRefresh()) onRemount();
+          await waitForRequestsIdle();
+          setLoading(false);
+        }}
+      >
+        <RefreshCw />
+      </Button>
+      {/* Yenileme bitene kadar tüm ekran kilitli: arka plana tıklanamaz. Üst çubuğun backdrop-blur'u sabit
+          konumlu çocukları kendi sınırına hapsettiği için katman doğrudan <body>'ye (portal) çizilir. */}
+      {loading && createPortal(
+        <div role="status" aria-label="Yenileniyor" aria-live="polite"
+          className="fixed inset-0 z-[60] flex cursor-wait items-center justify-center bg-background/55 backdrop-blur-[1px]">
+          <div className="flex size-14 items-center justify-center rounded-2xl border bg-card shadow-lg">
+            <Loader2 className="size-6 animate-spin text-foreground" />
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 

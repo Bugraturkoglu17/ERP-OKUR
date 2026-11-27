@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { clearClientSession } from '@/lib/client-session';
 import { brand } from '@/lib/brand';
+import { beginRequest, endRequest } from '@/lib/request-activity';
 
 const API_PREFIX = '/api/v1';
 
@@ -105,6 +106,16 @@ api.interceptors.response.use(
     }
     return Promise.reject(error);
   }
+);
+
+// Devam eden istek sayacı: "Yenile" yükleme ekranı veri tamamen gelince kalkar.
+api.interceptors.request.use((config) => {
+  beginRequest();
+  return config;
+});
+api.interceptors.response.use(
+  (response) => { endRequest(); return response; },
+  (error) => { endRequest(); return Promise.reject(error); },
 );
 
 export const apiGet = async <T>(url: string, params?: object) => {
