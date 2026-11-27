@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle, Boxes, CalendarClock, CheckCircle2, ClipboardList, Gauge,
-  MapPinned, RefreshCw, Store, Timer, UsersRound,
+  MapPinned, Store, Timer, UsersRound,
 } from "lucide-react";
 import { apiGet } from "@/lib/api";
 import {
@@ -168,7 +168,6 @@ export default function ManagerStatisticsPage() {
   const [assets, setAssets] = useState<Assets | null>(null);
   const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
   const [now, setNow] = useState(0);
-  const [run, setRun] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -296,19 +295,13 @@ export default function ManagerStatisticsPage() {
 
   const generatedAt = now ? new Date(now).toLocaleString("tr-TR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
   const firstLoad = loading && !now;
-  // Kartların sırayla belirmesi yalnızca sayfaya ilk girişte oynar; "Yenile" sayıları ve çubukları baştan oynatır.
-  const intro = run === 0;
 
   return (
     <div className="mx-auto max-w-screen-2xl space-y-3">
-      {/* Sayfa başlığı görünmez (yalnızca ekran okuyucular için); "Yenile" panelin üst şeridinde durur. */}
+      {/* Sayfa başlığı görünmez (yalnızca ekran okuyucular için). Yenileme üst çubuktaki genel "Yenile" ile yapılır. */}
       <HeaderSlot>
         <h1 className="sr-only">İstatistikler</h1>
         {generatedAt && <span className="hidden whitespace-nowrap text-[11px] text-slate-400 md:inline">{generatedAt}</span>}
-        <button type="button" onClick={() => void load().then(() => setRun((value) => value + 1))} disabled={loading}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />Yenile
-        </button>
       </HeaderSlot>
 
       {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle className="h-4 w-4" />{error}</div>}
@@ -320,8 +313,8 @@ export default function ManagerStatisticsPage() {
           <div className="grid gap-4 lg:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}</div>
         </div>
       ) : (
-        // key: "Yenile" sonrası giriş animasyonları baştan oynar.
-        <StatClock key={run} delay={intro ? 900 : 150} className={`space-y-3 ${intro ? "stat-intro" : ""}`}>
+        // Üst çubuktaki "Yenile" sayfayı yeniden kurar; giriş animasyonları baştan oynar.
+        <StatClock delay={900} className="space-y-3 stat-intro">
           <div>
             <Reveal as="section" index={0} className="relative overflow-hidden rounded-2xl bg-[#0f2440] px-5 py-4 text-white shadow-[0_18px_45px_rgba(15,36,64,0.25)]">
               <div aria-hidden className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl" />
