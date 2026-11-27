@@ -6,6 +6,7 @@ COPY apps/backend/app ./app
 COPY apps/backend/alembic ./alembic
 COPY apps/backend/alembic.ini ./alembic.ini
 COPY scripts/import_local_stores.py /bootstrap/scripts/import_local_stores.py
+COPY scripts/production_smoke.py /bootstrap/scripts/production_smoke.py
 COPY data/okur-stores.json.gz /bootstrap/data/okur-stores.json.gz
 RUN useradd --system --create-home bootstrap
 USER bootstrap

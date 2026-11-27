@@ -9,6 +9,7 @@
 !apps/backend/alembic/**
 !scripts/
 !scripts/import_local_stores.py
+!scripts/production_smoke.py
 !data/
 !data/okur-stores.json.gz
 **/__pycache__
