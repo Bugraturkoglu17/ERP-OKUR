@@ -47,8 +47,6 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
 - [ ] **Analiz · Üretim no:** Üretim no projenin kimliği gibidir; İstatistikler'de ve aramada kullanılacak
   (kullanıcı "sonraki tura" dedi, kapsam ayrıca konuşulacak). (26.11.2026)
 
-- [ ] **Gün sonu · Marka:** OKUR adı/logosu geçici gizli. Geri açmak için `apps/frontend/.env.local` içinden
-  `NEXT_PUBLIC_HIDE_BRAND=true` satırını silip arayüzü yeniden derle. (26.11.2026)
 - [ ] **Gün sonu · Tasarım:** Tüm ekranların yazı boyutu / düzeni tek ölçeğe getirilecek (proje Özet ekranı örnek alınacak). (26.11.2026)
 - [ ] **shadcn yaygınlaştırma:** Pilot (proje detayı) beğenilirse diğer ekranlara geçirilecek. (26.11.2026)
 - [ ] **Analiz · Aşama kayıt listesi:** Firma geneli kayıtlar (`/installation-projects/stage-events`) İstatistikler'de tablo
@@ -59,6 +57,8 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
   (bakım/tadilat/yeni yapım) `/projects?limit=5000` çekiyor. (27.11.2026)
 
 ## Yapıldı
+
+- [x] **Marka geri açıldı (27.11.2026):** `.env.local`'den `NEXT_PUBLIC_HIDE_BRAND` silindi, arayüz derlendi.
 
 - [x] **Projenin deposu yok (27.11.2026, kullanıcı kararı):** Projeye bağlı iş emri malzemesi çalışanın cep deposundan
   düşer (bağla / kaldır depoyu değiştirmez). "Üretim ve Montaj" malzeme listesi proje kapanınca ana depodan düşer;
