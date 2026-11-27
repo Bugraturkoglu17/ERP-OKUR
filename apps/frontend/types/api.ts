@@ -4302,7 +4302,7 @@ export interface components {
         /**
          * Material
          * @description Şirketin kullandığı malzeme / ekipman ana kataloğu.
-         *     Örnek: Sismik Askı Aparatı, Çelik Boru DN100, Yangın Vanası.
+         *     Örnek: Deprem Askı Aparatı, Çelik Boru DN100, Yangın Vanası.
          */
         Material: {
             /**

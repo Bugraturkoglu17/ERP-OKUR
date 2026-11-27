@@ -1,4 +1,6 @@
-# SİSMİK ERP — Firma Kontrollü Yerel Yedekleme Sistemi — Uygulama Raporu
+> Arşiv: Önceki geliştirme döneminin raporudur. Marka adları güncellenmiştir; bu belge güncel OKUR ERP canlı ortamı için test veya yayın onayı değildir.
+
+# OKUR ERP — Firma Kontrollü Yerel Yedekleme Sistemi — Uygulama Raporu
 
 Tarih: 28 Eylül 2026
 Ortam: Yerel backend (FastAPI + yerel PostgreSQL, disk-fallback depolama) + yerel frontend (Next.js, gerçek tarayıcı — Chromium)
@@ -10,7 +12,7 @@ Plan dosyası: `C:\Users\bturkoglu\.claude\plans\whimsical-seeking-pnueli.md` (a
 |---|---|---|
 | MANAGER ONLY | **PASS (kapsam kullanıcı tarafından genişletildi)** | İlk uygulamada `require_manager_only()` platform_admin'i de dışlıyordu (403 doğrulandı). Kullanıcı canlıda test ederken "Panel Görünümü"nden Yönetici Görünümü'nü seçtiğinde de görmek istediğini belirtti → backend `require_role("admin","platform_admin")`'e, frontend `role==="MANAGER"⎮⎮"ADMIN"`'e güncellendi. Nihai kural: **Yönetici + Geliştirici Admin erişebilir, yalnızca USER erişemez** — hem yerel API testiyle (ADMIN artık 200, USER hâlâ 403) hem gerçek tarayıcı girişiyle doğrulandı |
 | Folder Picker | **PASS** | Gerçek tarayıcıda "Klasör Seç" butonu tıklandı, `showDirectoryPicker()` gerçekten açıldı ve bir dizin handle'ı döndü (tarayıcı desteği + native izin akışı çalışıyor) |
-| New Disk Detection | **PASS** | Gerçek tıklamayla: seçilen (boş) klasörde manifest bulunamadı → "Bu klasörde daha önce SİSMİK ERP yedeği bulunamadı" uyarısı, doğru sayılarla ("72 dosya, 48.12 MB") ekrana geldi |
+| New Disk Detection | **PASS** | Gerçek tıklamayla: seçilen (boş) klasörde manifest bulunamadı → "Bu klasörde daha önce OKUR ERP yedeği bulunamadı" uyarısı, doğru sayılarla ("72 dosya, 48.12 MB") ekrana geldi |
 | Full Initial Backup | **PARTIAL — gerçek hata yakalandı** | "Tam Yedeklemeyi Başlat"a basıldı; DB dump + R2 indirme adımları tetiklendi ama diske YAZMA adımında tarayıcı `getDirectoryHandle`'ı reddetti: *"The request is not allowed by the user agent or the platform in the current context."* Bu, uzaktan kumanda edilen otomasyon tarayıcısının native yazma iznini native OS akışı olmadan veremeyişinden kaynaklanıyor gibi görünüyor (gerçek masaüstü Chrome/Edge'de klasör seçimi anında readwrite izni verir). **Önemli:** Bu hata BİLE sistemin doğru çalıştığını kanıtlıyor — aşağıya bak. |
 | Incremental R2 Backup | **PASS** | manifest-diff key+etag+size karşılaştırması hem API testiyle hem gerçek tıklamayla (72 obje "new" olarak doğru tanındı) doğrulandı |
 | 3-Day Missing Backup | **PASS** (mantık) | Diff algoritması zamana değil DURUMA bakıyor — sunucu hiçbir "son backup tarihi" saklamıyor/kullanmıyor (kod incelemesi + gerçek istekler) |
@@ -74,7 +76,7 @@ Plan dosyası: `C:\Users\bturkoglu\.claude\plans\whimsical-seeking-pnueli.md` (a
 
 ## Önerilen Tek Manuel Test
 1. **Gerçek masaüstü Chrome veya Edge'de** (bu rapor bir otomasyon aracıyla üretildi — gerçek tarayıcıda test edilmedi) yönetici hesabıyla `/manager/sistem-yedegi` aç → **Klasör Seç** → boş bir test klasörü seç.
-2. "Bu klasörde daha önce SİSMİK ERP yedeği bulunamadı" uyarısını gör (bu ekran otomasyonla zaten doğrulandı) → **Tam Yedeklemeyi Başlat**.
+2. "Bu klasörde daha önce OKUR ERP yedeği bulunamadı" uyarısını gör (bu ekran otomasyonla zaten doğrulandı) → **Tam Yedeklemeyi Başlat**.
 3. İlerleme çubuğunun gerçek dosya/byte sayılarıyla ilerlediğini izle.
 4. Bitince klasörde `backup-index.json`, `DATABASE/`, `FILES/`, `MANIFEST/` oluştuğunu doğrula.
 5. Aynı klasörü tekrar seç → yalnızca yeni/değişen dosyaların listelendiğini doğrula.

@@ -12,8 +12,7 @@ function generateTargetId(): string {
 }
 
 /**
- * Seçilen klasördeki Okur'a özel manifest'i okur. Sismik manifest'i
- * tanınmaz; iki uygulamanın yedekleri birbirine karışmaz.
+ * Seçilen klasördeki OKUR ERP yedek manifestini okur.
  */
 export async function readManifest(root: FileSystemDirectoryHandle): Promise<BackupManifest | null> {
   return readJsonFile<BackupManifest>(root, MANIFEST_FILE);

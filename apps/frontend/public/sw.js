@@ -14,7 +14,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((names) => Promise.all(names.filter((name) => name !== OFFLINE_CACHE).map((name) => caches.delete(name))))
+      .then((names) => Promise.all(names.filter((name) => name.startsWith("okur-operations-") && name !== OFFLINE_CACHE).map((name) => caches.delete(name))))
       .then(() => self.clients.claim()),
   );
 });
@@ -43,10 +43,10 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "SİSMİK", body: event.data ? event.data.text() : "" };
+    data = { title: "OKUR ERP", body: event.data ? event.data.text() : "" };
   }
 
-  const title = data.title || "SİSMİK";
+  const title = data.title || "OKUR ERP";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",
@@ -55,7 +55,7 @@ self.addEventListener("push", (event) => {
       lang: "tr",
       // Aynı iş emrinin art arda gelen bildirimleri üst üste yığılmasın;
       // yenisi eskisinin yerini alır ama telefon yine de uyarır.
-      tag: data.work_order_id ? `wo-${data.work_order_id}` : data.category || "sismik",
+      tag: data.work_order_id ? `wo-${data.work_order_id}` : data.category || "okur",
       renotify: true,
       data: { url: data.url || "/" },
     }),

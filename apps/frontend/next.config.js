@@ -19,10 +19,13 @@ const buildVersion = readBuildVersion();
 
 const nextConfig = {
   output: "standalone",
-  // OKUR yerel kopyası: tarayıcı yalnızca 3001'e bağlanır; API istekleri
-  // Next sunucusu tarafından aynı makinedeki 8001 portuna yönlendirilir.
+  // Same-origin API for PWA. Set API_INTERNAL_URL at build time on Northflank.
   async rewrites() {
-    return [{ source: "/api/v1/:path*", destination: "http://127.0.0.1:8001/api/v1/:path*" }];
+    const backend = (process.env.API_INTERNAL_URL || "http://127.0.0.1:8001").replace(/\/$/, "");
+    return [{ source: "/api/v1/:path*", destination: `${backend}/api/v1/:path*` }];
+  },
+  async headers() {
+    return [{ source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] }];
   },
   // Yerel geliştirme süreci açıkken bağımsız doğrulama build'inin aynı
   // lock/cache dizinine çarpmasını önlemek için testlerde değiştirilebilir.

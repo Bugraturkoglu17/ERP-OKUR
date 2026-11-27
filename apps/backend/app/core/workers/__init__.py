@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  Sismik Mekanik ERP — Celery Application
+#  OKUR ERP — Celery Application
 # ─────────────────────────────────────────────────────────────────────────────
 
 from __future__ import annotations

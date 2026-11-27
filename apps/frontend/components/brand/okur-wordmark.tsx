@@ -33,7 +33,7 @@ export function OkurWordmark({
   return (
     <div
       role="img"
-      aria-label="OKUR Teknik Soğutma"
+      aria-label="OKUR ERP"
       className={`okur-wordmark ${animated ? "okur-wordmark--animated" : ""} ${dark ? "okur-wordmark--dark" : ""} ${className}`}
     >
       <Image

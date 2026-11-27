@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  Sismik Mekanik ERP — Security: JWT + Password Hashing + RBAC
+#  OKUR ERP — Security: JWT + Password Hashing + RBAC
 # ─────────────────────────────────────────────────────────────────────────────
 
 from __future__ import annotations

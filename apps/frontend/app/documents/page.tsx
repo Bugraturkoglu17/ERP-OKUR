@@ -55,7 +55,7 @@ type DocVersion = {
 const DOC_TYPES: Record<string, { label: string; tag: string }> = {
   drawing_hvac:    { label: "HVAC Çizim",      tag: "DWG"  },
   drawing_fire:    { label: "Yangın Çizim",    tag: "DWG"  },
-  drawing_seismic: { label: "Sismik Çizim",    tag: "DWG"  },
+  drawing_seismic: { label: "Deprem Koruma Çizim",    tag: "DWG"  },
   drawing_mep:     { label: "MEP Çizim",       tag: "DWG"  },
   contract:        { label: "Sözleşme",        tag: "PDF"  },
   invoice_doc:     { label: "Hakediş/Fatura",  tag: "PDF"  },

@@ -48,7 +48,7 @@ export default function UserProfilePage() {
         setProfile(p);
         setPhone(p.phone ?? "");
         setFullName(p.full_name);
-        setEmail(p.email.endsWith("@sismik.local") ? "" : p.email);
+        setEmail(/^hesap-[^@]+@[^@]+\.local$/.test(p.email) ? "" : p.email);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -64,7 +64,7 @@ export default function UserProfilePage() {
       setProfile(updated);
       setPhone(updated.phone ?? "");
       setFullName(updated.full_name);
-      setEmail(updated.email.endsWith("@sismik.local") ? "" : updated.email);
+      setEmail(/^hesap-[^@]+@[^@]+\.local$/.test(updated.email) ? "" : updated.email);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (cause) {

@@ -1,5 +1,5 @@
 ﻿# ─────────────────────────────────────────────────────────────────────────────
-#  Sismik Mekanik ERP — Object Storage Service
+#  OKUR ERP — Object Storage Service
 #  Implements S3-compatible interface for OCI Object Storage
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -65,7 +65,7 @@ def sanitize_filename(name: str) -> str:
 
 class StorageService:
     """
-    Sismik Mekanik ERP'nin döküman ve çizimlerini OCI Object Storage'da yönetir.
+    OKUR ERP'nin döküman ve çizimlerini OCI Object Storage'da yönetir.
     Boto3 (S3 API) kullanılarak implement edilmiştir.
     Eğer bulut kimlik bilgileri eksikse, otomatik olarak yerel dosya sistemine (Local Storage Fallback) geçer.
     """
@@ -86,8 +86,7 @@ class StorageService:
             print("[WARN] OCI Object Storage credentials missing! Running in LOCAL FALLBACK mode.")
             self.local_base_dir = get_local_upload_dir()
             os.makedirs(self.local_base_dir, exist_ok=True)
-            # Okur uploads are isolated. Legacy Sismik files are never copied
-            # at startup.
+            # Development uploads stay isolated from all cloud storage.
             self.s3_client = None
         else:
             try:

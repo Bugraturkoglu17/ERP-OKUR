@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  Sismik Mekanik ERP — Yedekleme Eşzamanlılık Kilidi
+#  OKUR ERP — Yedekleme Eşzamanlılık Kilidi
 #
 #  Northflank muhtemelen birden çok backend instance/worker koşturuyor, bu
 #  yüzden basit bir process-içi kilit (login rate-limiter'daki gibi) çoklu

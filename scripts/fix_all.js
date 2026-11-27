@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const workspaceDir = "c:\\Users\\murat\\sismik-web";
+const workspaceDir = path.resolve(__dirname, "..");
 const localesDir = path.join(workspaceDir, "apps", "frontend", "locales");
 const appDir = path.join(workspaceDir, "apps", "frontend", "app");
 const componentsDir = path.join(workspaceDir, "apps", "frontend", "components");
@@ -205,7 +205,7 @@ function updateLocales() {
     "types": {
       "drawing_hvac": "HVAC Çizimleri",
       "drawing_fire": "Yangın Çizimleri",
-      "drawing_seismic": "Sismik Çizimler",
+      "drawing_seismic": "Deprem Koruma Çizimler",
       "drawing_mep": "MEP Çizimleri",
       "invoice_doc": "Hakediş Dosyaları",
       "field_report": "Saha Raporları",
@@ -540,7 +540,7 @@ function refactorDocuments() {
   const replacements = [
     ['<option value="drawing_hvac">HVAC Çizimleri</option>', '<option value="drawing_hvac">{t("documents.types.drawing_hvac")}</option>'],
     ['<option value="drawing_fire">Yangın Çizimleri</option>', '<option value="drawing_fire">{t("documents.types.drawing_fire")}</option>'],
-    ['<option value="drawing_seismic">Sismik Çizimler</option>', '<option value="drawing_seismic">{t("documents.types.drawing_seismic")}</option>'],
+    ['<option value="drawing_seismic">Deprem Koruma Çizimler</option>', '<option value="drawing_seismic">{t("documents.types.drawing_seismic")}</option>'],
     ['<option value="drawing_mep">MEP Çizimleri</option>', '<option value="drawing_mep">{t("documents.types.drawing_mep")}</option>'],
     ['<option value="invoice_doc">Hakediş Dosyaları</option>', '<option value="invoice_doc">{t("documents.types.invoice_doc")}</option>'],
     ['<option value="field_report">Saha Raporları</option>', '<option value="field_report">{t("documents.types.field_report")}</option>'],
@@ -633,7 +633,7 @@ function getStatusBadgeClass(status: string): string {
 
 function getScopeBadgeInfo(sc: string): { label: string; class: string } {
   switch (sc?.toLowerCase()) {
-    case "seismic": return { label: "SİSMİK KORUMA", class: "bg-amber-50 text-amber-700 border-amber-200/50" };
+    case "seismic": return { label: "DEPREM KORUMASI", class: "bg-amber-50 text-amber-700 border-amber-200/50" };
     case "hvac": return { label: "HVAC HAVALANDIRMA", class: "bg-blue-50 text-blue-700 border-blue-200/50" };
     case "fire": return { label: "YANGIN SÖNDÜRME", class: "bg-rose-50 text-rose-700 border-rose-200/50" };
     case "mep": return { label: "MEP KOORDİNASYON", class: "bg-indigo-50 text-indigo-700 border-indigo-200/50" };

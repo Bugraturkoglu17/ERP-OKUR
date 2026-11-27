@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  Sismik Mekanik ERP — Type-Safe API Client (FastAPI OpenAPI Entegrasyonu)
+//  OKUR ERP — Type-Safe API Client (FastAPI OpenAPI Entegrasyonu)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { paths } from '@/types/api';

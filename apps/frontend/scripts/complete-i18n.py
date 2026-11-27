@@ -42,7 +42,7 @@ REPLACEMENTS_USERS = {
     '<option value="none">Genel / Tüm Disiplinler</option>':
     '<option value="none">{t("adminUsers.generalAllDisciplines")}</option>',
 
-    '<option value="seismic">Sismik Koruma & Askılama</option>':
+    '<option value="seismic">Deprem Koruması & Askılama</option>':
     '<option value="seismic">{t("adminUsers.seismicProtectionShort")}</option>',
 
     '<option value="hvac">HVAC Havalandırma</option>':
@@ -209,7 +209,7 @@ REPLACEMENTS_FIELD_REPORTS = {
     '<Plus className="h-3 w-3" /> Aktivite Ekle':
     '<Plus className="h-3 w-3" /> {t("fieldReports.addActivity")}',
 
-    'placeholder="Yapılan iş detayı (ör: 3. Kat koridoru sismik askı montajı tamamlandı)"':
+    'placeholder="Yapılan iş detayı (ör: 3. Kat koridoru deprem askısı montajı tamamlandı)"':
     'placeholder={t("fieldReports.activityDetailPlaceholder")}',
 
     'placeholder="Konum / Kat"':
@@ -531,7 +531,7 @@ REPLACEMENTS_INVENTORY = {
     '<p className="text-slate-500 font-medium">Envanter modülü verileri yükleniyor...</p>':
     '<p className="text-slate-500 font-medium">{t("inventory.loading")}</p>',
 
-    '<h2 className="text-2xl lg:text-3xl font-black tracking-tight font-sans">SİSMİK Stok Yönetimi</h2>':
+    '<h2 className="text-2xl lg:text-3xl font-black tracking-tight font-sans">OKUR ERP Stok Yönetimi</h2>':
     '<h2 className="text-2xl lg:text-3xl font-black tracking-tight font-sans">{t("inventory.title")}</h2>',
 
     '<th className="corp-th">SKU (Kod)</th>':
@@ -632,7 +632,7 @@ REPLACEMENTS_INVENTORY = {
 }
 
 REPLACEMENTS_LOGIN = {
-    'SİSMİK': '{t("login.title")}',
+    'OKUR ERP': '{t("login.title")}',
     'Lütfen hesabınıza giriş yapın': '{t("login.prompt")}',
     'E-posta': '{t("login.email")}',
     'Şifre': '{t("login.password")}',

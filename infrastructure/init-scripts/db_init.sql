@@ -1,5 +1,5 @@
 -- ====================================================================
---  Sismik Mekanik ERP — PostgreSQL Initialisation Scripts
+--  OKUR ERP — PostgreSQL Initialisation Scripts
 --  Bu dosya docker-entrypoint-initdb.d tarafından ilk kurulumda
 --  otomatik olarak çalıştırılır.
 -- ====================================================================
@@ -42,7 +42,7 @@ INSERT INTO work_scopes (code, name_tr, name_en, description)
 VALUES
     ('HVAC',        'İklimlendirme / Havalandırma',     'HVAC / Ventilation',         NULL),
     ('FIRE',        'Yangın Söndürme Sistemi',          'Fire Suppression System',    NULL),
-    ('SEISMIC',     'Sismik Koruma',                     'Seismic Protection',         NULL),
+    ('SEISMIC',     'Deprem Koruması',                     'Seismic Protection',         NULL),
     ('MECHANICAL',  'Mekanik Tesisat',                   'Mechanical Installation',    NULL),
     ('ELECTRICAL',  'Elektrik Tesisatı',                  'Electrical Works',           NULL)
 ON CONFLICT (code) DO NOTHING;

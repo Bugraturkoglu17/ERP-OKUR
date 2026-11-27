@@ -2,9 +2,12 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "SİSMİK Kurumsal Operasyon Sistemi",
-    short_name: "SİSMİK",
+    name: "OKUR ERP",
+    short_name: "OKUR ERP",
     description: "İş emirleri, mağaza projeleri ve saha raporları için kurumsal operasyon sistemi.",
+    id: "/",
+    scope: "/",
+    lang: "tr",
     start_url: "/",
     display: "standalone",
     background_color: "#09111b",

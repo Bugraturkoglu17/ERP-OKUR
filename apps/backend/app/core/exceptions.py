@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  Sismik Mekanik ERP — Custom Exceptions
+#  OKUR ERP — Custom Exceptions
 # ─────────────────────────────────────────────────────────────────────────────
 
 class AppException(Exception):

@@ -1,5 +1,5 @@
 """
-Sismik Mekanik ERP — SQLModel Veritabanı Modelleri
+OKUR ERP — SQLModel Veritabanı Modelleri
 Teknoloji: SQLModel (SQLAlchemy 2.0 + Pydantic v2)
 """
 
@@ -49,7 +49,7 @@ class ProjectStatus(str, Enum):
 class WorkScope(str, Enum):
     HVAC        = "hvac"         # İklimlendirme / Havalandırma
     FIRE        = "fire"         # Yangın Söndürme
-    SEISMIC     = "seismic"      # Sismik Koruma
+    SEISMIC     = "seismic"      # Deprem Koruması
     MECHANICAL  = "mechanical"   # Mekanik Tesisat
     ELECTRICAL  = "electrical"   # Elektrik Tesisatı
 
@@ -387,7 +387,7 @@ DOC_TYPE_ENUM: list[str] = [
     "contract",      # Sözleşme
     "drawing_hvac",  # Havalandırma çizimi
     "drawing_fire",  # Yangın çizimi
-    "drawing_seismic",# Sismik
+    "drawing_seismic",# OKUR ERP
     "drawing_mep",   # Genel MEP
     "invoice_doc",   # Hakediş dosyası
     "field_report",  # Saha raporu
@@ -506,7 +506,7 @@ class LowStockAlert(SQLModel, table=True):
 class Material(SQLModel, table=True):
     """
     Şirketin kullandığı malzeme / ekipman ana kataloğu.
-    Örnek: Sismik Askı Aparatı, Çelik Boru DN100, Yangın Vanası.
+    Örnek: Deprem Askı Aparatı, Çelik Boru DN100, Yangın Vanası.
     """
 
     __tablename__ = "materials"

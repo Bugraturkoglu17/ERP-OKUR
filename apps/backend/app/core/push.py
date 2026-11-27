@@ -121,7 +121,7 @@ async def send_push_to_user(user_id: UUID, payload: dict[str, Any]) -> dict[str,
     """Kullanıcının kayıtlı tüm cihazlarına gönderir. Kendi DB oturumunu açar
     (isteğin oturumu bu noktada kapanmış olabilir)."""
     result = {"sent": 0, "removed": 0, "failed": 0}
-    # This local Okur copy must not notify devices registered in live Sismik.
+    # Development must not send push notifications to production devices.
     if settings.is_development:
         return result
 

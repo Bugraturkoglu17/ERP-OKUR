@@ -140,7 +140,7 @@ export default function ManagerUsersPage() {
   const openEdit = (user: UserRow) => {
     const name = splitName(user.full_name);
     setEditing(user);
-    setForm({ ...emptyForm, ...name, email: user.email.endsWith("@sismik.local") ? "" : user.email, phone: user.phone ?? "", role: uiRole(user) === "MANAGER" ? "manager" : "user", is_active: user.is_active });
+    setForm({ ...emptyForm, ...name, email: /^hesap-[^@]+@[^@]+\.local$/.test(user.email) ? "" : user.email, phone: user.phone ?? "", role: uiRole(user) === "MANAGER" ? "manager" : "user", is_active: user.is_active });
     setFormError("");
     setModalOpen(true);
   };
@@ -353,7 +353,7 @@ export default function ManagerUsersPage() {
               <dl className="flex flex-col divide-y px-5 py-1 text-sm">
                 <div className="flex items-center gap-3 py-3">
                   <Mail className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 break-words">{infoUser.email.endsWith("@sismik.local") ? "E-posta tanımlı değil" : infoUser.email}</span>
+                  <span className="min-w-0 flex-1 break-words">{/^hesap-[^@]+@[^@]+\.local$/.test(infoUser.email) ? "E-posta tanımlı değil" : infoUser.email}</span>
                 </div>
                 <div className="flex items-center gap-3 py-3">
                   <Phone className="size-4 shrink-0 text-muted-foreground" />

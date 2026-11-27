@@ -95,7 +95,7 @@ const DOC_TYPES: Record<string, { label: string; category: "project_file" | "rev
   // Proje Dosyaları
   drawing_hvac:    { label: "HVAC Çizim",      category: "project_file", ext: "DWG" },
   drawing_fire:    { label: "Yangın Çizim",    category: "project_file", ext: "DWG" },
-  drawing_seismic: { label: "Sismik Çizim",    category: "project_file", ext: "DWG" },
+  drawing_seismic: { label: "Deprem Koruma Çizim",    category: "project_file", ext: "DWG" },
   drawing_mep:     { label: "MEP Çizim",       category: "project_file", ext: "DWG" },
   project_file:    { label: "Proje Dosyası",   category: "project_file"             },
   contract:        { label: "Sözleşme",        category: "project_file", ext: "PDF" },

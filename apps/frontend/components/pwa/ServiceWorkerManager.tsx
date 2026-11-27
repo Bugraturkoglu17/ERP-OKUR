@@ -9,7 +9,7 @@ async function removeLegacyCaches() {
   const cacheNames = await window.caches.keys();
   await Promise.all(
     cacheNames
-      .filter((name) => !name.startsWith("sismik-operations-"))
+      .filter((name) => name.startsWith("okur-operations-") && name !== "okur-operations-offline-v2")
       .map((name) => window.caches.delete(name)),
   );
 }

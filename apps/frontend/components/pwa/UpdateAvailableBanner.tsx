@@ -54,7 +54,7 @@ export function UpdateAvailableBanner() {
       const res = await fetch("/api/version", { cache: "no-store" });
       const data = (await res.json()) as { version?: string };
       if (data.version && data.version !== current) {
-        const dismissedVersion = sessionStorage.getItem("sismik-update-dismissed");
+        const dismissedVersion = sessionStorage.getItem("okur-update-dismissed");
         setTargetVersion(data.version);
         if (dismissedVersion !== data.version) setAvailable(true);
       }
@@ -81,7 +81,7 @@ export function UpdateAvailableBanner() {
   if (!available) return null;
 
   const dismiss = () => {
-    if (targetVersion) sessionStorage.setItem("sismik-update-dismissed", targetVersion);
+    if (targetVersion) sessionStorage.setItem("okur-update-dismissed", targetVersion);
     setAvailable(false);
   };
 

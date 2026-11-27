@@ -20,11 +20,11 @@
     "status": "Status",
     "systemHealthDiagnosticLogs": "System Health Diagnostic Logs",
     "dockerLiveHealthReport": "Live health report of Docker containers and microservices.",
-    "sismikErpBackend": "sismik-erp-backend",
+    "okurErpBackend": "okur-erp-backend",
     "activeCpu": "Active (0.4% CPU)",
-    "sismikErpDbPostgres": "sismik-erp-db (Postgres)",
+    "okurErpDbPostgres": "okur-erp-db (Postgres)",
     "activeConnections": "Active (18 Connections)",
-    "sismikErpRedis": "sismik-erp-redis",
+    "okurErpRedis": "okur-erp-redis",
     "activeCache": "Active (0.8 MB Cache)",
     "openApiDescriptionText": "Our system works with OpenAPI standards. Any type change is guaranteed to generate an error during Next.js runtime. Dead and invalid API endpoints are blocked during compile time."
   },
@@ -272,7 +272,7 @@
   },
   "inventory": {
     "loading": "Loading inventory module data...",
-    "title": "SİSMİK Stock Management",
+    "title": "OKUR ERP Stock Management",
     "skuCode": "SKU (Code)",
     "materialDescription": "Material Description (Name)",
     "trackingUnit": "Tracking Unit",
@@ -341,7 +341,7 @@
     "physicalLocation": "Physical Location / Address"
   },
   "login": {
-    "title": "SİSMİK",
+    "title": "OKUR ERP",
     "prompt": "Please log in to your account",
     "email": "Email",
     "password": "Password",

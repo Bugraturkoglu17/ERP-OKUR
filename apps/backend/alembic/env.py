@@ -1,6 +1,6 @@
 # ──────────────────────────────────────────────────────────────────────────────
 #  Alembic Migration Environment
-#  Sismik Mekanik ERP
+#  OKUR ERP
 #
 #  Bu dosya, veritabanı migration sürecini başlatır ve yapılandırır.
 #  Alembic, bu env.py'ı okuyarak SQLModel modellerinden migration oluşturur.
@@ -28,7 +28,7 @@ config = context.config
 
 # Veritabanı URL'sini Pydantic Settings'den al (INI dosyasındakini ezer)
 db_url = str(settings.DATABASE_URL).replace("+asyncpg", "+psycopg2")
-config.set_main_option("sqlalchemy.url", db_url)
+config.set_main_option("sqlalchemy.url", db_url.replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:

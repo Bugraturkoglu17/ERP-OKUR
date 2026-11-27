@@ -506,7 +506,7 @@ async def create_user(
         raise HTTPException(status_code=400, detail="Kullanıcı için firma bağlamı bulunamadı.")
 
     normalized_phone = user_in.phone.strip()
-    normalized_email = str(user_in.email).lower() if user_in.email else f"hesap-{''.join(c for c in normalized_phone if c.isdigit())}-{str(target_tenant_id)[:8]}@sismik.local"
+    normalized_email = str(user_in.email).lower() if user_in.email else f"hesap-{''.join(c for c in normalized_phone if c.isdigit())}-{str(target_tenant_id)[:8]}@okur.local"
     existing = await db.execute(select(User).where(or_(func.lower(User.email) == normalized_email, User.phone == normalized_phone)))
     existing_user = existing.scalar_one_or_none()
     if existing_user is not None:

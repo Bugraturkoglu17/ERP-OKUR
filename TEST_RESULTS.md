@@ -1,4 +1,6 @@
-# SİSMİK ERP — Canlıya Çıkış Öncesi Test & Denetim Raporu
+> Arşiv: Önceki geliştirme döneminin raporudur. Marka adları güncellenmiştir; bu belge güncel OKUR ERP canlı ortamı için test veya yayın onayı değildir.
+
+# OKUR ERP — Canlıya Çıkış Öncesi Test & Denetim Raporu
 
 ## ✅ GÜNCELLEME (2026-09-07, aynı gün) — Tüm P0 ve seçili P1 düzeltmeleri uygulandı ve canlı doğrulandı
 
@@ -233,7 +235,7 @@ check_low_stock docstring/schedule temizliği · supervisord/docker-compose beat
 
 ## Ek Notlar
 
-- Bu test sırasında uygulamanın kendi API'si üzerinden şu test hesapları oluşturuldu (temizlenmedi, local dev DB'de kalıyor): `test-manager@sismikmekanik.com.tr`, `test-manager2@sismikmekanik.com.tr` (pasif/silinmiş durumda). İsterseniz temizleyebilirim.
+- Bu test sırasında uygulamanın kendi API'si üzerinden şu test hesapları oluşturuldu (temizlenmedi, local dev DB'de kalıyor): `test-manager@example.invalid`, `test-manager2@example.invalid` (pasif/silinmiş durumda). İsterseniz temizleyebilirim.
 - Frontend dev sunucusu, denetim ajanının `npm run build` denemesiyle çakışıp bozulduğu için yeniden başlatıldı (yerel ortam, veri/DB'ye dokunulmadı).
 - USER rolüne dair tüm testler P0-1 hatası yüzünden eksik kaldı — bu rol seed'i eklendikten sonra (onayınızla) USER-tier testlerinin (liste görememe, IDOR, require_role endpoint'leri) tamamlanması gerekiyor.
 

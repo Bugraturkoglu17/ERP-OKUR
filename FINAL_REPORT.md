@@ -1,4 +1,6 @@
-# SİSMİK ERP — Son Production Kabul Raporu
+> Arşiv: Önceki geliştirme döneminin raporudur. Marka adları güncellenmiştir; bu belge güncel OKUR ERP canlı ortamı için test veya yayın onayı değildir.
+
+# OKUR ERP — Son Production Kabul Raporu
 
 Test tarihi: 11 Eylül 2026
 

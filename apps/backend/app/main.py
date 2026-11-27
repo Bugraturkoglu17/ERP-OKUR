@@ -17,7 +17,7 @@ from app.core.exceptions import AppException
 
 # ── App ────────────────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="OKUR Kurumsal Operasyon Sistemi API",
+    title="OKUR ERP API",
     description="Teknik Soğutma / Saha Operasyon ve Stok ERP",
     version="0.1.0",
     docs_url=None if settings.is_production else "/api/docs",

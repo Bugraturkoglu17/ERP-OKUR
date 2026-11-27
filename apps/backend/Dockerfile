@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────────────
-#  Sismik Mekanik ERP — Backend Dockerfile  (Oracle Cloud ARM uyumlu)
+#  OKUR ERP — Backend Dockerfile  (Oracle Cloud ARM uyumlu)
 # ──────────────────────────────────────────────────────────────────────────────
 FROM python:3.12-slim-bookworm AS builder
 

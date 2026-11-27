@@ -120,18 +120,18 @@ StoreProcess.work_type.in_(["tadilat", "yeni_yapim"])
 & "C:\Users\bturkoglu\postgresql\pgsql\bin\pg_ctl.exe" start -D "C:\Users\bturkoglu\postgresql\data" -l "C:\Users\bturkoglu\postgresql\postgres.log"
 
 # 2. Backend (yeni cmd penceresi)
-cd C:\Users\bturkoglu\mekanik-erp\apps\backend
+cd C:\Users\bturkoglu\ERP\apps\backend
 venv\Scripts\activate
 venv\Scripts\uvicorn.exe app.main:app --reload --port 8000
 
 # 3. Frontend (yeni cmd penceresi)
-cd C:\Users\bturkoglu\mekanik-erp\apps\frontend
+cd C:\Users\bturkoglu\ERP\apps\frontend
 npm run dev
 ```
 
 **NOT:** Port 8000'de başka bir Python app (klima uygulaması) çalışıyor olabilir.
 Kontrol: `(Invoke-WebRequest http://localhost:8000/api/v1/openapi.json).Content | ConvertFrom-Json | Select -Expand info`
-Doğru backend ise `title` değeri mekanik-erp ile ilgili bir şey döner.
+Doğru backend ise `title` değeri ERP ile ilgili bir şey döner.
 
 ---
 

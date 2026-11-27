@@ -48,11 +48,11 @@ const APPLE_STARTUP_IMAGES: { url: string; media: string }[] = [
 ];
 
 export const metadata: Metadata = {
-  title: brand("OKUR · Kurumsal Operasyon Sistemi", "Kurumsal Operasyon Sistemi"),
+  title: brand("OKUR ERP", "Kurumsal Operasyon Sistemi"),
   description: "İş emirleri, mağaza projeleri ve saha raporları için kurumsal operasyon sistemi.",
-  applicationName: brand("OKUR", "ERP"),
+  applicationName: brand("OKUR ERP", "ERP"),
   appleWebApp: {
-    title: brand("OKUR", "ERP"),
+    title: brand("OKUR ERP", "ERP"),
     capable: true,
     statusBarStyle: "black-translucent",
     startupImage: APPLE_STARTUP_IMAGES,

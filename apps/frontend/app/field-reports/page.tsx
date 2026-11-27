@@ -533,7 +533,7 @@ export default function FieldReportsPage() {
                   </div>
                   <textarea
                     className="corp-input h-14 resize-none"
-                    placeholder="Yapılan iş detayı (ör: 3. Kat koridoru sismik askı montajı tamamlandı)"
+                    placeholder="Yapılan iş detayı (ör: 3. Kat koridoru deprem askısı montajı tamamlandı)"
                     value={item.description}
                     onChange={e => { const items = [...formItems]; items[idx].description = e.target.value; setFormItems(items); }}
                   />

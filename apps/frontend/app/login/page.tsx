@@ -139,7 +139,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="relative text-[10px] tracking-[0.16em] text-white/25">{brand("OKUR TEKNİK SOĞUTMA · KURUMSAL ERİŞİM", "KURUMSAL ERİŞİM")}</p>
+        <p className="relative text-[10px] tracking-[0.16em] text-white/25">{brand("OKUR ERP · KURUMSAL ERİŞİM", "KURUMSAL ERİŞİM")}</p>
       </section>
 
       <section className="flex min-h-dvh items-center justify-center px-4 py-8 sm:px-8 lg:px-12">

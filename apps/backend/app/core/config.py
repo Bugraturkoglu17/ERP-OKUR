@@ -1,12 +1,12 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  Sismik Mekanik ERP — Environment & Settings Yönetimi
+#  OKUR ERP — Environment & Settings Yönetimi
 # ─────────────────────────────────────────────────────────────────────────────
 
 from __future__ import annotations
 
 import os
 from typing import Optional
-from urllib.parse import urlsplit, unquote
+from urllib.parse import urlsplit, unquote, parse_qs
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import PostgresDsn, AnyHttpUrl, model_validator
@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     # ── Database ────────────────────────────────────────────────────────────
     DATABASE_URL: PostgresDsn = "postgresql+psycopg2://okur_local:change_me@localhost:5432/okur_erp_local"
+    OKUR_PRODUCTION_DB_HOST: str = ""
 
     # ── Redis / Celery ──────────────────────────────────────────────────────
     REDIS_URL: str = "redis://localhost:6381/0"
@@ -81,7 +82,7 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     EMAIL_PROVIDER: str = "resend"
     EMAIL_FROM_DEFAULT: str = "noreply@okur.local"
-    EMAIL_FROM_NAME_DEFAULT: str = "OKUR"
+    EMAIL_FROM_NAME_DEFAULT: str = "OKUR ERP"
     EMAIL_REPLY_TO_DEFAULT: Optional[str] = None
     EMAIL_ASYNC_ENABLED: bool = True
     EMAIL_MAX_RETRIES: int = 3
@@ -90,14 +91,27 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def enforce_local_isolation(self) -> "Settings":
-        """This branch must never connect to the Sismik production database."""
+        """Keep local development isolated from production databases."""
         parsed = urlsplit(str(self.DATABASE_URL))
         database_name = unquote(parsed.path.lstrip("/"))
-        if (
-            self.ENV != "development"
+        if self.ENV == "production":
+            if (not self.OKUR_PRODUCTION_DB_HOST
+                or parsed.hostname != self.OKUR_PRODUCTION_DB_HOST
+                or not parsed.hostname.endswith(".neon.tech")
+                or database_name != "okur_erp"):
+                raise ValueError("Production requires the explicitly selected OKUR Neon host and okur_erp database")
+            if parse_qs(parsed.query).get("sslmode", [""])[0] not in {"require", "verify-ca", "verify-full"}:
+                raise ValueError("Production database connections require TLS")
+            if len(self.SECRET_KEY) < 32 or self.SECRET_KEY.startswith(("change-me", "CHANGE_ME", "okur-local")):
+                raise ValueError("Production requires a unique random SECRET_KEY of at least 32 characters")
+            if self.AUTO_SEED_LOCAL_DATA or self.AUTO_CREATE_SCHEMA:
+                raise ValueError("Disable AUTO_SEED_LOCAL_DATA and AUTO_CREATE_SCHEMA in production; use migrations")
+            if not self.FRONTEND_URL.startswith("https://"):
+                raise ValueError("Production FRONTEND_URL must use HTTPS")
+            return self
+        if (self.ENV != "development"
             or parsed.hostname not in {"localhost", "127.0.0.1", "db", "postgres"}
-            or database_name != "okur_erp_local"
-        ):
+            or database_name != "okur_erp_local"):
             raise ValueError(
                 "Okur local copy requires ENV=development and a separate "
                 "okur_erp_local database on localhost or its own Docker network"

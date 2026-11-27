@@ -431,7 +431,7 @@ export default function InventoryPage() {
             <div className="flex items-center gap-2 text-indigo-300 text-[10px] font-black uppercase tracking-wider mb-2 bg-indigo-900/50 px-3 py-1 rounded-md w-fit border border-indigo-800">
               <Activity className="w-3.5 h-3.5" /> Depo & Envanter Yönetimi
             </div>
-            <h2 className="text-2xl lg:text-3xl font-black tracking-tight font-sans">SİSMİK Stok Yönetimi<InfoHint text="Merkez depoları, dinamik şantiye envanterlerini ve stok hareketlerini gerçek zamanlı takip edin. Rol tabanlı yetkilendirme ile kontrollü satın alma, sarfiyat ve transfer süreçleri yürütün." /></h2>
+            <h2 className="text-2xl lg:text-3xl font-black tracking-tight font-sans">OKUR ERP Stok Yönetimi<InfoHint text="Merkez depoları, dinamik şantiye envanterlerini ve stok hareketlerini gerçek zamanlı takip edin. Rol tabanlı yetkilendirme ile kontrollü satın alma, sarfiyat ve transfer süreçleri yürütün." /></h2>
           </div>
           
           <div className="flex flex-wrap items-center gap-3">

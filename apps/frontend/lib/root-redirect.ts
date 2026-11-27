@@ -55,7 +55,7 @@ export function resolveRootTarget(cfg: RootRedirectConfig): string {
 }
 
 /** Bu bayrak set edilmişse inline script yönlendirmeyi üstlenmiştir; React fallback'i tekrar yönlendirmez. */
-export const ROOT_REDIRECT_FLAG = "__sismikRootRedirect";
+export const ROOT_REDIRECT_FLAG = "__okurRootRedirect";
 
 /**
  * HTML ayrıştırılırken (JS bundle'ları inmeden/React hydrate olmadan ÖNCE)

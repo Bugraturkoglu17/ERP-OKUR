@@ -137,7 +137,7 @@ async def unsubscribe(
 async def send_test(user: User = Depends(get_current_user)) -> PushTestResult:
     """Oturumdaki kullanıcının kendi cihazlarına deneme bildirimi gönderir."""
     result = await send_push_to_user(user.id, {
-        "title": "SİSMİK bildirimleri açık",
+        "title": "OKUR ERP bildirimleri açık",
         "body": "Bu cihaz iş emri bildirimlerini alacak.",
         "category": "test",
         "work_order_id": None,

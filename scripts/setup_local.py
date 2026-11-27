@@ -1,7 +1,7 @@
 """Create an empty, isolated Okur database on an existing local PostgreSQL.
 
-The supplied Sismik .env is used only for the credentials to the *local*
-PostgreSQL server. No Sismik business table is read or written. Existing
+The supplied .env is used only for credentials to the local PostgreSQL
+server. No business table is read or written. Existing
 Okur databases and environment files are never overwritten.
 """
 
@@ -20,7 +20,7 @@ DATABASE = "okur_erp_local"
 
 def main() -> None:
     if len(sys.argv) != 2:
-        raise SystemExit("Usage: python scripts/setup_local.py path/to/local-sismik/backend/.env")
+        raise SystemExit("Usage: python scripts/setup_local.py path/to/local-postgres/.env")
 
     backend_env = ROOT / "apps" / "backend" / ".env"
     frontend_env = ROOT / "apps" / "frontend" / ".env.local"
@@ -35,10 +35,10 @@ def main() -> None:
     )
     raw_url = entries["DATABASE_URL"]
     parsed = urlsplit(raw_url)
-    if parsed.hostname not in {"localhost", "127.0.0.1"} or unquote(parsed.path.lstrip("/")) != "sismik_erp":
+    if parsed.hostname not in {"localhost", "127.0.0.1"}:
         raise SystemExit("Refusing a non-local or unexpected source database URL")
 
-    # Connect to PostgreSQL's maintenance DB, not to Sismik's business DB.
+    # Connect only to PostgreSQL's maintenance database.
     connection = psycopg2.connect(
         host=parsed.hostname,
         port=parsed.port or 5432,

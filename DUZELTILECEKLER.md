@@ -10,7 +10,7 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
   label/separator üzerine yazılmadı (CLI sorar, "hayır" denir); field.tsx `--view` ile elle eklendi. Badge artık `<span>`.
   Tema: `--accent` nötr gri, `--sidebar` #0c1520 (globals.css). Önizleme için `npx next dev --port 3002` kullanıldı.
   Kullanıcı kuralları: İstatistikler ve Raporlar'a (analiz) DOKUNMA (Raporlar için de "dokunma" dendi). Her gruptan sonra
-  ekran görüntüsü + onay, sonra commit (hafıza: once-gorsel-onay). Sismik verisiyle çelişki çıkarsa haber ver.
+  ekran görüntüsü + onay, sonra commit (hafıza: once-gorsel-onay). OKUR ERP verisiyle çelişki çıkarsa haber ver.
   Bitti (commit'li): örnek Taşeron Kartları (cdcacc0), 1. grup iskelet/giriş/bildirim (6d82103),
   2. grup yönetici listeleri: İş Emirleri, Projeler, Mağaza Kartı (projects/page.tsx; daire menü yerine araç çubuğu),
   Kullanıcılar, Depo & Stok (retail-stock-page.tsx). 2. grup ekranları tarayıcıda denendi, konsol hatası yok;

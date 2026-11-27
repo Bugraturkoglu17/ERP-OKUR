@@ -14,7 +14,7 @@ export const CLIENT_SESSION_CACHE_KEYS = [
 export function resetLaunchIntro() {
   if (typeof window === "undefined") return;
   Object.keys(window.sessionStorage)
-    .filter((key) => key.startsWith("sismik-intro:"))
+    .filter((key) => key.startsWith("okur-intro:"))
     .forEach((key) => window.sessionStorage.removeItem(key));
 }
 
