@@ -380,8 +380,9 @@ export default function MagazalarPage() {
               Toplam <span className="font-medium tabular-nums text-foreground">{totalCount.toLocaleString("tr-TR")}</span> mağaza içinde{" "}
               <span className="font-medium tabular-nums text-foreground">{pageStart.toLocaleString("tr-TR")}–{pageEnd.toLocaleString("tr-TR")}</span> arası gösteriliyor.
             </p>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {/* Dar ekranda sayfalama çubuğu kendi içinde yana kayar; sayfa kaymaz. */}
+            <div className="flex max-w-full items-center gap-3 overflow-x-auto whitespace-nowrap pb-1">
+              <div className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
                 Sayfa başına
                 <Select value={String(pageSize)} onValueChange={(value) => { setPageSize(Number(value)); setPage(1); }}>
                   <SelectTrigger className="h-8 w-[72px]" aria-label="Sayfa başına mağaza"><SelectValue /></SelectTrigger>
@@ -392,7 +393,7 @@ export default function MagazalarPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1}>
                   <ChevronLeft data-icon="inline-start" />Önceki
                 </Button>

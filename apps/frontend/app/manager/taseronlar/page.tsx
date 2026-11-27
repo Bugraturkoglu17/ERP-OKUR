@@ -191,13 +191,16 @@ export default function SubcontractorsPage() {
       </header>
 
       <div className="flex flex-wrap items-center gap-3">
-        <ToggleGroup type="single" size="sm" value={filter} onValueChange={(value) => value && setFilter(value as ColorFilter)} aria-label="Renge göre süz">
+        {/* Dar ekranda şerit kendi içinde yana kayar; sayfa kaymaz. */}
+        <div className="max-w-full overflow-x-auto pb-1">
+        <ToggleGroup type="single" size="sm" value={filter} onValueChange={(value) => value && setFilter(value as ColorFilter)} aria-label="Renge göre süz" className="w-max flex-nowrap">
           <ToggleGroupItem value="all" className="px-3">Tümü</ToggleGroupItem>
           {COMPETENCY_KEYS.map((key) => (
             <ToggleGroupItem key={key} value={key} className="gap-2 px-3"><CompetencyDot value={key} />{COMPETENCY[key].label}</ToggleGroupItem>
           ))}
           <ToggleGroupItem value="none" className="px-3">Renk yok</ToggleGroupItem>
         </ToggleGroup>
+        </div>
         <InputGroup className="ml-auto w-full sm:w-72">
           <InputGroupAddon><Search /></InputGroupAddon>
           <InputGroupInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Firma, yetkili veya il ara" aria-label="Taşeron ara" />

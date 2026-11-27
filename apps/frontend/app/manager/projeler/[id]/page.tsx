@@ -206,9 +206,9 @@ function StagePanel({ stage, phase, projectId, due, users, editable, canManage, 
           </AlertDescription>
         </Alert>
       )}
-      <CardContent className="grid gap-5 p-5 lg:grid-cols-2">
-        <div className="flex flex-col gap-4">
-          <div className="grid gap-3 sm:grid-cols-2">
+      <CardContent className="grid grid-cols-1 gap-5 p-5 lg:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`sorumlu-${stage.id}`} className="text-xs text-muted-foreground">Sorumlu</Label>
               <NativeSelect id={`sorumlu-${stage.id}`} disabled={locked || busy} value={stage.responsible_user_id ?? ""}
