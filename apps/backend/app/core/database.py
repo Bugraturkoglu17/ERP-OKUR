@@ -63,6 +63,9 @@ async_engine = create_async_engine(
     echo=settings.is_development,
     future=True,
     pool_pre_ping=True,
+    # Varsayılan 5+10 bağlantı; aynı anda 20+ kişi ekran açınca istekler sırada bekliyordu.
+    pool_size=10,
+    max_overflow=20,
     connect_args=_async_connect_args,
 )
 

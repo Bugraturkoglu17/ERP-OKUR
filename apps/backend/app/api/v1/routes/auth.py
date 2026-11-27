@@ -61,28 +61,51 @@ async def _ensure_login_available(db: AsyncSession, user_id, *, email: str | Non
 
 
 # ── Login rate limiting ──────────────────────────────────────────────────────
-# Basit bellek-içi sabit pencereli sınırlayıcı: /auth/login brute-force'a karşı
-# hiç korunmuyordu. Tek process içinde çalışır — çok-instance'lı bir dağıtımda
-# Redis tabanlı bir çözüme taşınması önerilir, ama hiç koruma olmamasından iyidir.
-_login_attempts: dict[str, list[float]] = defaultdict(list)
+# Bellek-içi, kayan pencereli sınırlayıcı; yalnız HATALI denemeler sayılır (27.11.2026).
+# Eskiden başarılı girişler de IP başına sayılıyordu: ofis ağından (tek IP) sabah 10+ kişi
+# girince herkes 429 alıyordu. Artık:
+#   - aynı IP'den aynı hesaba dakikada 10 hatalı deneme → o hesap o IP'den 1 dk bekler,
+#   - aynı IP'den toplam dakikada 100 hatalı deneme → hesap taraması (password spraying) durur,
+#   - başarılı giriş o hesabın hatalı deneme sayacını sıfırlar.
+# Tek process içinde çalışır; çok-instance'lı dağıtımda Redis'e taşınmalı.
+_login_failures: dict[str, list[float]] = defaultdict(list)
 _login_rate_lock = asyncio.Lock()
 _LOGIN_RATE_WINDOW_SECONDS = 60.0
-_LOGIN_RATE_MAX_ATTEMPTS = 10
+_LOGIN_MAX_FAILURES_PER_ACCOUNT = 10
+_LOGIN_MAX_FAILURES_PER_IP = 100
+_TOO_MANY_ATTEMPTS = "Çok fazla hatalı giriş denemesi yapıldı. Lütfen bir dakika sonra tekrar deneyin."
 
 
-async def _enforce_login_rate_limit(client_ip: str) -> None:
-    now = time.monotonic()
-    cutoff = now - _LOGIN_RATE_WINDOW_SECONDS
+def _recent(key: str, cutoff: float) -> list[float]:
+    attempts = _login_failures.get(key)
+    if attempts is None:
+        return []
+    while attempts and attempts[0] < cutoff:
+        attempts.pop(0)
+    if not attempts:
+        del _login_failures[key]  # Boşalan anahtar bellekte birikmesin.
+        return []
+    return attempts
+
+
+async def _check_login_rate_limit(client_ip: str, login_id: str) -> None:
+    cutoff = time.monotonic() - _LOGIN_RATE_WINDOW_SECONDS
     async with _login_rate_lock:
-        attempts = _login_attempts[client_ip]
-        while attempts and attempts[0] < cutoff:
-            attempts.pop(0)
-        if len(attempts) >= _LOGIN_RATE_MAX_ATTEMPTS:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Çok fazla giriş denemesi yapıldı. Lütfen bir dakika sonra tekrar deneyin.",
-            )
-        attempts.append(now)
+        if (len(_recent(f"acct:{client_ip}:{login_id}", cutoff)) >= _LOGIN_MAX_FAILURES_PER_ACCOUNT
+                or len(_recent(f"ip:{client_ip}", cutoff)) >= _LOGIN_MAX_FAILURES_PER_IP):
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_TOO_MANY_ATTEMPTS)
+
+
+async def _record_login_failure(client_ip: str, login_id: str) -> None:
+    now = time.monotonic()
+    async with _login_rate_lock:
+        _login_failures[f"acct:{client_ip}:{login_id}"].append(now)
+        _login_failures[f"ip:{client_ip}"].append(now)
+
+
+async def _clear_login_failures(client_ip: str, login_id: str) -> None:
+    async with _login_rate_lock:
+        _login_failures.pop(f"acct:{client_ip}:{login_id}", None)
 
 
 async def _password_change_required(db: AsyncSession, user_id) -> bool:
@@ -121,20 +144,25 @@ async def login(
 ) -> Token:
     """E-posta ve parola ile güvenli kullanıcı girişi."""
     client_ip = request.client.host if request.client else "unknown"
-    await _enforce_login_rate_limit(client_ip)
-
     login_id = form_data.username.strip()
     normalized_email = login_id.lower()
+    await _check_login_rate_limit(client_ip, normalized_email)
+
     result  = await db.execute(
         select(User).where(or_(func.lower(User.email) == normalized_email, User.phone == login_id))
     )
     user    = result.scalar_one_or_none()
 
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    # bcrypt ~0,2-0,3 sn CPU harcar; olay döngüsünde çalışırsa o sürede API'nin tüm istekleri bekler
+    # (20 kişi aynı anda girince sistem saniyelerce donar). İş parçacığında çalıştırılır.
+    password_ok = bool(user) and await asyncio.to_thread(verify_password, form_data.password, user.hashed_password)
+    if not password_ok:
+        await _record_login_failure(client_ip, normalized_email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Geçersiz e-posta veya şifre.",
         )
+    await _clear_login_failures(client_ip, normalized_email)
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Hesabınız pasif durumda.")
 
@@ -224,7 +252,7 @@ async def complete_password_reset(
     login_id = payload.email.strip()
     result = await db.execute(select(User).where(or_(func.lower(User.email) == login_id.lower(), User.phone == login_id)))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(payload.temporary_password, user.hashed_password):
+    if not user or not await asyncio.to_thread(verify_password, payload.temporary_password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Geçersiz e-posta veya geçici parola.")
 
     policy = await db.get(UserSecurityPolicy, user.id)
@@ -233,7 +261,7 @@ async def complete_password_reset(
     if payload.new_password == payload.temporary_password:
         raise HTTPException(status_code=422, detail="Yeni şifre geçici şifreden farklı olmalıdır.")
 
-    user.hashed_password = hash_password(payload.new_password)
+    user.hashed_password = await asyncio.to_thread(hash_password, payload.new_password)
     user.is_verified = True
     policy.force_password_change = False
     await bump_session_version(db, user.id)
@@ -497,7 +525,7 @@ async def create_user(
     db_user = User(
         email=normalized_email,
         tenant_id=target_tenant_id,
-        hashed_password=hash_password(user_in.password),
+        hashed_password=await asyncio.to_thread(hash_password, user_in.password),
         full_name=user_in.full_name,
         phone=normalized_phone,
         default_role=requested_role,
@@ -596,7 +624,7 @@ async def issue_temporary_password(
     if not is_platform_admin(admin) and (target.tenant_id != admin.tenant_id or _is_manager_tier_role(target.default_role or "")):
         raise HTTPException(status_code=403, detail="Bu hesabın şifresini yenileme yetkiniz yok.")
     temporary_password = secrets.token_urlsafe(12)
-    target.hashed_password = hash_password(temporary_password)
+    target.hashed_password = await asyncio.to_thread(hash_password, temporary_password)
     policy = await db.get(UserSecurityPolicy, target.id)
     if policy is None:
         policy = UserSecurityPolicy(user_id=target.id)

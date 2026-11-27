@@ -1317,6 +1317,8 @@ async def create_report(
     if not wo:
         raise HTTPException(404, "İş emri bulunamadı.")
     _ensure_work_order_access(wo, user)
+    if _workflow_value(wo.status) in _CLOSED_STATUSES:
+        raise HTTPException(409, "Kapanmış iş emrine rapor eklenemez.")
     if severity not in ("normal", "important", "critical"):
         raise HTTPException(422, "Önem derecesi Normal, Önemli veya Kritik olmalı.")
     if not title.strip():
@@ -1420,6 +1422,9 @@ async def delete_report(
     if not wo:
         raise HTTPException(404, "İş emri bulunamadı.")
     _ensure_work_order_access(wo, user)
+    # Oluşturulan saha raporunu yalnız yönetici siler (kullanıcı kararı, 27.11.2026).
+    if not _can_view_all_work_orders(user):
+        raise HTTPException(403, "Raporu yalnızca yönetici silebilir.")
     # R2/OCI objesi fiziksel olarak silinmez — yalnızca DB kaydı kaldırılır
     # (bkz. delete_work_order_photo üzerindeki aynı kural açıklaması).
     photos_r = await db.execute(

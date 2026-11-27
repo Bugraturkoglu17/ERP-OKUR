@@ -916,6 +916,9 @@ export default function WorkOrderDetailPage() {
 
   // ── Raporlar Sekmesi ──────────────────────────────────────────────────────────
 
+  // Kapanmış iş emrine rapor eklenmez; oluşturulan raporu yalnız yönetici siler (27.11.2026).
+  const reportsClosed = ["completed", "approved", "cancelled", "failed"].includes(wo?.status ?? "");
+
   const ReportsTab = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -923,7 +926,7 @@ export default function WorkOrderDetailPage() {
           <p className="text-sm font-semibold text-foreground">İş Raporları</p>
           <p className="text-xs text-muted-foreground mt-0.5">Her aşamada oluşturulan rapor kayıtları</p>
         </div>
-        {isUser && (
+        {isUser && !reportsClosed && (
           <button
             onClick={() => setReportModal(true)}
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
@@ -937,7 +940,7 @@ export default function WorkOrderDetailPage() {
         <div className="flex flex-col items-center justify-center py-14 gap-3 rounded-xl border border-dashed border-border">
           <FileText className="h-10 w-10 text-slate-200" />
           <p className="text-sm text-muted-foreground">Henüz rapor oluşturulmamış.</p>
-          {isUser && <button onClick={() => setReportModal(true)}
+          {isUser && !reportsClosed && <button onClick={() => setReportModal(true)}
             className="text-xs text-primary border border-primary/20 rounded-lg px-3 py-1.5 hover:bg-primary/5">
             İlk Raporu Oluştur
           </button>}
@@ -970,7 +973,7 @@ export default function WorkOrderDetailPage() {
                       )}
                       <p className="text-[11px] text-muted-foreground">{fmtDateTime(rep.created_at)}</p>
                     </div>
-                    {isUser && <button
+                    {isManager && <button
                       onClick={() => handleDeleteReport(rep.id)}
                       className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 hover:bg-red-50 hover:text-red-500"
                       aria-label="Raporu sil"

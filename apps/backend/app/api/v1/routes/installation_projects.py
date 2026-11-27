@@ -1309,6 +1309,11 @@ async def update_stage(stage_id: UUID, body: StageUpdate, db: AsyncSession = Dep
         stages = await _stages(db, project.id)
         # "Adımı Tamamla" / "Projeyi Kapat" daima açıktır (kullanıcı kararı, 26.11.2026): adım sırası ve
         # adım şartları (kontrol listesi, belge, malzeme, iş emri, fatura vb.) tamamlamayı engellemez; şartlar yalnız bilgidir.
+        # Tek istisna en sondadır (kullanıcı kararı, 27.11.2026): projede açık iş emri varken son adım (kapanış)
+        # ne onaya gönderilir ne tamamlanır.
+        if not any(s.stage_order > stage.stage_order for s in stages):
+            if any(_status_value(wo.status) not in CLOSED_WORK_ORDER for wo in await _work_orders(db, project.id)):
+                raise HTTPException(409, "Açık iş emirleri kapatılmadan işlem tamamlanamaz.")
         managers = await manager_ids(db, project.tenant_id)
         if action == "request_approval":
             if stage.code != "kapanis":
