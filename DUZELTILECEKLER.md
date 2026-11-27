@@ -59,11 +59,13 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
   (bakım/tadilat/yeni yapım) `/projects?limit=5000` çekiyor. (27.11.2026)
 - [ ] **Risk · Proje kapanışı (stok):** Açık iş emri artık kapanışı engelliyor; proje deposunda kalan stok ise
   kapanışı engellemiyor (depo pasife alınır, stok orada kalır). Gerekirse kullanıcıya sorulacak. (27.11.2026)
-- [ ] **Karar bekliyor · Ekran senkronu:** İş emri / proje detayı açıkken karşı tarafın yaptığı değişiklik (aşama, fotoğraf,
-  tamamlama) sayfa yenilenene kadar görünmüyor; yalnız bildirim zili 60 sn'de bir / pencereye dönünce yenileniyor.
-  Öneri: pencereye dönünce ve bu iş emrine yeni bildirim gelince detay sessizce yeniden yüklensin (sürekli sorgu yok). (27.11.2026)
-
 ## Yapıldı
+
+- [x] **Yenile düğmesi (27.11.2026, görsel onaylı):** Üst çubukta zilin solunda yazısız yenile simgesi
+  (`lib/refresh-signal.ts`, `corporate-shell.tsx`). Zilin 60 sn'lik sürekli sorgusu kaldırıldı; sayaç ekran değişince,
+  pencereye dönünce ve Yenile'de tazelenir. İş emri / proje / görev detayı, iş emri listeleri, genel bakışlar ve
+  proje görevlerim sinyali dinler (sekme ve yazılan not korunur, tam ekran yükleme yok); diğer ekranlar (İstatistikler,
+  Raporlar dahil, kodlarına dokunulmadan) Yenile'de baştan kurulur.
 
 - [x] **İş takip süreci testi (27.11.2026):** ek dosya (FATURALAR PDF) → aşamalar saha ↔ yönetici → servis formu →
   tamamlama (stok düşümü) → onay → fotoğrafları mağaza kartına ekleme → iptal / silme. 59/59.

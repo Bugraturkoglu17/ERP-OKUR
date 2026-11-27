@@ -21,6 +21,7 @@ import { CompletionPanel, formatDateTime as formatCompletionTime, useWorkOrderCo
 import { MaterialTitle } from "@/components/retail-stock/material-picker";
 import { ProjectLinkControl } from "@/components/work-order/project-link-control";
 import { BackLink } from "@/components/ui/back-link";
+import { useRefreshSignal } from "@/lib/refresh-signal";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -719,13 +720,16 @@ export default function WorkOrderDetailPage() {
   // Servis formu + kullanılan malzemeler (stok iş tamamlanınca cep depodan düşer).
   const completion = useWorkOrderCompletion(id, wo?.stock_depot_id);
   const { reload: reloadCompletion } = completion;
+  // "Yenile": karşı tarafın değişikliği (aşama, fotoğraf, rapor, servis formu) sekme kapanmadan gelir.
+  const refreshSignal = useRefreshSignal();
+
   useEffect(() => {
     if (wo) void reloadCompletion();
-  }, [wo?.id, wo?.status, wo?.stock_depot_id, reloadCompletion]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [wo?.id, wo?.status, wo?.stock_depot_id, reloadCompletion, refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true);
+    if (!refreshSignal) setLoading(true);
     Promise.all([
       apiGet<WorkOrder>(`/work-orders/${id}`),
       apiGet<Report[]>(`/work-orders/${id}/reports`),
@@ -739,7 +743,7 @@ export default function WorkOrderDetailPage() {
     }).catch(() => {
       setWo(null);
     }).finally(() => setLoading(false));
-  }, [id]);
+  }, [id, refreshSignal]);
 
   const handleDeleteReport = async (reportId: string) => {
     if (!confirm("Bu raporu silmek istediğinize emin misiniz?")) return;

@@ -11,6 +11,7 @@ import { Card } from "@/components/shadcn/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/shadcn/empty";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { getMyStages, listProjects, type MyStage, type ProjectSummary } from "@/services/installationProjects";
+import { useRefreshSignal } from "@/lib/refresh-signal";
 
 /** Liste satırı: kart görünümlü bağlantı. */
 function RowLink({ href, muted = false, children }: { href: string; muted?: boolean; children: React.ReactNode }) {
@@ -30,10 +31,11 @@ export default function ProjectTasksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const refreshSignal = useRefreshSignal();
   useEffect(() => {
     Promise.all([getMyStages().then(setItems), listProjects("active").then(setProjects)])
       .catch(() => setError("Proje görevleri yüklenemedi.")).finally(() => setLoading(false));
-  }, []);
+  }, [refreshSignal]);
 
   const active = items.filter((i) => i.status === "in_progress");
   const waiting = items.filter((i) => i.status === "planned");

@@ -29,6 +29,7 @@ import { STATUS_LABEL, normalizeStatus } from "@/services/managerWorkOrders";
 import {
   addChecklistItem, getStageTask, projectDocumentUrl, setChecklistItem, updateStage, type StageTask,
 } from "@/services/installationProjects";
+import { useRefreshSignal } from "@/lib/refresh-signal";
 
 // Aşamaya göre önerilen belge türü (sorumlunun en sık yükleyeceği belge).
 const SUGGESTED_DOC: Record<string, string> = {
@@ -55,9 +56,10 @@ export default function ProjectTaskPage() {
     setDocType((current) => (current === "diger" ? SUGGESTED_DOC[data.stage.code] ?? "fotograf" : current));
   }, [stageId]);
 
+  const refreshSignal = useRefreshSignal();
   useEffect(() => {
     load().catch((reason) => setError(getRequestErrorMessage(reason, "Görev yüklenemedi."))).finally(() => setLoading(false));
-  }, [load]);
+  }, [load, refreshSignal]);
 
   async function run(action: () => Promise<unknown>, fallback: string, ok = "") {
     setBusy(true); setError(""); setSuccess("");

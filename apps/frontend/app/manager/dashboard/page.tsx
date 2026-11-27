@@ -22,6 +22,7 @@ import { Separator } from "@/components/shadcn/separator";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import DocumentQuickSearch from "@/components/dashboard/document-quick-search";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { useRefreshSignal } from "@/lib/refresh-signal";
 
 function isOverdue(order: WorkOrder, referenceTime: number | null) {
   return Boolean(referenceTime) && !["completed", "cancelled"].includes(order.status) && isPastDue(order.due_date, new Date(referenceTime as number));
@@ -47,12 +48,13 @@ export default function ManagerDashboardPage() {
   const [error, setError] = useState("");
   const [referenceTime, setReferenceTime] = useState<number | null>(null);
 
+  const refreshSignal = useRefreshSignal();
   useEffect(() => {
     Promise.all([getManagerWorkOrders(), getTeamUsers()])
       .then(([workOrders, team]) => { setOrders(workOrders); setUsers(team); setReferenceTime(Date.now()); })
       .catch(() => setError("Operasyon özeti yüklenemedi."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshSignal]);
 
   const kpis = useMemo(() => [
     { label: "Planlanacak", value: orders.filter((item) => item.status === "planned").length, description: "Başlatılmayı bekleyen", href: "/manager/is-emirleri?tab=planned", icon: ClipboardList },

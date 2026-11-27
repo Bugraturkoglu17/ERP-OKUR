@@ -24,6 +24,7 @@ import { Progress } from "@/components/shadcn/progress";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/shadcn/select";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/shadcn/tabs";
+import { useRefreshSignal } from "@/lib/refresh-signal";
 
 type Tab = Exclude<WorkOrderStatus, "cancelled">;
 const TABS: { key: Tab; label: string }[] = [
@@ -98,12 +99,13 @@ export default function ManagerWorkOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const refreshSignal = useRefreshSignal();
   useEffect(() => {
     Promise.all([getManagerWorkOrders(), getTeamUsers()])
       .then(([workOrders, team]) => { setOrders(workOrders); setUsers(team); })
       .catch(() => setError("İş emirleri yüklenemedi. Lütfen tekrar deneyin."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshSignal]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

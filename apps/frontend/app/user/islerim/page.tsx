@@ -12,6 +12,7 @@ import { Card } from "@/components/shadcn/card";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/shadcn/empty";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/shadcn/input-group";
 import { Skeleton } from "@/components/shadcn/skeleton";
+import { useRefreshSignal } from "@/lib/refresh-signal";
 
 type WorkOrder = {
   id: string;
@@ -64,12 +65,13 @@ function IslerimContent() {
   const searchParams = useSearchParams();
   const statusFilter = searchParams.get("durum");
 
+  const refreshSignal = useRefreshSignal();
   useEffect(() => {
     apiGet<WorkOrder[]>("/work-orders")
       .then((d) => setOrders(Array.isArray(d) ? d : []))
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshSignal]);
 
   const filtered = useMemo(() => {
     const group = statusFilter ? STATUS_GROUPS[statusFilter] : null;

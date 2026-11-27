@@ -14,6 +14,7 @@ import { Separator } from "@/components/shadcn/separator";
 import { Skeleton } from "@/components/shadcn/skeleton";
 import DocumentQuickSearch from "@/components/dashboard/document-quick-search";
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { useRefreshSignal } from "@/lib/refresh-signal";
 
 interface WorkOrder {
   id: string;
@@ -97,12 +98,13 @@ export default function UserDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const refreshSignal = useRefreshSignal();
   useEffect(() => {
     apiGet<WorkOrder[]>("/work-orders")
       .then(data => setOrders(Array.isArray(data) ? data : []))
       .catch(() => setError("İş emirleri yüklenemedi. Bağlantıyı kontrol edip tekrar deneyin."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshSignal]);
 
   const planned = orders.filter(order => PLANNED_STATUSES.includes(order.status));
   const active = orders.filter(order => ACTIVE_STATUSES.includes(order.status));

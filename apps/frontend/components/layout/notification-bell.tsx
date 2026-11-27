@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Bell, BellOff, BellRing, CheckCheck } from "lucide-react";
 import { apiGet, apiPatch } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { REFRESH_EVENT } from "@/lib/refresh-signal";
 import { Button } from "@/components/shadcn/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/shadcn/popover";
 import { Separator } from "@/components/shadcn/separator";
@@ -101,21 +102,23 @@ export function NotificationBell() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Bildirimler başka bir cihaz/oturum tarafından oluşturulabildiği için
-  // görünür sekmede düşük sıklıkla sayacı yenile. Odak/sekme değişiminde de
-  // anında kontrol ederek bildirim gecikmesini artırmadan gereksiz sorguyu azaltır.
+  // Sürekli (60 sn) sorgu yok (27.11.2026): sayaç ekran değişince, pencereye dönülünce ve
+  // üst çubuktaki "Yenile"ye basılınca tazelenir.
   useEffect(() => {
     loadUnreadCount();
+  }, [loadUnreadCount, pathname]);
+
+  useEffect(() => {
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") loadUnreadCount();
     };
-    const interval = window.setInterval(refreshWhenVisible, 60_000);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     window.addEventListener("focus", refreshWhenVisible);
+    window.addEventListener(REFRESH_EVENT, loadUnreadCount);
     return () => {
-      window.clearInterval(interval);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
       window.removeEventListener("focus", refreshWhenVisible);
+      window.removeEventListener(REFRESH_EVENT, loadUnreadCount);
     };
   }, [loadUnreadCount]);
 

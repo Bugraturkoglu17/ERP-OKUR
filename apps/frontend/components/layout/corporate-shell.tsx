@@ -1,9 +1,9 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, type LucideIcon } from "lucide-react";
+import { Menu, RefreshCw, X, type LucideIcon } from "lucide-react";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { QuickSwitch } from "@/components/layout/quick-switch";
 import type { UserRole } from "@/lib/permissions";
@@ -15,6 +15,7 @@ import { NotificationBell } from "@/components/layout/notification-bell";
 import { HEADER_SLOT_ID } from "@/components/layout/header-slot";
 import { useMobileDrawer } from "@/hooks/use-mobile-drawer";
 import { Button } from "@/components/shadcn/button";
+import { requestRefresh } from "@/lib/refresh-signal";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/shadcn/sheet";
 
 export type CorporateNavItem = { href: string; label: string; icon: LucideIcon };
@@ -86,6 +87,24 @@ function SidebarContent({ brandTone, title, navItems, mobile, onClose }: {
   );
 }
 
+/** Yazısız "Yenile": açık ekranın verisini ve bildirim sayacını yeniden çeker (sürekli sorgu yerine). */
+function RefreshButton({ onRemount }: { onRemount: () => void }) {
+  const [spinning, setSpinning] = useState(false);
+  return (
+    <Button
+      variant="outline" size="icon" aria-label="Yenile" title="Yenile" className="size-9 shrink-0"
+      onClick={() => {
+        // Sinyali dinleyen ekran verisini yerinde yeniler; dinleyen yoksa sayfa baştan kurulur.
+        if (!requestRefresh()) onRemount();
+        setSpinning(true);
+        window.setTimeout(() => setSpinning(false), 700);
+      }}
+    >
+      <RefreshCw className={cn(spinning && "animate-spin")} />
+    </Button>
+  );
+}
+
 /**
  * Ortak "Kurumsal" kabuk — yönetici / kullanıcı panellerinde yan menü, hesap geçişi ve üst çubuğu tek noktadan tutar.
  * Mobilde yan menü shadcn Sheet içinde açılır (odak tuzağı, Esc ile kapanma, kaydırma kilidi Sheet'tedir).
@@ -106,6 +125,7 @@ export function CorporateShell({
   headerLabel: ReactNode;
 }) {
   const drawer = useMobileDrawer();
+  const [pageKey, setPageKey] = useState(0);
 
   return (
     <RoleGuard allowedRoles={allowedRoles} brandTone={brandTone}>
@@ -137,10 +157,11 @@ export function CorporateShell({
                 <span className="size-2 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-50" aria-hidden />
                 <span className="max-w-[6.5rem] truncate text-[11px] font-semibold tracking-wide text-muted-foreground sm:max-w-none">{headerLabel}</span>
               </div>
+              <RefreshButton onRemount={() => setPageKey((value) => value + 1)} />
               <NotificationBell />
             </div>
           </header>
-          <main id="main-content" className="erp-workspace min-w-0 flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(4rem_+_env(safe-area-inset-top))] sm:p-6 sm:pt-[calc(4rem_+_env(safe-area-inset-top))] lg:p-8">{children}</main>
+          <main id="main-content" className="erp-workspace min-w-0 flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[calc(4rem_+_env(safe-area-inset-top))] sm:p-6 sm:pt-[calc(4rem_+_env(safe-area-inset-top))] lg:p-8"><div key={pageKey} className="contents">{children}</div></main>
         </div>
       </div>
     </RoleGuard>

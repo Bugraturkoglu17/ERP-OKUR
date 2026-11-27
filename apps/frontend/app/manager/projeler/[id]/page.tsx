@@ -38,6 +38,7 @@ import {
   linkWorkOrderToProject, saveChecklistTemplates, saveProjectMaterials, saveProjectMembers, setChecklistItem, setPhaseDue, updateProject, updateStage,
   type ChecklistTemplateStage, type LinkableWorkOrder, type ProjectDetail, type ProjectMaterial, type ProjectStage, type StageEvent,
 } from "@/services/installationProjects";
+import { useRefreshSignal } from "@/lib/refresh-signal";
 
 type UserRow = { id: string; full_name: string; email: string; is_active: boolean };
 type CatalogItem = { id: string; sku: string; name: string; spec?: string | null; brand?: string | null; unit: string };
@@ -529,6 +530,12 @@ export default function ProjectDetailPage() {
   const refresh = useCallback(async () => {
     try { await load(); } catch (reason) { setError(getRequestErrorMessage(reason, "Proje yenilenemedi.")); }
   }, [load]);
+
+  // "Yenile": seçili aşama ve sekme korunarak proje yeniden yüklenir.
+  const refreshSignal = useRefreshSignal();
+  useEffect(() => {
+    if (refreshSignal) void refresh();
+  }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function cancelProject() {
     if (!project || !window.confirm("Proje iptal edilsin mi? İptal edilen proje yeniden açılamaz.")) return;
