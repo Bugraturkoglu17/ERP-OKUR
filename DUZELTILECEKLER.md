@@ -54,7 +54,25 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
 - [ ] **Analiz · Aşama kayıt listesi:** Firma geneli kayıtlar (`/installation-projects/stage-events`) İstatistikler'de tablo
   ve/veya Excel olarak gösterilecek. (26.11.2026)
 
+- [ ] **Karar bekliyor · Kapalı iş emrine rapor:** İptal / onaylı iş emrine saha raporu eklenebiliyor (201). Engellensin mi? (27.11.2026)
+- [ ] **Karar bekliyor · Rapor silme yetkisi:** İş emrine erişen herkes (atanan teknisyen dahil) yöneticinin veya kritik
+  raporu silebiliyor. Yalnız yazan + yönetici mi silsin? (27.11.2026)
+- [ ] **Karar bekliyor · Giriş hız sınırı:** IP başına dakikada 10 giriş, başarılı girişler de sayılıyor. Ofis ağından
+  (tek IP) sabah toplu girişte saha ekibi 429 alabilir. Yalnız hatalı denemeleri saymak / IP+e-posta önerilir. (27.11.2026)
+- [ ] **Büyüme · Tüm iş emri yüklemesi:** Genel Bakış, İş Emirleri, Yeni İş Emri, İstatistikler, Raporlar tüm iş emirlerini
+  (500'lük sayfalarla) çekiyor; birkaç bin kayıtta sunucu tarafı filtre/sayfalama gerekir. Eski modüller
+  (bakım/tadilat/yeni yapım) `/projects?limit=5000` çekiyor. (27.11.2026)
+- [ ] **Risk · Proje kapanışı:** "Adımı Tamamla daima açık" olduğu için proje, deposunda stok veya açık iş emri varken
+  kapanabiliyor; depo pasife alınınca stok orada kalıyor. Kullanıcıyla konuşulacak. (27.11.2026)
+
 ## Yapıldı
+
+- [x] **Uçtan uca test (27.11.2026):** yönetici + 2 teknisyen, 83 + 18 (saha raporu) kontrol geçti, 500 hatası yok.
+  Düzeltilenler: yalnız tamamlanmış iş emri onaylanır (stok düşümü atlanamıyor); saha linki kapalı işi açamaz / iptal
+  edemez, tamamlamada tamamlama fotoğrafı + servis formu ister; rapor önem derecesi ve başlık doğrulanır.
+  Hız: iş emri listesi sayımları gruplu sorgu, 3 indeks (`20261127_01`); Raporlar ekranı iş emri başına istek yerine
+  `GET /work-orders/reports` tek istek (42 → 4 istek), rapor fotoğrafları tek sorgu. Ekran görünümü değişmedi.
+  Tarayıcı: kullanıcı 11 + yönetici 18 sayfa, konsol hatası / başarısız istek yok.
 
 - [x] **Proje detayı · Aşamalar:** Tek adımlı ana aşamada (Keşif) panel başlığında ad iki kez görünüyordu.
   Üst satır artık yalnız çok adımlı ana aşamada ("Üretim ve montaj · Adım 1 / 2") gösteriliyor. (26.11.2026)
