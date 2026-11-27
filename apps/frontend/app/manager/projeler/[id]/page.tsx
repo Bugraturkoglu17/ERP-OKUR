@@ -417,11 +417,6 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
             </table>
           </div>
         )}
-        {!editing && editable && (
-          <p className="mt-3 rounded-lg bg-primary/5 px-3 py-2 text-xs text-primary">
-            Malzemeyi projeye ayırmak için <Link href="/manager/depo-stok" className="font-semibold underline">Depo &amp; Stok → Aktarım</Link> ekranında &quot;Nereye&quot; olarak <b>Proje · {project.name}</b> deposunu seçin. Proje bitince kalan malzeme aynı yoldan ana depoya iade edilir.
-          </p>
-        )}
       </div>
     </section>
   );
