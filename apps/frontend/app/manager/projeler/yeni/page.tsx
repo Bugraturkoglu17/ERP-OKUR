@@ -146,7 +146,7 @@ export default function NewProjectPage() {
               <Textarea id="p-aciklama" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Kurulumun kapsamı, müşteri beklentisi" className="resize-none" />
             </Field>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 [&>*]:min-w-0">
               <Field>
                 <FieldLabel htmlFor="p-sorumlu">Proje sorumlusu</FieldLabel>
                 <Select value={managerId || ME} onValueChange={(value) => setManagerId(value === ME ? "" : value)}>
