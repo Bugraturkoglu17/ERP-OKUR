@@ -2,6 +2,7 @@
 
 import { InfoHint } from "@/components/ui/info-hint";
 import { useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { isAxiosError } from "axios";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import {
@@ -153,6 +154,24 @@ function StagePanel({ stage, phase, projectId, due, users, editable, canManage, 
     try { await action(); await onChanged(); } catch (reason) { onError(getRequestErrorMessage(reason, fallback)); } finally { setBusy(false); }
   }
 
+  // Kapanışta proje malzemesi ana depodan düşer; yetmiyorsa yönetici uyarılır ve "yine de kapat" diyebilir.
+  async function completeStage() {
+    setBusy(true); onError("");
+    try {
+      try {
+        await updateStage(stage.id, { action: "complete" });
+      } catch (reason) {
+        const detail = isAxiosError(reason) ? reason.response?.data?.detail : null;
+        if (detail?.code !== "stock_shortage") throw reason;
+        const items = (detail.items as { name: string; unit: string; planned: string; available: string }[])
+          .map((item) => `• ${item.name}: gerekli ${formatQuantity(item.planned)}, ana depoda ${formatQuantity(item.available)} ${item.unit}`).join("\n");
+        if (!window.confirm(`${detail.message}\n\n${items}\n\nYine de kapatılsın mı?`)) return;
+        await updateStage(stage.id, { action: "complete", force: true });
+      }
+      await onChanged();
+    } catch (reason) { onError(getRequestErrorMessage(reason, "Adım tamamlanamadı.")); } finally { setBusy(false); }
+  }
+
   return (
     <Card className="relative">
       {/* Kayıt sürerken panel kilitlenir: çift tıklama ve yarım işlem olmasın. */}
@@ -171,7 +190,7 @@ function StagePanel({ stage, phase, projectId, due, users, editable, canManage, 
           </p>
         </div>
         {stage.status !== "completed" && editable && (
-          <Button disabled={busy} onClick={() => void run(() => updateStage(stage.id, { action: "complete" }), "Adım tamamlanamadı.")}>
+          <Button disabled={busy} onClick={() => void completeStage()}>
             {busy ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}{pending ? "Onayla ve Projeyi Kapat" : stage.code === "kapanis" ? "Projeyi Kapat" : "Adımı Tamamla"}
           </Button>
         )}
@@ -336,7 +355,7 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
       {importing && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-white/60"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Malzeme listesi<InfoHint text={`Planlanan malzeme, proje deposundaki miktar ve montajda kullanılan.${missingCount > 0 ? ` ${missingCount} kalem eksik.` : ""}`} /></h2>
+          <h2 className="text-sm font-semibold text-foreground">Malzeme listesi<InfoHint text={`Proje kapanınca bu liste ana depodan düşer.${missingCount > 0 ? ` ${missingCount} kalem ana depoda yetersiz.` : ""}`} /></h2>
         </div>
         {editable && (
           <div className="flex flex-wrap items-center gap-2">
@@ -382,7 +401,7 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead><tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                <th className="py-2 pr-3">Malzeme</th><th className="px-2 py-2 text-right">Planlanan</th><th className="px-2 py-2 text-right">Proje deposu</th><th className="px-2 py-2 text-right">Kullanılan</th><th className="py-2 pl-2 text-right">Eksik</th>
+                <th className="py-2 pr-3">Malzeme</th><th className="px-2 py-2 text-right">Planlanan</th><th className="px-2 py-2 text-right">Ana depoda</th><th className="px-2 py-2 text-right">Düşülen</th><th className="py-2 pl-2 text-right">Eksik</th>
               </tr></thead>
               <tbody className="divide-y divide-border">
                 {project.materials.map((m: ProjectMaterial) => (
@@ -410,7 +429,7 @@ function MaterialsCard({ project, catalog, editable, onChanged, onError }: {
 
 /**
  * "İş emri bağla": aynı mağazanın açık, projesiz iş emrini projeye bağlar ya da projeye bağlı yeni iş emri açar.
- * İşlem sürerken pencere kilitlenir; bağlanan işin malzemesi proje deposundan düşer.
+ * İşlem sürerken pencere kilitlenir; bağlanan işin malzemesi cep depodan düşer, tutarı projeye yazılır.
  */
 function LinkWorkOrderDialog({ project, onClose, onChanged }: {
   project: ProjectDetail; onClose: () => void; onChanged: () => Promise<void>;
@@ -460,7 +479,7 @@ function LinkWorkOrderDialog({ project, onClose, onChanged }: {
               ))}
             </ul>
           )}
-          {choice && <p className="text-[11px] text-muted-foreground">Bağlanınca işin malzemesi proje deposundan düşer; arıza/bakım işlerinin malzeme tutarı gerçekleşen maliyete otomatik eklenir.</p>}
+          {choice && <p className="text-[11px] text-muted-foreground">Bağlanınca işin malzemesi çalışanın cep deposundan düşer; tutarı projenin gerçekleşen maliyetine otomatik eklenir.</p>}
           {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
           <div className="border-t pt-3">
             <p className="text-xs font-semibold text-muted-foreground">Bu projeye bağlı iş emirleri ({project.work_orders.length})</p>
@@ -694,7 +713,7 @@ export default function ProjectDetailPage() {
         targetTotal={project.costs.target.total} editable={project.can_manage && project.status !== "cancelled"}
         locked={selected.status === "completed"} onChanged={refresh} onError={setError} />}
 
-      {/* Üretim adımı: üretim no ve malzeme listesi (malzemenin proje deposunda hazır olması). */}
+      {/* Üretim adımı: üretim no ve malzeme listesi (kapanışta ana depodan düşer). */}
       {selected.code === "uretim" && <ProductionNumbersCard projectId={project.id} numbers={project.production_numbers} canEnter={active} onChanged={refresh} onError={setError} />}
       {selected.code === "uretim" && <MaterialsCard project={project} catalog={catalog} editable={editable} onChanged={refresh} onError={setError} />}
 

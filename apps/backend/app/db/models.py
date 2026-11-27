@@ -1587,7 +1587,8 @@ class RetailMaterial(SQLModel, table=True):
 
 class RetailBalance(SQLModel, table=True):
     __tablename__ = "retail_balances"
-    __table_args__ = (CheckConstraint("quantity >= 0", name="ck_retail_balance_nonnegative"),)
+    # Ana depo, proje kapanışında yöneticinin "yine de kapat" onayıyla eksiye düşebilir (27.11.2026);
+    # cep depoların eksiye düşmemesi retail_stock_service.decrease ile korunur.
 
     depot_id: UUID = Field(foreign_key="retail_depots.id", primary_key=True)
     material_id: UUID = Field(foreign_key="retail_materials.id", primary_key=True)
@@ -1609,6 +1610,8 @@ class RetailMovement(SQLModel, table=True):
     target_depot_id: Optional[UUID] = Field(foreign_key="retail_depots.id", default=None, index=True)
     branch_id: Optional[UUID] = Field(foreign_key="branches.id", default=None, index=True)
     work_order_id: Optional[UUID] = Field(foreign_key="work_orders.id", default=None)
+    # Proje kapanışında ana depodan düşülen "Üretim ve Montaj" malzemesi bu projeye yazılır.
+    installation_project_id: Optional[UUID] = Field(foreign_key="installation_projects.id", default=None, index=True)
     kind: str = Field(max_length=16, index=True)
     quantity: Decimal = Field(sa_column=Column(Numeric(14, 3), nullable=False))
     reference_no: Optional[str] = Field(default=None, max_length=80)
@@ -1657,7 +1660,8 @@ class InstallationProject(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     tenant_id: UUID = Field(foreign_key="tenants.id", index=True)
     store_id: UUID = Field(foreign_key="projects.id", index=True)
-    depot_id: UUID = Field(foreign_key="retail_depots.id", index=True)
+    # Eski kayıtlar için; 27.11.2026'dan beri projeye depo açılmaz (None).
+    depot_id: Optional[UUID] = Field(default=None, foreign_key="retail_depots.id", index=True)
     name: str = Field(max_length=200)
     description: Optional[str] = Field(default=None)
     manager_user_id: Optional[UUID] = Field(foreign_key="users.id", default=None, index=True)

@@ -57,9 +57,15 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
 - [ ] **Büyüme · Tüm iş emri yüklemesi:** Genel Bakış, İş Emirleri, Yeni İş Emri, İstatistikler, Raporlar tüm iş emirlerini
   (500'lük sayfalarla) çekiyor; birkaç bin kayıtta sunucu tarafı filtre/sayfalama gerekir. Eski modüller
   (bakım/tadilat/yeni yapım) `/projects?limit=5000` çekiyor. (27.11.2026)
-- [ ] **Risk · Proje kapanışı (stok):** Açık iş emri artık kapanışı engelliyor; proje deposunda kalan stok ise
-  kapanışı engellemiyor (depo pasife alınır, stok orada kalır). Gerekirse kullanıcıya sorulacak. (27.11.2026)
+
 ## Yapıldı
+
+- [x] **Projenin deposu yok (27.11.2026, kullanıcı kararı):** Projeye bağlı iş emri malzemesi çalışanın cep deposundan
+  düşer (bağla / kaldır depoyu değiştirmez). "Üretim ve Montaj" malzeme listesi proje kapanınca ana depodan düşer;
+  ana depo yetmezse uyarı, yönetici "yine de kapat" → ana depo eksiye düşer (DB'deki bakiye ≥ 0 kuralı kaldırıldı,
+  cep depolar kodda korunur). Gerçekleşen maliyete iki otomatik satır: iş emri malzemesi (araç) + proje malzemesi
+  (ana depo). Migration `20261127_02`: hareketlere proje bağı, 13 proje deposu pasif, 1 açık iş cep depoya taşındı.
+  Test: yeni 21/21, eski setler 177/177.
 
 - [x] **Yenile düğmesi (27.11.2026, görsel onaylı):** Üst çubukta zilin solunda yazısız yenile simgesi
   (`lib/refresh-signal.ts`, `corporate-shell.tsx`). Zilin 60 sn'lik sürekli sorgusu kaldırıldı; sayaç ekran değişince,

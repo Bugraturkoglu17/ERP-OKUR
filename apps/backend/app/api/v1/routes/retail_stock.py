@@ -375,7 +375,8 @@ async def transfer_stock(body: StockTransfer, db: AsyncSession = Depends(get_db)
     tenant_id = await _tenant_id(db, user)
     source = await _depot(db, tenant_id, body.source_depot_id)
     target = await _depot(db, tenant_id, body.target_depot_id)
-    if source.kind == "main" and target.kind in ("vehicle", "project"):
+    # Projenin deposu yok (27.11.2026): ana depodan yalnız araca yüklenir; eski proje deposundan iade açık kalır.
+    if source.kind == "main" and target.kind == "vehicle":
         _require_manager(user)
         kind = "load"
     elif source.kind == "vehicle" and target.kind == "main":
@@ -386,7 +387,7 @@ async def transfer_stock(body: StockTransfer, db: AsyncSession = Depends(get_db)
         _require_manager(user)
         kind = "return"
     else:
-        raise HTTPException(status_code=400, detail="Aktarım yalnızca ana depo ile araç ya da proje deposu arasında yapılır.")
+        raise HTTPException(status_code=400, detail="Aktarım yalnızca ana depo ile araç arasında yapılır.")
 
     merged: dict[UUID, Decimal] = {}
     for line in body.lines:

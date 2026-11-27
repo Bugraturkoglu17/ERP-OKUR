@@ -179,12 +179,12 @@ export default function ProjectTaskPage() {
 
       {(stage.code === "uretim" || stage.code === "kapanis") && planned.length > 0 && (
         <Card>
-          <CardHeader className="px-5 py-4"><CardTitle className="text-sm">Malzeme durumu<InfoHint text="Malzemeyi proje deposuna aktarma ve iade işlemlerini yönetici yapar." /></CardTitle></CardHeader>
+          <CardHeader className="px-5 py-4"><CardTitle className="text-sm">Malzeme durumu<InfoHint text="Proje malzemesi kapanışta ana depodan düşer; iş emri malzemesi cep depodan düşer." /></CardTitle></CardHeader>
           <Separator />
           <CardContent className="p-0">
             <Table className="min-w-[480px]">
               <TableHeader><TableRow>
-                <TableHead className="pl-5">Malzeme</TableHead><TableHead className="text-right">Plan</TableHead><TableHead className="text-right">Depoda</TableHead><TableHead className="text-right">Kullanılan</TableHead><TableHead className="pr-5 text-right">Eksik</TableHead>
+                <TableHead className="pl-5">Malzeme</TableHead><TableHead className="text-right">Plan</TableHead><TableHead className="text-right">Ana depoda</TableHead><TableHead className="text-right">Düşülen</TableHead><TableHead className="pr-5 text-right">Eksik</TableHead>
               </TableRow></TableHeader>
               <TableBody>{planned.map((m) => (
                 <TableRow key={m.material_id}>

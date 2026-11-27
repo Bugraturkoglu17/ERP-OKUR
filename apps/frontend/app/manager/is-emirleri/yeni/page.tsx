@@ -104,7 +104,7 @@ export default function NewWorkOrderPage() {
         setProject(detail);
         const store = detail.store ? await getStoreById(detail.store.id) : null;
         // Taslaktan gelen tip korunur; ilk açılışta varsayılan montaj (Proje) işidir.
-        setForm((current) => ({ ...current, category: current.category || "proje", store, depotId: detail.depot_id }));
+        setForm((current) => ({ ...current, category: current.category || "proje", store }));
       })
       .catch(() => setError("Bağlanacak proje bulunamadı."));
   }, [params, setForm]);
@@ -128,7 +128,7 @@ export default function NewWorkOrderPage() {
   function selectAssignee(userId: string) {
     const owned = depotsByUser[userId] ?? [];
     // Çalışanın tek cep deposu varsa otomatik seçilir; birden fazlaysa kullanıcı seçer.
-    setForm((current) => ({ ...current, assigneeId: userId, depotId: project ? project.depot_id : owned.length === 1 ? owned[0].id : "" }));
+    setForm((current) => ({ ...current, assigneeId: userId, depotId: owned.length === 1 ? owned[0].id : "" }));
     setError("");
   }
 
@@ -144,7 +144,7 @@ export default function NewWorkOrderPage() {
     if (step === 1 && !form.title.trim()) return "İş başlığını yazın.";
     if (step === 1 && !form.description.trim()) return "İş açıklamasını yazın.";
     if (step === 2 && !form.assigneeId) return "Atanacak çalışanı seçin.";
-    if (step === 2 && !project && userDepots.length === 0) return "Seçilen çalışana zimmetli bir cep depo yok.";
+    if (step === 2 && userDepots.length === 0) return "Seçilen çalışana zimmetli bir cep depo yok.";
     if (step === 2 && !form.depotId) return "Stoğun düşüleceği cep depoyu seçin.";
     return "";
   }
@@ -200,7 +200,7 @@ export default function NewWorkOrderPage() {
           <CheckCircle2 className="size-10 text-emerald-600" />
           <h1 className="text-xl font-bold">İş emri oluşturuldu ve kullanıcıya atandı.</h1>
           <p className="text-sm text-muted-foreground">
-            Yeni kayıt Planlanacak bölümüne eklendi. Kullanılan malzemeler iş tamamlanınca {project ? `"${project.name}" proje deposundan` : `${selectedDepot?.plate ?? "cep depo"} deposundan`} otomatik düşülecek.
+            Yeni kayıt Planlanacak bölümüne eklendi. Kullanılan malzemeler iş tamamlanınca {selectedDepot?.plate ?? "cep depo"} deposundan otomatik düşülecek.
           </p>
           {error && <Alert className="border-amber-200 bg-amber-50 text-amber-900"><AlertDescription>{error}</AlertDescription></Alert>}
           <div className="mt-3 flex flex-col justify-center gap-2 sm:flex-row">
@@ -258,7 +258,7 @@ export default function NewWorkOrderPage() {
                 {project && (
                   <Alert className="border-teal-200 bg-teal-50 text-teal-900">
                     <FolderKanban />
-                    <AlertDescription>Bu iş emri <b>{project.name}</b> projesine bağlanacak. Mağaza projeden alınır, malzeme proje deposundan düşer.{form.category && form.category !== "proje" ? " Arıza/tadilat işinin malzeme tutarı projenin gerçekleşen maliyetine otomatik eklenir." : ""}</AlertDescription>
+                    <AlertDescription>Bu iş emri <b>{project.name}</b> projesine bağlanacak. Mağaza projeden alınır; malzeme çalışanın cep deposundan düşer ve tutarı projenin gerçekleşen maliyetine otomatik eklenir.</AlertDescription>
                   </Alert>
                 )}
                 {form.category === "proje" && !project && (
@@ -342,29 +342,27 @@ export default function NewWorkOrderPage() {
                     const owned = depotsByUser[user.id] ?? [];
                     const selected = form.assigneeId === user.id;
                     return (
-                      <button key={user.id} type="button" disabled={!project && owned.length === 0} onClick={() => selectAssignee(user.id)} aria-pressed={selected} className={choiceClass(selected)}>
+                      <button key={user.id} type="button" disabled={owned.length === 0} onClick={() => selectAssignee(user.id)} aria-pressed={selected} className={choiceClass(selected)}>
                         <span className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground"><UserRound className="size-4" /></span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold">{user.full_name || user.email}</span>
                           <span className="block text-xs text-muted-foreground">{load.planned} Planlanacak, {load.active} Devam Eden</span>
-                          {!project && <span className={cn("mt-0.5 flex items-center gap-1 text-xs font-medium", owned.length ? "text-emerald-700" : "text-amber-700")}>
+                          <span className={cn("mt-0.5 flex items-center gap-1 text-xs font-medium", owned.length ? "text-emerald-700" : "text-amber-700")}>
                             <Truck className="size-3" />{owned.length ? owned.map((depot) => depot.plate).join(", ") : "Cep depo tanımlı değil"}
-                          </span>}
+                          </span>
                         </span>
                         {selected && <CheckCircle2 className="size-5 text-primary" />}
                       </button>
                     );
                   })}
                 </div>
-                {!project && users.length > 0 && users.every((user) => (depotsByUser[user.id] ?? []).length === 0) && (
+                {users.length > 0 && users.every((user) => (depotsByUser[user.id] ?? []).length === 0) && (
                   <Alert className="mt-3 border-amber-200 bg-amber-50 text-amber-900"><AlertDescription className="text-xs">Hiçbir çalışana cep depo zimmetlenmemiş. <Link href="/manager/depo-stok" className="font-semibold underline">Depo & Stok</Link> bölümünden araç deposu oluşturup çalışana atayın.</AlertDescription></Alert>
                 )}
               </section>
               <section>
-                <h2 className="text-sm font-semibold">{project ? "Proje Deposu" : "Cep Depo"}<InfoHint text="Stok bu depodan düşülecek." /></h2>
-                {project ? (
-                  <div className="mt-3 flex items-center gap-3 rounded-lg border border-teal-200 bg-teal-50 p-3"><FolderKanban className="size-5 text-teal-700" /><span className="text-sm font-semibold text-teal-900">Proje · {project.name}</span></div>
-                ) : !form.assigneeId ? (
+                <h2 className="text-sm font-semibold">Cep Depo<InfoHint text="Stok bu depodan düşülecek." /></h2>
+                {!form.assigneeId ? (
                   <p className="mt-3 rounded-md bg-muted p-4 text-sm text-muted-foreground">Önce çalışanı seçin; zimmetli cep depoları burada görünür.</p>
                 ) : (
                   <div className="mt-3 flex flex-col gap-2">
@@ -387,7 +385,7 @@ export default function NewWorkOrderPage() {
                   <div><dt className="text-xs text-sidebar-foreground/60">İş Tipi / Öncelik</dt><dd className="mt-0.5">{form.category ? CATEGORY_LABEL[form.category] : "Seçilmedi"} · {PRIORITY_LABEL[form.priority]}</dd></div>
                   <div><dt className="text-xs text-sidebar-foreground/60">Termin</dt><dd className="mt-0.5">{form.dueDate ? new Date(form.dueDate).toLocaleDateString("tr-TR") : "Belirtilmedi"}</dd></div>
                   <div><dt className="text-xs text-sidebar-foreground/60">Atanan</dt><dd className="mt-0.5">{selectedUser?.full_name || selectedUser?.email || "Seçilmedi"}</dd></div>
-                  <div><dt className="text-xs text-sidebar-foreground/60">{project ? "Proje Deposu" : "Cep Depo"}</dt><dd className="mt-0.5">{project ? `Proje · ${project.name}` : selectedDepot ? `${selectedDepot.plate} · ${selectedDepot.name}` : "Seçilmedi"}</dd></div>
+                  <div><dt className="text-xs text-sidebar-foreground/60">Cep Depo</dt><dd className="mt-0.5">{selectedDepot ? `${selectedDepot.plate} · ${selectedDepot.name}` : "Seçilmedi"}</dd></div>
                 </dl>
                 <p className="mt-4 border-t border-sidebar-border pt-3 text-xs text-sidebar-foreground/70">Kullanılan malzemeler ve servis formu, çalışan işi tamamlarken girilir. Tamamlandı denince miktarlar seçili cep depodan otomatik düşer ve yöneticiye bildirilir.</p>
               </aside>

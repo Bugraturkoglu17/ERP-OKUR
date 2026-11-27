@@ -483,17 +483,23 @@ function CostColumn({ projectId, kind, costs, canEnter, onChanged, onError }: {
             </li>
           );
         })}
-        {linked > 0 && (
-          <li className="py-3">
+        {/* Otomatik malzeme satırları: bağlı iş emirlerinde araçtan ve kapanışta ana depodan düşülen (katalog fiyatıyla). */}
+        {kind === "actual" && [
+          { key: "vehicle", label: "İş emri malzemesi (araç)", amount: Number(costs.actual.material_vehicle ?? 0),
+            hint: "Projeye bağlı iş emirlerinde çalışanların cep deposundan düşülen malzeme." },
+          { key: "main", label: "Proje malzemesi (ana depo)", amount: Number(costs.actual.material_main ?? 0),
+            hint: "Üretim ve Montaj malzeme listesi; proje kapanınca ana depodan düşülür." },
+        ].filter((row) => row.amount > 0).map((row) => (
+          <li key={row.key} className="py-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium text-foreground">{costs.actual.linked_work_orders_label ?? "Kullanılan malzeme"}
+              <span className="text-sm font-medium text-foreground">{row.label}
                 <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">otomatik</span>
-                <InfoHint text="İş emirlerinde proje deposundan kullanılan malzeme (katalog fiyatıyla). Ürün maliyetine yalnız katalog dışı ürünleri girin; bu tutarı tekrar eklemeyin." />
+                <InfoHint text={`${row.hint} Ürün maliyetine yalnız katalog dışı ürünleri girin; bu tutarı tekrar eklemeyin.`} />
               </span>
-              <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-foreground">₺{money(linked)}</span>
+              <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-foreground">₺{money(row.amount)}</span>
             </div>
           </li>
-        )}
+        ))}
       </ul>
       <div className="mt-auto flex items-center justify-between gap-3 border-t border-border bg-muted/50 px-4 py-3">
         <span className="text-sm font-semibold text-foreground">Toplam</span>

@@ -68,19 +68,10 @@ def decrease(balance: RetailBalance, quantity: Decimal, label: str | None = None
 
 async def validate_work_order_depot(
     db: AsyncSession, *, tenant_id: UUID | None, depot_id: UUID, assignee: User | None,
-    project_depot_id: UUID | None = None,
 ) -> RetailDepot:
-    """A work order draws stock from the assignee's own active cep depo, or — when it belongs to an
-    installation project — from that project's depot (``project_depot_id``)."""
+    """A work order draws stock from the assignee's own active cep depo — also when it belongs to an
+    installation project (projects have no depot since 27.11.2026)."""
     depot = await db.get(RetailDepot, depot_id)
-    if project_depot_id is not None:
-        if not depot or not depot.is_active or depot.kind != "project" or depot.id != project_depot_id:
-            raise HTTPException(status_code=400, detail="Projeye bağlı iş emri malzemeyi yalnızca proje deposundan kullanır.")
-        if tenant_id and depot.tenant_id != tenant_id:
-            raise HTTPException(status_code=403, detail="Proje deposu şirket kapsamınız dışında.")
-        if assignee is None:
-            raise HTTPException(status_code=400, detail="İşin atanacağı çalışan seçilmelidir.")
-        return depot
     if not depot or not depot.is_active or depot.kind != "vehicle":
         raise HTTPException(status_code=400, detail="Seçilen cep depo bulunamadı veya pasif.")
     if tenant_id and depot.tenant_id != tenant_id:

@@ -25,8 +25,9 @@ export type CostItem = { category: CostCategory; label: string; amount: string |
 export type ProjectCosts = {
   categories: Record<CostCategory, string>;
   target: { items: CostItem[]; total: string };
-  /** total, proje deposundan kullanılan malzemenin tutarını (linked_work_orders) da içerir. */
-  actual: { items: CostItem[]; total: string; linked_work_orders?: string; linked_work_orders_label?: string };
+  /** total, otomatik malzeme tutarını (linked_work_orders = araç + ana depo) da içerir. */
+  actual: { items: CostItem[]; total: string; linked_work_orders?: string; linked_work_orders_label?: string;
+    material_vehicle?: string; material_main?: string };
 };
 
 export type ProjectSummary = {
@@ -132,7 +133,7 @@ export const createProject = (payload: ProjectCreatePayload) =>
   apiPost<{ id: string; name: string; depot_id: string }>(BASE, payload);
 export const updateProject = (id: string, payload: Partial<ProjectCreatePayload> & { status?: "cancelled" }) =>
   apiPatch(`${BASE}/${id}`, payload);
-export const updateStage = (stageId: string, payload: { responsible_user_id?: string | null; planned_end?: string | null; note?: string | null; action?: "complete" | "request_approval" | "reject_approval" }) =>
+export const updateStage = (stageId: string, payload: { responsible_user_id?: string | null; planned_end?: string | null; note?: string | null; action?: "complete" | "request_approval" | "reject_approval"; force?: boolean }) =>
   apiPatch(`${BASE}/stages/${stageId}`, payload);
 export const addChecklistItem = (stageId: string, label: string) => apiPost(`${BASE}/stages/${stageId}/checklist`, { label });
 export const setChecklistItem = (itemId: string, isDone: boolean) => apiPatch(`${BASE}/checklist/${itemId}`, { is_done: isDone });
@@ -161,11 +162,11 @@ export const saveChecklistTemplates = (stages: Record<string, { id?: string | nu
 export const setPhaseDue = (projectId: string, phase: string, due: string | null) =>
   apiPut(`${BASE}/${projectId}/phase-due`, { phase, due });
 export const getLinkableWorkOrders = (id: string) => apiGet<LinkableWorkOrder[]>(`${BASE}/${id}/linkable-work-orders`);
-/** İş emri ↔ proje köprüsü: bağlanınca malzeme proje deposundan düşer. */
+/** İş emri ↔ proje köprüsü: malzeme cep depodan düşer, tutarı projenin maliyetine yazılır. */
 export const linkWorkOrderToProject = (workOrderId: string, projectId: string) =>
   apiPost(`/work-orders/${workOrderId}/project-link`, { installation_project_id: projectId });
-export const unlinkWorkOrderFromProject = (workOrderId: string, stockDepotId?: string | null) =>
-  apiDelete(`/work-orders/${workOrderId}/project-link${stockDepotId ? `?stock_depot_id=${encodeURIComponent(stockDepotId)}` : ""}`);
+export const unlinkWorkOrderFromProject = (workOrderId: string) =>
+  apiDelete(`/work-orders/${workOrderId}/project-link`);
 export const projectDocumentUrl = (id: string) => `${BASE}/${id}/documents`;
 
 // ── Aşama sorumlusu (saha kullanıcısı) için: "Proje Görevlerim" ──

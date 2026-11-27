@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { FolderKanban, Link2, Loader2, Unlink, X } from "lucide-react";
 import { getRequestErrorMessage } from "@/lib/api";
-import { getCepDepots, type CepDepot } from "@/services/managerWorkOrders";
 import {
   linkWorkOrderToProject, listProjects, unlinkWorkOrderFromProject, type ProjectSummary,
 } from "@/services/installationProjects";
@@ -28,7 +27,6 @@ export function ProjectLinkControl({ wo, canManage, projectHref, onChanged }: {
 }) {
   const [mode, setMode] = useState<"link" | "unlink" | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
-  const [depots, setDepots] = useState<CepDepot[]>([]);
   const [choice, setChoice] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -43,21 +41,15 @@ export function ProjectLinkControl({ wo, canManage, projectHref, onChanged }: {
     finally { setBusy(false); }
   }
 
-  async function openUnlink() {
-    setMode("unlink"); setError(""); setChoice(""); setBusy(true);
-    try {
-      const owned = (await getCepDepots()).filter((depot) => depot.assigned_user_id && depot.assigned_user_id === wo.assigned_to_user_id);
-      setDepots(owned);
-      if (owned.length === 1) setChoice(owned[0].id);
-    } catch { setDepots([]); }
-    finally { setBusy(false); }
+  function openUnlink() {
+    setMode("unlink"); setError(""); setChoice("");
   }
 
   async function submit() {
     setBusy(true); setError("");
     try {
       if (mode === "link") await linkWorkOrderToProject(wo.id, choice);
-      else await unlinkWorkOrderFromProject(wo.id, choice || null);
+      else await unlinkWorkOrderFromProject(wo.id);
       await onChanged();
       setMode(null);
     } catch (reason) {
@@ -73,7 +65,7 @@ export function ProjectLinkControl({ wo, canManage, projectHref, onChanged }: {
             <FolderKanban className="h-3 w-3" />Proje: {wo.installation_project_name ?? "—"}
           </Link>
           {canManage && wo.project_link_removable && (
-            <button type="button" onClick={() => void openUnlink()} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-red-700">
+            <button type="button" onClick={openUnlink} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-red-700">
               <Unlink className="h-3 w-3" />Bağı kaldır
             </button>
           )}
@@ -102,7 +94,7 @@ export function ProjectLinkControl({ wo, canManage, projectHref, onChanged }: {
                   <p className="text-slate-500">Bu mağazada devam eden proje yok.</p>
                 ) : (
                   <>
-                    <p className="text-slate-600">Bağlanınca bu işin malzemesi proje deposundan düşer ve tutarı projenin gerçekleşen maliyetine eklenir.</p>
+                    <p className="text-slate-600">Bağlanınca malzeme yine çalışanın cep deposundan düşer; tutarı projenin gerçekleşen maliyetine eklenir.</p>
                     <ul className="space-y-1.5">
                       {projects.map((project) => (
                         <li key={project.id}>
@@ -120,15 +112,7 @@ export function ProjectLinkControl({ wo, canManage, projectHref, onChanged }: {
                 )
               ) : (
                 <>
-                  <p className="text-slate-600">Bağ kaldırılınca malzeme yeniden çalışanın cep deposundan düşer.</p>
-                  {depots.length > 1 && (
-                    <label className="block text-xs font-semibold text-slate-600">Cep depo
-                      <select value={choice} onChange={(e) => setChoice(e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                        <option value="">Seçin</option>
-                        {depots.map((depot) => <option key={depot.id} value={depot.id}>{depot.plate ?? depot.name}</option>)}
-                      </select>
-                    </label>
-                  )}
+                  <p className="text-slate-600">Bağ kaldırılınca işin malzeme tutarı projenin maliyetine yazılmaz; cep depo değişmez.</p>
                 </>
               )}
               {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
@@ -136,7 +120,7 @@ export function ProjectLinkControl({ wo, canManage, projectHref, onChanged }: {
             <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
               <button type="button" onClick={() => setMode(null)} disabled={busy} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500">Vazgeç</button>
               <button type="button" onClick={() => void submit()}
-                disabled={busy || (mode === "link" ? !choice : depots.length > 1 && !choice)}
+                disabled={busy || (mode === "link" && !choice)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40 ${mode === "link" ? "bg-teal-700 hover:bg-teal-800" : "bg-red-600 hover:bg-red-700"}`}>
                 {mode === "link" ? "Bağla" : "Bağı kaldır"}
               </button>

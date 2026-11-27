@@ -28,6 +28,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user, is_platform_admin
 from app.core.storage import sanitize_filename, storage
 from app.services.alerts import manager_ids
+from app.services.retail_stock_service import locked_balances
 from app.core.notifications import notify
 from app.api.v1.routes.work_orders import WORK_TYPE_LABELS
 from app.db.models import (
@@ -89,7 +90,7 @@ STAGE_TEMPLATE: list[tuple[int, str, str, list[str], tuple[str, ...], list[str]]
     (6, "teslim", "Teslim", ["kabul_tutanagi"], (),
      ["Kullanıcı eğitimi verildi", "Son çizimler teslim edildi"]),
     # Kapanış maliyet ağırlıklıdır: açık iş kalmamalı, fatura ve gerçekleşen maliyet girilmiş olmalı.
-    (7, "kapanis", "Kapanış", [], ("no_open_work_orders", "invoice_set", "actual_costs_set", "depot_empty"),
+    (7, "kapanis", "Kapanış", [], ("no_open_work_orders", "invoice_set", "actual_costs_set"),
      ["Teklif ile gerçekleşen maliyet karşılaştırıldı", "Hakediş / fatura kesildi"]),
 ]
 STAGE_BY_CODE = {code: (docs, rules) for _, code, _, docs, rules, _ in STAGE_TEMPLATE}
@@ -123,9 +124,8 @@ PROJECT_WORK_TYPE = "project"
 RULE_LABELS = {
     "production_number": "En az bir üretim no girilmiş olmalı",
     "materials_listed": "Malzeme listesi girilmiş olmalı",
-    "materials_ready": "Listedeki tüm malzemeler proje deposunda hazır olmalı",
+    "materials_ready": "Listedeki tüm malzemeler ana depoda mevcut olmalı",
     "work_orders_done": "En az bir montaj (Proje tipi) iş emri tamamlanmış ve açık montaj iş emri kalmamış olmalı",
-    "depot_empty": "Proje deposunda malzeme kalmamalı (kalan malzeme ana depoya iade edilmeli)",
     "no_open_work_orders": "Projeye bağlı açık iş emri kalmamalı (arıza/bakım dahil; tamamlanmalı veya iptal edilmeli)",
     "budget_set": "Teklif tutarı girilmiş olmalı",
     "target_costs_set": "Hedeflenen maliyet girilmiş olmalı",
@@ -201,20 +201,37 @@ async def _production_numbers(db: AsyncSession, project_id: UUID) -> list[dict]:
              "created_at": _iso(r.created_at)} for r in rows]
 
 
-async def _linked_wo_costs(db: AsyncSession, project_ids: list[UUID]) -> dict[UUID, Decimal]:
-    """İş emirlerinde proje deposundan kullanılan bütün malzemenin tutarı (katalog birim fiyatıyla).
-    Proje tipi iş emirleri dahildir; kullanılan malzeme girilince maliyetin malzeme kısmı kendiliğinden tamamlanır."""
+async def _material_cost_parts(db: AsyncSession, project_ids: list[UUID]) -> dict[UUID, dict[str, Decimal]]:
+    """Projenin otomatik malzeme maliyeti (katalog birim fiyatıyla), iki kaynaktan (27.11.2026):
+    - "vehicle": projeye bağlı iş emirlerinde çalışanın cep deposundan (araçtan) kullanılan malzeme,
+    - "main": proje kapanışında "Üretim ve Montaj" malzeme listesinden ana depodan düşülen malzeme."""
     if not project_ids:
         return {}
-    rows = (await db.execute(
-        select(InstallationProject.id,
-               func.sum(RetailMovement.quantity * func.coalesce(RetailMaterial.unit_price, 0)))
-        .join(RetailMovement, RetailMovement.source_depot_id == InstallationProject.depot_id)
+    price = RetailMovement.quantity * func.coalesce(RetailMaterial.unit_price, 0)
+    out: dict[UUID, dict[str, Decimal]] = {}
+    vehicle = (await db.execute(
+        select(WorkOrder.installation_project_id, func.sum(price))
+        .join(RetailMovement, RetailMovement.work_order_id == WorkOrder.id)
         .join(RetailMaterial, RetailMaterial.id == RetailMovement.material_id)
-        .where(InstallationProject.id.in_(project_ids), RetailMovement.kind == "use")
-        .group_by(InstallationProject.id)
+        .where(WorkOrder.installation_project_id.in_(project_ids), RetailMovement.kind == "use")
+        .group_by(WorkOrder.installation_project_id)
     )).all()
-    return {pid: Decimal(total or 0).quantize(Decimal("0.01")) for pid, total in rows}
+    main = (await db.execute(
+        select(RetailMovement.installation_project_id, func.sum(price))
+        .join(RetailMaterial, RetailMaterial.id == RetailMovement.material_id)
+        .where(RetailMovement.installation_project_id.in_(project_ids), RetailMovement.kind == "use")
+        .group_by(RetailMovement.installation_project_id)
+    )).all()
+    for key, rows in (("vehicle", vehicle), ("main", main)):
+        for pid, total in rows:
+            entry = out.setdefault(pid, {"vehicle": Decimal("0"), "main": Decimal("0")})
+            entry[key] = Decimal(total or 0).quantize(Decimal("0.01"))
+    return out
+
+
+async def _linked_wo_costs(db: AsyncSession, project_ids: list[UUID]) -> dict[UUID, Decimal]:
+    """Otomatik malzeme maliyetinin toplamı (araç + ana depo)."""
+    return {pid: parts["vehicle"] + parts["main"] for pid, parts in (await _material_cost_parts(db, project_ids)).items()}
 
 
 async def _costs(db: AsyncSession, project_id: UUID) -> dict:
@@ -235,9 +252,13 @@ async def _costs(db: AsyncSession, project_id: UUID) -> dict:
                           "lines": [{"id": r.id, "amount": r.amount, "description": r.description} for r in lines]})
         out[kind] = {"items": items,
                      "total": sum((i["amount"] for i in items if i["amount"] is not None), Decimal("0"))}
-    linked = (await _linked_wo_costs(db, [project_id])).get(project_id, Decimal("0"))
+    parts = (await _material_cost_parts(db, [project_id])).get(project_id, {"vehicle": Decimal("0"), "main": Decimal("0")})
+    linked = parts["vehicle"] + parts["main"]
     out["actual"]["linked_work_orders"] = linked
     out["actual"]["linked_work_orders_label"] = LINKED_WO_COST_LABEL
+    # Otomatik satırlar: iş emirlerinde araçtan ve kapanışta ana depodan düşülen malzeme.
+    out["actual"]["material_vehicle"] = parts["vehicle"]
+    out["actual"]["material_main"] = parts["main"]
     out["actual"]["total"] += linked
     return out
 
@@ -349,44 +370,73 @@ async def _stages(db: AsyncSession, project_id: UUID) -> list[InstallationProjec
     return list(rows.scalars().all())
 
 
+async def _main_depot(db: AsyncSession, tenant_id: UUID) -> Optional[RetailDepot]:
+    return (await db.execute(select(RetailDepot).where(
+        RetailDepot.tenant_id == tenant_id, RetailDepot.kind == "main", RetailDepot.is_active == True  # noqa: E712
+    ).order_by(RetailDepot.created_at).limit(1))).scalars().first()
+
+
 async def _material_status(db: AsyncSession, project: InstallationProject) -> list[dict]:
-    """Planlanan malzeme, proje deposundaki miktar ve bu depodan kullanılan miktar."""
+    """Üretim ve Montaj malzeme listesi: planlanan, ana depodaki miktar, kapanışta ana depodan düşülen.
+    Alan adları eski arayüzle uyum için aynı: in_depot = ana depoda, used = projeden düşülen."""
     planned = (await db.execute(
         select(InstallationProjectMaterial, RetailMaterial)
         .join(RetailMaterial, RetailMaterial.id == InstallationProjectMaterial.material_id)
         .where(InstallationProjectMaterial.project_id == project.id)
         .order_by(RetailMaterial.sku)
     )).all()
+    main = await _main_depot(db, project.tenant_id)
+    ids = [material.id for _line, material in planned]
     balances = dict((await db.execute(
-        select(RetailBalance.material_id, RetailBalance.quantity).where(RetailBalance.depot_id == project.depot_id)
-    )).all())
+        select(RetailBalance.material_id, RetailBalance.quantity).where(
+            RetailBalance.depot_id == main.id, RetailBalance.material_id.in_(ids))
+    )).all()) if main and ids else {}
     used = dict((await db.execute(
         select(RetailMovement.material_id, func.sum(RetailMovement.quantity))
-        .where(RetailMovement.source_depot_id == project.depot_id, RetailMovement.kind == "use")
+        .where(RetailMovement.installation_project_id == project.id, RetailMovement.kind == "use")
         .group_by(RetailMovement.material_id)
     )).all())
     rows = []
     for line, material in planned:
-        in_depot = balances.get(material.id, Decimal("0"))
+        in_main = balances.get(material.id, Decimal("0"))
         used_qty = used.get(material.id, Decimal("0"))
         rows.append({
             "id": line.id, "material_id": material.id, "sku": material.sku, "name": material.name,
             "spec": material.spec, "unit": material.unit, "unit_price": material.unit_price,
-            "planned_quantity": line.planned_quantity, "in_depot": in_depot, "used": used_qty,
-            "missing": max(Decimal("0"), line.planned_quantity - in_depot - used_qty),
+            "planned_quantity": line.planned_quantity, "in_depot": in_main, "used": used_qty,
+            # Düşülmeden önce: ana depoda eksik kalan; düşüldükten sonra eksik yok.
+            "missing": Decimal("0") if used_qty else max(Decimal("0"), line.planned_quantity - max(in_main, Decimal("0"))),
             "note": line.note,
         })
-    # Planda olmayan ama depoda bulunan ya da kullanılan malzemeler de görünsün.
-    known = {row["material_id"] for row in rows}
-    extra_ids = [mid for mid in set(balances) | set(used) if mid not in known and (balances.get(mid) or used.get(mid))]
-    for material in (await db.execute(select(RetailMaterial).where(RetailMaterial.id.in_(extra_ids)))).scalars().all() if extra_ids else []:
-        rows.append({
-            "id": None, "material_id": material.id, "sku": material.sku, "name": material.name,
-            "spec": material.spec, "unit": material.unit, "unit_price": material.unit_price,
-            "planned_quantity": Decimal("0"), "in_depot": balances.get(material.id, Decimal("0")),
-            "used": used.get(material.id, Decimal("0")), "missing": Decimal("0"), "note": "Planda yok",
-        })
     return rows
+
+
+async def _material_shortages(db: AsyncSession, project: InstallationProject) -> list[dict]:
+    """Kapanışta ana depodan düşülecek listede yetmeyen kalemler."""
+    return [{"name": r["name"], "unit": r["unit"], "planned": str(r["planned_quantity"]), "available": str(r["in_depot"])}
+            for r in await _material_status(db, project) if r["planned_quantity"] > 0 and r["missing"] > 0]
+
+
+async def _issue_project_materials(db: AsyncSession, project: InstallationProject, user: User) -> None:
+    """Proje kapanışı: Üretim ve Montaj malzeme listesi ana depodan "kullanım" olarak düşer.
+    Yönetici "yine de kapat" dediyse ana depo eksiye düşebilir (kullanıcı kararı, 27.11.2026)."""
+    lines = (await db.execute(select(InstallationProjectMaterial).where(
+        InstallationProjectMaterial.project_id == project.id, InstallationProjectMaterial.planned_quantity > 0
+    ))).scalars().all()
+    if not lines:
+        return
+    main = await _main_depot(db, project.tenant_id)
+    if not main:
+        raise HTTPException(409, "Ana depo tanımlı değil; proje malzemesi düşülemiyor.")
+    for line in lines:
+        balance = (await locked_balances(db, line.material_id, [main.id]))[main.id]
+        balance.quantity -= line.planned_quantity
+        balance.updated_at = utc_now()
+        db.add(RetailMovement(
+            tenant_id=project.tenant_id, material_id=line.material_id, source_depot_id=main.id,
+            installation_project_id=project.id, kind="use", quantity=line.planned_quantity,
+            note=f"Proje kapanışı: {project.name}"[:500], performed_by=user.id,
+        ))
 
 
 async def _work_orders(db: AsyncSession, project_id: UUID) -> list[WorkOrder]:
@@ -449,10 +499,6 @@ async def _requirements(db: AsyncSession, project: InstallationProject, stage: I
                 InstallationProjectCost.project_id == project.id, InstallationProjectCost.kind == kind,
                 InstallationProjectCost.amount > 0).limit(1))).first()
             reqs.append({"label": RULE_LABELS[rule], "ok": has_cost is not None})
-        elif rule == "depot_empty":
-            left = (await db.execute(select(RetailBalance.material_id).where(
-                RetailBalance.depot_id == project.depot_id, RetailBalance.quantity > 0).limit(1))).first()
-            reqs.append({"label": RULE_LABELS[rule], "ok": left is None})
     return reqs
 
 
@@ -640,6 +686,7 @@ class StageUpdate(BaseModel):
     planned_end: Optional[str] = None
     note: Optional[str] = SchemaField(default=None, max_length=4000)
     action: Optional[str] = None  # "complete"
+    force: Optional[bool] = None  # Kapanışta ana depo yetersizse "yine de kapat"
 
 
 class ChecklistCreate(BaseModel):
@@ -1024,11 +1071,9 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
             raise HTTPException(400, "Proje sorumlusu bu firmada aktif bir kullanıcı olmalıdır.")
     if body.project_type not in PROJECT_TYPES:
         raise HTTPException(400, "Proje türü Mağaza, Soğuk oda veya Soğutma olmalıdır.")
-    depot = RetailDepot(tenant_id=tenant_id, kind="project", name=f"Proje · {body.name}"[:120], is_active=True)
-    db.add(depot)
-    await db.flush()
+    # Projenin deposu yoktur (27.11.2026): iş emri malzemesi cep depodan, proje listesi kapanışta ana depodan düşer.
     project = InstallationProject(
-        tenant_id=tenant_id, store_id=store.id, depot_id=depot.id, name=body.name.strip(),
+        tenant_id=tenant_id, store_id=store.id, depot_id=None, name=body.name.strip(),
         description=body.description, manager_user_id=body.manager_user_id or user.id,
         start_date=_parse_date(body.start_date) or utc_now(), target_date=_parse_date(body.target_date),
         budget=body.budget, project_type=body.project_type, created_by=user.id,
@@ -1053,7 +1098,7 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
         if order == 1:
             await _stage_event(db, project, stage, "started", user)
     await db.commit()
-    return {"id": project.id, "name": project.name, "depot_id": depot.id}
+    return {"id": project.id, "name": project.name, "depot_id": None}
 
 
 @router.get("/{project_id}")
@@ -1201,13 +1246,7 @@ async def update_project(project_id: UUID, body: ProjectUpdate, db: AsyncSession
         open_wo = [wo for wo in await _work_orders(db, project.id) if _status_value(wo.status) not in CLOSED_WORK_ORDER]
         if open_wo:
             raise HTTPException(409, "Projede açık iş emri var; önce iş emirlerini tamamlayın veya iptal edin.")
-        left = (await db.execute(select(RetailBalance.material_id).where(
-            RetailBalance.depot_id == project.depot_id, RetailBalance.quantity > 0).limit(1))).first()
-        if left:
-            raise HTTPException(409, "Proje deposunda malzeme var; önce ana depoya iade edin.")
         project.status = "cancelled"
-        depot = await db.get(RetailDepot, project.depot_id)
-        depot.is_active = False
     if "manager_user_id" in updates and updates["manager_user_id"]:
         manager = await db.get(User, updates["manager_user_id"])
         if not manager or manager.tenant_id != project.tenant_id or not manager.is_active:
@@ -1280,7 +1319,7 @@ async def update_stage(stage_id: UUID, body: StageUpdate, db: AsyncSession = Dep
     stage, project, manager = await _stage_context(db, user, stage_id)
     _require_active(project)
     updates = body.model_dump(exclude_unset=True)
-    if not manager and set(updates) - {"note", "action"}:
+    if not manager and set(updates) - {"note", "action", "force"}:
         raise HTTPException(403, "Aşamanın sorumlusu ve planlanan tarihi yalnızca yönetici tarafından değiştirilir.")
     if "responsible_user_id" in updates:
         if updates["responsible_user_id"]:
@@ -1314,6 +1353,13 @@ async def update_stage(stage_id: UUID, body: StageUpdate, db: AsyncSession = Dep
         if not any(s.stage_order > stage.stage_order for s in stages):
             if any(_status_value(wo.status) not in CLOSED_WORK_ORDER for wo in await _work_orders(db, project.id)):
                 raise HTTPException(409, "Açık iş emirleri kapatılmadan işlem tamamlanamaz.")
+            # Kapanışta proje malzemesi ana depodan düşer; yetmiyorsa yönetici uyarılır, "yine de kapat" diyebilir.
+            if action == "complete" and manager and not updates.get("force"):
+                shortages = await _material_shortages(db, project)
+                if shortages:
+                    raise HTTPException(409, {"code": "stock_shortage",
+                                              "message": "Ana depoda yetersiz malzeme var. Yine de kapatılırsa ana depo eksiye düşer.",
+                                              "items": shortages})
         managers = await manager_ids(db, project.tenant_id)
         if action == "request_approval":
             if stage.code != "kapanis":
@@ -1351,10 +1397,9 @@ async def update_stage(stage_id: UUID, body: StageUpdate, db: AsyncSession = Dep
                                        category="project_stage_started", title="Proje görevi başladı",
                                        body=f"{project.name} — {next_stage.name} aşaması sizde.")
             else:
-                # Son aşama (kapanış) bitti: proje tamamlanır, boşalmış proje deposu kapatılır.
+                # Son aşama (kapanış) bitti: proje tamamlanır, malzeme listesi ana depodan düşer.
+                await _issue_project_materials(db, project, user)
                 project.status, project.completed_at = "completed", now
-                depot = await db.get(RetailDepot, project.depot_id)
-                depot.is_active = False
                 if requester and requester != user.id:
                     await _notify_many(db, {requester}, tenant_id=project.tenant_id, category="project_closing_approved",
                                        title="Proje kapanışı onaylandı", body=f"{project.name} tamamlandı.")
