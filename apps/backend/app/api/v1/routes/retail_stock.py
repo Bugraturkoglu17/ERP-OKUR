@@ -13,7 +13,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field as SchemaField, field_validator
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -21,7 +21,7 @@ from sqlalchemy.orm import aliased
 from app.core.dependencies import get_current_user, is_platform_admin
 from app.core.database import get_db
 from app.db.models import (
-    Branch, InstallationProject, Project, RetailBalance, RetailDepot, RetailMaterial,
+    Branch, RetailBalance, RetailDepot, RetailMaterial,
     RetailMovement, Tenant, User, WorkOrder, utc_now,
 )
 from app.services.alerts import notify_stock_critical
@@ -145,24 +145,10 @@ def _can_use_vehicle(user: User, depot: RetailDepot) -> bool:
     return _manager(user) or (depot.kind == "vehicle" and depot.assigned_user_id == user.id)
 
 
-_OPEN_WORK_ORDER = ("completed", "approved", "cancelled", "failed")
-
-
-def _project_depots_of(user: User):
-    """Çalışanın açık bir proje iş emri olan proje depoları (malzemeyi oradan seçer, aktarım yapamaz)."""
-    return select(WorkOrder.stock_depot_id).where(
-        WorkOrder.assigned_to_user_id == user.id, WorkOrder.installation_project_id.is_not(None),
-        WorkOrder.status.not_in(_OPEN_WORK_ORDER),
-    )
 
 
 async def _can_view_depot(db: AsyncSession, user: User, depot: RetailDepot) -> bool:
-    if _can_use_vehicle(user, depot):
-        return True
-    if depot.kind == "project":
-        row = await db.execute(_project_depots_of(user).where(WorkOrder.stock_depot_id == depot.id).limit(1))
-        return row.first() is not None
-    return False
+    return _can_use_vehicle(user, depot)
 
 
 def _price_json(user: User, material: RetailMaterial) -> dict:
@@ -192,36 +178,15 @@ async def _commit_movement(db: AsyncSession, movement: RetailMovement) -> dict:
 @router.get("/depots")
 async def list_depots(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> list[dict]:
     tenant_id = await _tenant_id(db, user)
-    query = select(RetailDepot).where(RetailDepot.tenant_id == tenant_id, RetailDepot.is_active == True)
+    # Proje deposu yok (27.11.2026): yalnız ana depo ve araç depoları listelenir.
+    query = select(RetailDepot).where(RetailDepot.tenant_id == tenant_id, RetailDepot.is_active == True,
+                                      RetailDepot.kind != "project")
     if not _manager(user):
         # Çalışan kendi araç depolarını görür; ana depo yalnızca iade hedefi olarak (stoğu görünmez).
         query = query.where(or_(RetailDepot.kind == "main",
-                                and_(RetailDepot.kind == "vehicle", RetailDepot.assigned_user_id == user.id),
-                                and_(RetailDepot.kind == "project", RetailDepot.id.in_(_project_depots_of(user)))))
+                                and_(RetailDepot.kind == "vehicle", RetailDepot.assigned_user_id == user.id)))
     rows = (await db.execute(query.order_by(RetailDepot.kind, RetailDepot.plate, RetailDepot.name))).scalars().all()
-    result = [_depot_json(row) for row in rows]
-    # Proje depoları: hangi projeye/mağazaya ait olduğu ve içindeki kalem sayısı (Depo & Stok kartları için).
-    project_ids = [row.id for row in rows if row.kind == "project"]
-    if project_ids:
-        links = {r.depot_id: r for r in (await db.execute(
-            select(InstallationProject.depot_id, InstallationProject.id, InstallationProject.name, InstallationProject.status, Project.name.label("store_name"))
-            .join(Project, Project.id == InstallationProject.store_id, isouter=True)
-            .where(InstallationProject.depot_id.in_(project_ids))
-        )).all()}
-        counts = dict((await db.execute(
-            select(RetailBalance.depot_id, func.count()).where(RetailBalance.depot_id.in_(project_ids), RetailBalance.quantity > 0)
-            .group_by(RetailBalance.depot_id)
-        )).all())
-        for item in result:
-            if item["kind"] != "project":
-                continue
-            link = links.get(item["id"])
-            item.update({
-                "project_id": link.id if link else None, "project_name": link.name if link else None,
-                "project_status": link.status if link else None, "store_name": link.store_name if link else None,
-                "item_count": counts.get(item["id"], 0),
-            })
-    return result
+    return [_depot_json(row) for row in rows]
 
 
 @router.post("/depots", status_code=201)
@@ -251,7 +216,7 @@ async def update_depot(depot_id: UUID, body: DepotUpdate, db: AsyncSession = Dep
     tenant_id = await _tenant_id(db, user)
     depot = await _depot(db, tenant_id, depot_id, active=False)
     if depot.kind == "project":
-        raise HTTPException(status_code=400, detail="Proje deposu, projenin kendi ekranından yönetilir.")
+        raise HTTPException(status_code=400, detail="Proje deposu kullanılmıyor.")
     updates = body.model_dump(exclude_unset=True)
     if "assigned_user_id" in updates:
         if depot.kind != "vehicle":
@@ -375,16 +340,13 @@ async def transfer_stock(body: StockTransfer, db: AsyncSession = Depends(get_db)
     tenant_id = await _tenant_id(db, user)
     source = await _depot(db, tenant_id, body.source_depot_id)
     target = await _depot(db, tenant_id, body.target_depot_id)
-    # Projenin deposu yok (27.11.2026): ana depodan yalnız araca yüklenir; eski proje deposundan iade açık kalır.
+    # Projenin deposu yok (27.11.2026): aktarım yalnız ana depo ile araç arasında.
     if source.kind == "main" and target.kind == "vehicle":
         _require_manager(user)
         kind = "load"
     elif source.kind == "vehicle" and target.kind == "main":
         if not _can_use_vehicle(user, source):
             raise HTTPException(status_code=403, detail="Bu araç deposundan iade yapamazsınız.")
-        kind = "return"
-    elif source.kind == "project" and target.kind == "main":
-        _require_manager(user)
         kind = "return"
     else:
         raise HTTPException(status_code=400, detail="Aktarım yalnızca ana depo ile araç arasında yapılır.")

@@ -21,7 +21,7 @@ import { formatQuantity, parseQuantity, quantityForApi, quantityProblem, sanitiz
 import { MaterialTitle, foldText } from "@/components/retail-stock/material-picker";
 import { brand } from "@/lib/brand";
 
-export type TransferDepot = { id: string; kind: "main" | "vehicle" | "project"; name: string; plate: string | null; assigned_user_id: string | null };
+export type TransferDepot = { id: string; kind: "main" | "vehicle"; name: string; plate: string | null; assigned_user_id: string | null };
 type SourceRow = {
   material_id: string; sku: string; name: string; unit: string; category: string | null;
   brand?: string | null; spec?: string | null; quantity: string;
@@ -41,22 +41,20 @@ export function TransferDialog({ depots, manager, initialSourceId, staffNames = 
 }) {
   const depotLabel = (depot: TransferDepot) => {
     if (depot.kind === "main") return `Ana depo · ${depot.name}`;
-    if (depot.kind === "project") return depot.name;
     if (!manager) return `${depot.plate} · ${depot.name}`;
     const owner = depot.assigned_user_id ? staffNames[depot.assigned_user_id] : null;
     return `${depot.plate} · ${depot.name} — ${owner ?? (depot.assigned_user_id ? "atanmış" : "çalışan atanmamış")}`;
   };
   const main = depots.find((depot) => depot.kind === "main");
   const vehicles = depots.filter((depot) => depot.kind === "vehicle");
-  const projectDepots = depots.filter((depot) => depot.kind === "project");
-  // Yönetici her iki yönde aktarır (araç ve proje depoları dahil); çalışan yalnızca kendi aracından ana depoya iade eder.
+  // Yönetici her iki yönde aktarır (ana depo ↔ araç); çalışan yalnızca kendi aracından ana depoya iade eder.
   const sources = useMemo(
-    () => (manager ? [...(main ? [main] : []), ...vehicles, ...projectDepots] : vehicles),
-    [manager, main, vehicles, projectDepots],
+    () => (manager ? [...(main ? [main] : []), ...vehicles] : vehicles),
+    [manager, main, vehicles],
   );
   const targetsOf = (sourceId: string) => {
     const source = depots.find((depot) => depot.id === sourceId);
-    return source?.kind === "main" ? [...vehicles, ...(manager ? projectDepots : [])] : main ? [main] : [];
+    return source?.kind === "main" ? vehicles : main ? [main] : [];
   };
   const defaultTarget = (sourceId: string) => {
     const options = targetsOf(sourceId);

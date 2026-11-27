@@ -211,7 +211,7 @@ export type ProjectStats = {
     realized_revenue: number; realized_cost: number; realized_profit: number; realized_count: number };
   by_type: { type: ProjectType; label: string; count: number; active: number; budget: number; target: number; actual: number }[];
   by_stage: { order: number; name: string; count: number }[];
-  /** Son satır "bagli_is_emirleri": proje deposundan kullanılan malzemenin otomatik tutarı. */
+  /** Son satır "bagli_is_emirleri": otomatik malzeme tutarı (araç + ana depo). */
   by_category: { category: CostCategory | "bagli_is_emirleri"; label: string; target: number; actual: number }[];
   projects: {
     id: string; name: string; status: ProjectStatus; project_type_label: string;
