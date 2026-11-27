@@ -916,7 +916,7 @@ export default function WorkOrderDetailPage() {
 
   // ── Raporlar Sekmesi ──────────────────────────────────────────────────────────
 
-  // Kapanmış iş emrine rapor eklenmez; oluşturulan raporu yalnız yönetici siler (27.11.2026).
+  // Kapanmış iş emrine rapor / fotoğraf eklenmez; raporu ve kapanmış işin fotoğrafını yalnız yönetici siler (27.11.2026).
   const reportsClosed = ["completed", "approved", "cancelled", "failed"].includes(wo?.status ?? "");
 
   const ReportsTab = () => (
@@ -1194,7 +1194,7 @@ export default function WorkOrderDetailPage() {
             )}
           </div>
         </div>
-        {isUser && (
+        {isUser && !reportsClosed && (
           <div className="space-y-2 rounded-xl border border-border bg-slate-50/60 p-3">
             <select
               value={photoType}
@@ -1276,7 +1276,7 @@ export default function WorkOrderDetailPage() {
                       <span className="text-[10px] font-semibold text-white">Eklendi</span>
                     </div>
                   )}
-                  {!photo.isAdded && (isUser || isManager) && (
+                  {!photo.isAdded && (isManager || (isUser && !reportsClosed)) && (
                     <button
                       type="button"
                       onClick={() => handleDeletePhoto(photo.id)}

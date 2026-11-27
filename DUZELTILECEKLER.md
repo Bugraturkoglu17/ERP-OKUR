@@ -59,8 +59,17 @@ Yapılan madde işaretlenir (`[x]`) ve altına kısa not düşülür.
   (bakım/tadilat/yeni yapım) `/projects?limit=5000` çekiyor. (27.11.2026)
 - [ ] **Risk · Proje kapanışı (stok):** Açık iş emri artık kapanışı engelliyor; proje deposunda kalan stok ise
   kapanışı engellemiyor (depo pasife alınır, stok orada kalır). Gerekirse kullanıcıya sorulacak. (27.11.2026)
+- [ ] **Karar bekliyor · Ekran senkronu:** İş emri / proje detayı açıkken karşı tarafın yaptığı değişiklik (aşama, fotoğraf,
+  tamamlama) sayfa yenilenene kadar görünmüyor; yalnız bildirim zili 60 sn'de bir / pencereye dönünce yenileniyor.
+  Öneri: pencereye dönünce ve bu iş emrine yeni bildirim gelince detay sessizce yeniden yüklensin (sürekli sorgu yok). (27.11.2026)
 
 ## Yapıldı
+
+- [x] **İş takip süreci testi (27.11.2026):** ek dosya (FATURALAR PDF) → aşamalar saha ↔ yönetici → servis formu →
+  tamamlama (stok düşümü) → onay → fotoğrafları mağaza kartına ekleme → iptal / silme. 59/59.
+  Düzeltilenler: iptal / onay sahaya bildirilmiyordu; kapanmış işe fotoğraf eklenebiliyor, saha nihai fotoğrafı
+  silebiliyordu (artık 409 / yalnız yönetici); saha linki (oturumsuz) yüklemelerinde tür / boyut / kapalı iş kontrolü
+  yoktu; uygulama fotoğrafına 25 MB sınır; mağaza kartı etkinlik listesinde firma kontrolü yoktu.
 
 - [x] **Kullanıcı kararları (27.11.2026):**
   1) Kapanmış (tamamlanan / onaylı / iptal / başarısız) iş emrine rapor eklenemez; ekranda "Rapor Oluştur" gizli.

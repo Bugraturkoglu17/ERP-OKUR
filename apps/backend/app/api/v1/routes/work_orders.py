@@ -1015,6 +1015,14 @@ async def list_service_forms(
 
 
 SERVICE_FORM_MAX_BYTES = 15 * 1024 * 1024
+PHOTO_MAX_BYTES = 25 * 1024 * 1024
+
+
+def _check_photo_size(content: bytes) -> None:
+    if not content:
+        raise HTTPException(400, "Boş dosya yüklenemez.")
+    if len(content) > PHOTO_MAX_BYTES:
+        raise HTTPException(413, "Dosya en fazla 25 MB olabilir.")
 
 
 @router.post("/{work_order_id}/service-forms", response_model=WorkOrderServiceFormRead, status_code=201)
@@ -1202,6 +1210,15 @@ async def update_work_order(
                     db, user_id=wo.created_by, tenant_id=wo.tenant_id, work_order_id=wo.id,
                     category="work_order_completed",
                     title="İş emri tamamlandı",
+                    body=f"{user.full_name} — {wo.title}",
+                )
+        # İptal / onay karşı tarafa (atanan saha kullanıcısı) bildirilir: iptal edilen işe gidilmesin.
+        if payload.status in ("cancelled", "approved"):
+            for recipient_id in _other_parties(wo, user):
+                await notify(
+                    db, user_id=recipient_id, tenant_id=wo.tenant_id, work_order_id=wo.id,
+                    category=f"work_order_{payload.status}",
+                    title="İş emri iptal edildi" if payload.status == "cancelled" else "İş emri onaylandı",
                     body=f"{user.full_name} — {wo.title}",
                 )
     wo.updated_at = utc_now()
@@ -1691,6 +1708,8 @@ async def upload_admin_photo(
     if not wo:
         raise HTTPException(404, "İş emri bulunamadı.")
     _ensure_work_order_access(wo, user)
+    if _workflow_value(wo.status) in _CLOSED_STATUSES:
+        raise HTTPException(409, "Kapanmış iş emrine dosya eklenemez.")
     if photo_type not in {"before", "after", "issue", "completion"}:
         raise HTTPException(400, "Geçersiz fotoğraf kaynağı.")
     # DWG (AutoCAD çizimi) uzantıya göre tanınır: tarayıcılar DWG için tür
@@ -1711,6 +1730,7 @@ async def upload_admin_photo(
         raise HTTPException(400, "Yalnızca JPG, JPEG, PNG veya başlangıç eki olarak PDF ya da DWG yükleyebilirsiniz.")
 
     content = await file.read()
+    _check_photo_size(content)
     safe_name = sanitize_filename(file.filename or "photo.jpg")
     file_key = f"work-orders/{work_order_id}/photos/{int(time.time())}_{safe_name}"
 
@@ -1790,6 +1810,9 @@ async def delete_work_order_photo(
     photo = await db.get(WorkOrderPhoto, photo_id)
     if not photo or photo.work_order_id != work_order_id:
         raise HTTPException(404, "Saha görseli bulunamadı.")
+    # Kapanmış işin fotoğrafları kanıttır (ör. nihai fotoğraf): yalnız yönetici siler.
+    if _workflow_value(wo.status) in _CLOSED_STATUSES and not _can_view_all_work_orders(user):
+        raise HTTPException(403, "Kapanmış iş emrinin fotoğrafını yalnızca yönetici silebilir.")
 
     inventory_refs, _ = await _photo_inventory_refs(wo.project_id, db)
     if photo.file_key in inventory_refs:
@@ -2079,8 +2102,15 @@ async def public_upload_photo(
     db: AsyncSession = Depends(get_db),
 ):
     link, wo, proj = await _resolve_token(token, db)
-
+    # Oturumsuz uç: uygulamadaki kurallar aynen geçerli (kapalı iş, tür, boyut).
+    if _workflow_value(wo.status) in _CLOSED_STATUSES:
+        raise HTTPException(409, "Kapanmış iş emrine dosya eklenemez.")
+    if photo_type not in {"before", "after", "issue", "completion"}:
+        raise HTTPException(400, "Geçersiz fotoğraf kaynağı.")
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(400, "Yalnızca JPG, JPEG veya PNG fotoğraf yükleyebilirsiniz.")
     content = await file.read()
+    _check_photo_size(content)
     safe_name = sanitize_filename(file.filename or "photo.jpg")
     file_key = f"work-orders/{wo.id}/photos/{int(time.time())}_{safe_name}"
 
@@ -2114,8 +2144,16 @@ async def public_upload_service_form(
     db: AsyncSession = Depends(get_db),
 ):
     link, wo, proj = await _resolve_token(token, db)
-
+    if _workflow_value(wo.status) in _CLOSED_STATUSES:
+        raise HTTPException(409, "Kapanmış iş emrine servis formu eklenemez.")
+    content_type = file.content_type or ""
+    if not (content_type.startswith("image/") or content_type == "application/pdf"):
+        raise HTTPException(400, "Servis formu JPG, PNG veya PDF olmalıdır.")
     content = await file.read()
+    if not content:
+        raise HTTPException(400, "Boş dosya yüklenemez.")
+    if len(content) > SERVICE_FORM_MAX_BYTES:
+        raise HTTPException(413, "Servis formu en fazla 15 MB olabilir.")
     safe_name = sanitize_filename(file.filename or "servis-formu.pdf")
     file_key = f"work-orders/{wo.id}/service-forms/{int(time.time())}_{safe_name}"
 

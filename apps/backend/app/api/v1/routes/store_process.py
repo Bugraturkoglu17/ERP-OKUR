@@ -688,6 +688,7 @@ async def get_activities(
     db:   AsyncSession = Depends(get_db),
     user: User         = Depends(get_current_user),
 ):
+    await _get_project_or_404(db, project_id, user.tenant_id)  # başka firmanın mağaza geçmişi okunmasın
     result = await db.execute(
         select(StoreActivity)
         .where(StoreActivity.project_id == project_id)
