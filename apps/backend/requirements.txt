@@ -30,6 +30,7 @@ pywebpush==2.0.3                  # VAPID imzalı Web Push gönderimi
 
 # ── Task Queue ──────────────────────────────────────────────────────────────
 celery==5.4.0
+kombu==5.4.2                    # Compatible with the pinned redis-py 5.x client
 redis==5.1.1
 
 # ── PDF / Report ────────────────────────────────────────────────────────────
