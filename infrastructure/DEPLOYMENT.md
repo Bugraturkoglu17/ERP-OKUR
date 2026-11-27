@@ -1,14 +1,19 @@
 # OKUR ERP — Canlıya alma
 
-Durum (27 Kasım 2026): Neon OKUR ERP projesi oluşturuldu; mağazalar henüz aktarılmadı.
+Durum (27 Kasım 2026): canlı yayın açıldı; 4.116 mağaza Neon'a aktarıldı.
 Proje `polished-field-91637707`, production dalı `br-rough-resonance-bh8ijs23`,
 Frankfurt, PostgreSQL 18, veritabanı `okur_erp`, sabit 0.25 CU, 5 dakika sonra uyku.
 Neon başlangıçta Free planda; ücretli yükseltme yapılmadı.
-Northflank API taslağı `okur-erp-api`, nf-compute-20 (0.2 vCPU / 512 MB / 5.40 $ aylık).
-Servis oluşturulmadı: kart ve GitHub bağlantısı bekleniyor.
-R2 aboneliği kullanıcı tarafından onaylandı; aktivasyon kart/fatura bilgileri bekliyor.
+Northflank API, web ve worker: her biri nf-compute-20 (0.2 vCPU / 512 MB / 5.40 $ aylık).
+Redis 7.2.16: özel ağ, TLS, 256 MB, 6 GB disk; yaklaşık 3.60 $ aylık.
+R2 kullandıkça öde aktif; `okur-erp-files` özel, yalnız bu kovaya yetkili anahtar kullanılıyor.
 Hesap: bahadirsarman@gmail.com. Ücret modeli: kullandıkça öde, başlangıçta tek kopya.
-Adres: frontend portu için Northflank tarafından verilen ücretsiz HTTPS `*.code.run` adresi.
+Adres: https://p01--okur-erp-web--g6sktzrk8j5l.code.run
+Kaynak: `bahadiras/ERP-OKUR`, `codex/okur-erp-production` dalı.
+Tam ay açık kaynak tabanı yaklaşık 19.80 $; derleme, trafik, vergi ve kota aşımları hariç.
+Başlangıçtaki 100 GB belge henüz yüklenmedi; ilk aylarda yükleme olmayabilir.
+R2 Standard ilk 10 GB/ay ücretsiz; 100 GB tam ay saklanırsa depolama yaklaşık 1.35 $/ay,
+her kalıcı ek 10 GB yaklaşık 0.15 $/ay ekler. İşlem kotaları ayrıca uygulanır.
 Cloudflare özel alan adı satın almak için gerekli değildir; dosya deposu R2 olarak kullanılır.
 
 ## Kaynaklar
@@ -53,8 +58,19 @@ Demo yükleme ve otomatik admin sıfırlama canlıda kapalıdır.
    Çevrimdışı ekran vardır; çevrimdışı kayıt oluşturma/senkronizasyon özelliği yoktur.
 8. Maliyetleri, bellek kullanımını ve hata günlüklerini izleyin; ihtiyaca göre artırın.
 
-Docker bu bilgisayarda bulunmadığından container build ve gerçek servis sağlık kontrolleri
-bulut hesabına giriş sonrası yapılmalıdır. Yerel build, canlıya alınmış olduğu anlamına gelmez.
+## Doğrulanan yayın
+
+- Northflank'ta API, web ve Celery worker çalışıyor; worker Redis TLS bağlantısı ve ready kaydı doğrulandı.
+- `okur-erp-bootstrap` yalnız elle çalışır. Migration ve mağaza aktarımı başarıyla tamamlandı.
+- Aktarılanlar: 1 müşteri, 11 bölge, 4.116 şube, 4.116 proje. Kullanıcı/demo işler aktarılmadı.
+- Yönetici hesabı kullanıcı tarafından girilen parola ile oluşturuldu; geçici parola değişkenleri
+  API ve bootstrap ortamından kaldırıldı. Yeniden bootstrap çalıştırmak parola sıfırlayabilir.
+- `production_smoke.py`: mağaza sayısı, web proxy üzerinden giriş ve auth/me, R2 yazma/okuma
+  ve yalnız test dosyasının temizliği geçti. Script için admin parolası geçici olarak gerekir.
+- Genel HTTPS /login 200, /api/health ok, kimliksiz /api/v1/auth/me 401.
+- /manifest.webmanifest: OKUR ERP, standalone; /sw.js 200 ve no-cache/no-store.
+- Fiziksel Android/iOS cihazında ana ekrana kurulum bu oturumda denenmedi.
+- Celery 5.4.0 + Kombu 5.4.2 + redis-py 5.1.1 sabitlendi; en yeni Kombu ile sürüm uyuşmazlığı giderildi.
 
 Resmî kaynaklar: https://northflank.com/pricing,
 https://neon.com/pricing, https://developers.cloudflare.com/r2/pricing/.
