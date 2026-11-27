@@ -1,0 +1,17 @@
+**
+!apps/
+!apps/backend/
+!apps/backend/requirements.txt
+!apps/backend/alembic.ini
+!apps/backend/app/
+!apps/backend/app/**
+!apps/backend/alembic/
+!apps/backend/alembic/**
+!scripts/
+!scripts/import_local_stores.py
+!data/
+!data/okur-stores.json.gz
+**/__pycache__
+**/*.pyc
+**/.env*
+apps/backend/app/static/uploads
