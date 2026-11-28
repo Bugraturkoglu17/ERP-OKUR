@@ -35,7 +35,7 @@ def _brand(title: str, body_html: str, accent_color: str = "#3b82f6") -> str:
               <table border="0" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td>
-                    <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: {accent_color}; display: block; margin-bottom: 4px;">SİSMİK Kurumsal Operasyon Sistemi</span>
+                    <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: {accent_color}; display: block; margin-bottom: 4px;">OKUR Kurumsal Operasyon Sistemi</span>
                     <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em;">{title}</h1>
                   </td>
                 </tr>
@@ -55,7 +55,7 @@ def _brand(title: str, body_html: str, accent_color: str = "#3b82f6") -> str:
           <!-- Footer -->
           <tr>
             <td style="padding: 24px 40px; background-color: #f8fafc; border-top: 1px solid #f1f5f9; text-align: center;">
-              <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #64748b;">SİSMİK</p>
+              <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #64748b;">OKUR</p>
               <p style="margin: 0; font-size: 11px; color: #94a3b8; line-height: 1.5;">Bu e-posta platform üzerinden otomatik olarak gönderilmiştir.<br/>Lütfen doğrudan bu e-postaya yanıt vermeyiniz.</p>
             </td>
           </tr>
@@ -74,7 +74,7 @@ def tenant_admin_provisioned_mail(*, tenant: Tenant, full_name: str, temporary_p
     subject = f"{tenant.name} ERP - Yönetici Hesabınız Oluşturuldu"
     text = (
         f"Sayın {full_name},\n\n"
-        f"{tenant.name} firması için SİSMİK Kurumsal Operasyon Sistemi üzerinde yetkili yönetici hesabınız başarıyla tanımlanmıştır.\n\n"
+        f"{tenant.name} firması için OKUR Kurumsal Operasyon Sistemi üzerinde yetkili yönetici hesabınız başarıyla tanımlanmıştır.\n\n"
         "Erişim Bilgileriniz:\n"
         f"- Firma Adı: {tenant.name}\n"
         f"- Yönetici: {full_name}\n"
@@ -83,13 +83,13 @@ def tenant_admin_provisioned_mail(*, tenant: Tenant, full_name: str, temporary_p
         "Lütfen geçici parolanızı platform yöneticinizden güvenli bir kanal vasıtasıyla talep ediniz. "
         "Sisteme ilk giriş yaptığınızda geçici parolanızı değiştirmeniz istenecektir.\n\n"
         "İyi çalışmalar dileriz,\n"
-        "SİSMİK Sistem Ekibi"
+        "OKUR Sistem Ekibi"
     )
     html = _brand(
         title="Yönetici Hesabınız Oluşturuldu",
         body_html=(
             f"<p>Sayın <strong>{full_name}</strong>,</p>"
-            f"<p><strong>{tenant.name}</strong> firması için SİSMİK Kurumsal Operasyon Sistemi üzerinde yetkili yönetici hesabınız başarıyla tanımlanmıştır.</p>"
+            f"<p><strong>{tenant.name}</strong> firması için OKUR Kurumsal Operasyon Sistemi üzerinde yetkili yönetici hesabınız başarıyla tanımlanmıştır.</p>"
             f"<div style=\"background-color: #f1f5f9; border-left: 4px solid #3b82f6; border-radius: 6px; padding: 20px; margin: 24px 0;\">"
             f"  <p style=\"margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; font-weight: 600;\">Hesap Detayları</p>"
             f"  <table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"font-size: 14px; color: #334155;\">"
@@ -126,7 +126,7 @@ def tenant_admin_password_reset_mail(*, tenant: Tenant, full_name: str, temporar
         "Lütfen geçici parolanızı platform yöneticinizden güvenli bir kanal vasıtasıyla talep ediniz. "
         "İlk girişiniz esnasında sistem sizden yeni ve güvenli bir kişisel parola belirlemenizi isteyecektir.\n\n"
         "İyi çalışmalar dileriz,\n"
-        "SİSMİK Sistem Ekibi"
+        "OKUR Sistem Ekibi"
     )
     html = _brand(
         title="Parolanız Sıfırlandı",
@@ -198,7 +198,7 @@ def project_assignment_mail(*, tenant: Tenant, project_name: str, assignee_name:
         title="Proje Ataması Yapıldı",
         body_html=(
             f"<p>Merhaba <strong>{assignee_name}</strong>,</p>"
-            f"<p>SİSMİK Kurumsal Operasyon Sistemi üzerinden yeni bir projede görevlendirmeniz gerçekleştirilmiştir.</p>"
+            f"<p>OKUR Kurumsal Operasyon Sistemi üzerinden yeni bir projede görevlendirmeniz gerçekleştirilmiştir.</p>"
             f"<div style=\"background-color: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 6px; padding: 20px; margin: 24px 0;\">"
             f"  <p style=\"margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #166534; font-weight: 600;\">Görevlendirme Detayları</p>"
             f"  <table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"font-size: 14px; color: #334155;\">"

@@ -53,7 +53,7 @@ def _get_env(key: str, default: str = "") -> str:
 
 def _build_message_text(n: WorkOrderNotification) -> str:
     lines = [
-        "🔧 *SİSMİK İş Emri*",
+        "🔧 *OKUR İş Emri*",
         "",
         f"Mağaza: {n.store_name}",
     ]

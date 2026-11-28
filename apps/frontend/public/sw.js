@@ -43,10 +43,10 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "SİSMİK", body: event.data ? event.data.text() : "" };
+    data = { title: "OKUR", body: event.data ? event.data.text() : "" };
   }
 
-  const title = data.title || "SİSMİK";
+  const title = data.title || "OKUR";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",

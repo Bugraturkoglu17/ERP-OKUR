@@ -26,7 +26,7 @@ export function BrandMark({ tone = "red", className = "h-8 w-8", animated = fals
     <svg
       viewBox="0 0 1500 1500"
       role="img"
-      aria-label="Sismik ERP amblemi"
+      aria-label="OKUR amblemi"
       className={`${className} ${animated ? "erp-brand-mark--animated" : ""}`}
       style={{ color: toneColor[tone] }}
       fill="none"

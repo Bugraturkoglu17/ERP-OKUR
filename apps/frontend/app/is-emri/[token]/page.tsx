@@ -371,7 +371,7 @@ export default function PublicWorkOrderPage() {
             Bildiriminiz alındı. Teşekkürler!
           </p>
         </div>
-        <p className="text-[11px] text-slate-400 mt-4">SİSMİK Mekanik ERP</p>
+        <p className="text-[11px] text-slate-400 mt-4">OKUR Teknik Soğutma</p>
       </div>
     );
   }
@@ -387,7 +387,7 @@ export default function PublicWorkOrderPage() {
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600">
           <span className="text-[10px] font-black text-white">S</span>
         </div>
-        <span className="text-sm font-bold text-slate-800">SİSMİK İş Emri</span>
+        <span className="text-sm font-bold text-slate-800">OKUR İş Emri</span>
         <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
           {data.work_type_label}
         </span>
@@ -550,7 +550,7 @@ export default function PublicWorkOrderPage() {
         )}
 
         <p className="text-center text-[10px] text-slate-400 pb-2">
-          SİSMİK Mekanik ERP · İş Emri Takip Sistemi
+          OKUR · İş Emri Takip Sistemi
         </p>
       </div>
     </div>
