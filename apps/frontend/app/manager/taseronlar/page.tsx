@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, HardHat, Mail, Pencil, Phone, Plus, Search, Star } from "lucide-react";
 import { InfoHint } from "@/components/ui/info-hint";
 import { getRequestErrorMessage } from "@/lib/api";
+import { toUpperTr } from "@/lib/text";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import {
@@ -37,9 +38,18 @@ const EMPTY: Form = {
   contact_name: "", contact_title: "", contact_phone: "", contact_email: "", competency: "", notes: "",
 };
 
+const UPPER_FIELDS = new Set<keyof Form>([
+  "company_name", "tax_office", "address", "city", "contact_name", "contact_title", "notes",
+]);
+
+function normalizeField(key: keyof Form, value: string): string {
+  if (UPPER_FIELDS.has(key)) return toUpperTr(value);
+  return key === "iban" ? value.toUpperCase() : value;
+}
+
 function toForm(item: Subcontractor): Form {
   const form = { ...EMPTY };
-  (Object.keys(EMPTY) as (keyof Form)[]).forEach((key) => { (form[key] as string) = (item[key] as string | null) ?? ""; });
+  (Object.keys(EMPTY) as (keyof Form)[]).forEach((key) => { (form[key] as string) = normalizeField(key, (item[key] as string | null) ?? ""); });
   return form;
 }
 
@@ -70,7 +80,7 @@ function SubcontractorDialog({ item, onClose, onSaved }: { item: Subcontractor |
   const [form, setForm] = useState<Form>(item ? toForm(item) : EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const set = (key: keyof Form) => (value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const set = (key: keyof Form) => (value: string) => setForm((current) => ({ ...current, [key]: normalizeField(key, value) }));
 
   async function save() {
     if (form.company_name.trim().length < 2) { setError("Firma ünvanını yazın."); return; }
@@ -260,8 +270,8 @@ export default function SubcontractorsPage() {
                       <div className="flex items-start gap-2.5">
                         <CompetencyDot value={item.color} className="mt-1.5" />
                         <div className="min-w-0">
-                          <p className="truncate font-medium">{item.company_name}</p>
-                          <p className="truncate text-xs text-muted-foreground">{[item.city, item.contact_name].filter(Boolean).join(" · ") || "—"}</p>
+                          <p className="truncate font-medium">{toUpperTr(item.company_name)}</p>
+                          <p className="truncate text-xs text-muted-foreground">{[item.city, item.contact_name].filter((value): value is string => Boolean(value)).map(toUpperTr).join(" · ") || "—"}</p>
                         </div>
                         {!item.is_active && <Badge variant="muted">Pasif</Badge>}
                       </div>

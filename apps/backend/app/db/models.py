@@ -1551,7 +1551,8 @@ class SystemSetting(SQLModel, table=True):
 class RetailDepot(SQLModel, table=True):
     __tablename__ = "retail_depots"
     __table_args__ = (
-        UniqueConstraint("tenant_id", "plate", name="uq_retail_depot_tenant_plate"),
+        Index("uq_retail_depot_tenant_plate", "tenant_id", "plate", unique=True, postgresql_where=text("is_active")),
+        Index("uq_retail_depots_main_per_tenant", "tenant_id", unique=True, postgresql_where=text("kind = 'main' AND is_active")),
         CheckConstraint("kind IN ('main', 'vehicle', 'project')", name="ck_retail_depot_kind"),
         CheckConstraint("(kind IN ('main', 'project') AND plate IS NULL) OR (kind = 'vehicle' AND plate IS NOT NULL)", name="ck_retail_depot_plate"),
     )

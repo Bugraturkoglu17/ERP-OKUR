@@ -23,6 +23,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user, is_platform_admin
 from app.core.security import create_access_token, create_refresh_token, get_user_permissions, get_user_roles, hash_password, verify_password
 from app.core.session_versions import bump_session_version, get_session_version
+from app.core.text import upper_tr
 from app.db.models import (
     PlatformTenantSettings, RetailBalance, RetailDepot, Role, Tenant, TenantEmailMode, User, UserRole,
     UserSecurityPolicy, WorkOrder,
@@ -290,7 +291,7 @@ async def update_me(
     user = await db.get(User, current_user.id)
     if not user:
         raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
-    full_name = payload.full_name.strip() if payload.full_name is not None else None
+    full_name = upper_tr(payload.full_name.strip()) if payload.full_name is not None else None
     phone = payload.phone.strip() if payload.phone is not None else None
     email = str(payload.email).strip().lower() if payload.email is not None else None
     if full_name is not None and not full_name:
@@ -526,7 +527,7 @@ async def create_user(
         email=normalized_email,
         tenant_id=target_tenant_id,
         hashed_password=await asyncio.to_thread(hash_password, user_in.password),
-        full_name=user_in.full_name,
+        full_name=upper_tr(user_in.full_name.strip()),
         phone=normalized_phone,
         default_role=requested_role,
         discipline=user_in.discipline,
@@ -570,7 +571,7 @@ async def update_user_details(
         raise HTTPException(status_code=403, detail="Kendi hesabınızı pasif hale getiremezsiniz.")
 
     if user_in.full_name is not None:
-        user.full_name = user_in.full_name
+        user.full_name = upper_tr(user_in.full_name.strip())
     if user_in.phone is not None:
         normalized_phone = user_in.phone.strip()
         if not normalized_phone:

@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, is_platform_admin
+from app.core.text import upper_tr
 from app.db.models import (
     InstallationProject, InstallationProjectStage, Subcontractor, SubcontractorRating, Tenant, User, WorkOrder, utc_now,
 )
@@ -40,6 +41,7 @@ TEXT_FIELDS = (
     "company_name", "tax_office", "tax_number", "address", "city", "phone", "email", "iban",
     "contact_name", "contact_title", "contact_phone", "contact_email", "notes",
 )
+UPPER_FIELDS = {"company_name", "tax_office", "address", "city", "contact_name", "contact_title", "notes"}
 
 
 def _require_manager(user: User) -> None:
@@ -134,6 +136,10 @@ def _apply(item: Subcontractor, updates: dict) -> None:
             value = (updates[field] or "").strip() or None
             if field == "company_name" and not value:
                 raise HTTPException(422, "Firma ünvanını yazın.")
+            if value and field in UPPER_FIELDS:
+                value = upper_tr(value)
+            elif value and field == "iban":
+                value = value.upper()
             setattr(item, field, value)
     if "competency" in updates:
         value = updates["competency"] or None

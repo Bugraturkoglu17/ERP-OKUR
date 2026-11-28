@@ -6,14 +6,17 @@ Every quantity change is atomic and leaves an immutable movement record.
 
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field as SchemaField, field_validator
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, delete, or_, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -229,9 +232,59 @@ async def update_depot(depot_id: UUID, body: DepotUpdate, db: AsyncSession = Dep
             raise HTTPException(status_code=409, detail="Stok bakiyesi olan depo pasife alınamaz; önce iade veya transfer yapın.")
     for key, value in updates.items():
         setattr(depot, key, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, "Aktif ana depo veya bu plakayla kayıtlı aktif bir araç zaten var.")
     await db.refresh(depot)
     return _depot_json(depot)
+
+
+@router.delete("/depots/{depot_id}")
+async def delete_depot(depot_id: UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
+    _require_manager(user)
+    tenant_id = await _tenant_id(db, user)
+    depot = (await db.execute(select(RetailDepot).where(
+        RetailDepot.id == depot_id, RetailDepot.tenant_id == tenant_id,
+        RetailDepot.kind.in_(("main", "vehicle")), RetailDepot.is_active.is_(True)
+    ).with_for_update())).scalar_one_or_none()
+    if not depot:
+        raise HTTPException(404, "Depo bulunamadı.")
+    if await db.scalar(select(RetailBalance.material_id).where(
+        RetailBalance.depot_id == depot_id, RetailBalance.quantity != 0).limit(1)):
+        raise HTTPException(409, "Bu depoda sıfırdan farklı stok var. Silmeden önce bakiyeleri sıfırlayın.")
+    if await db.scalar(select(WorkOrder.id).where(
+        WorkOrder.stock_depot_id == depot_id,
+        WorkOrder.status.not_in(("completed", "approved", "cancelled", "failed"))).limit(1)):
+        raise HTTPException(409, "Depo açık bir iş emrine atanmış. Önce iş emrini kapatın veya deposunu değiştirin.")
+    await db.execute(delete(RetailBalance).where(RetailBalance.depot_id == depot_id))
+    # Geçmiş hareketlere veya kapalı işlere bağlı depoyu tarihçede sakla.
+    try:
+        async with db.begin_nested():
+            await db.execute(delete(RetailDepot).where(RetailDepot.id == depot_id))
+    except IntegrityError as exc:
+        if getattr(exc.orig, "sqlstate", None) != "23503":  # foreign_key_violation
+            raise
+        depot.is_active = False
+        depot.assigned_user_id = None
+    await db.commit()
+    return {"id": depot_id}
+
+
+@router.post("/catalog/import")
+async def import_catalog(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> dict:
+    _require_manager(user)
+    tenant_id = await _tenant_id(db, user)
+    path = Path(__file__).resolve().parents[3] / "services" / "okur-catalog.json"
+    items = json.loads(path.read_text(encoding="utf-8"))
+    rows = [dict(item, tenant_id=tenant_id, min_stock=Decimal(0), unit_price=Decimal(item["unit_price"]) if item["unit_price"] else None)
+            for item in items]
+    statement = pg_insert(RetailMaterial).values(rows).on_conflict_do_nothing(
+        index_elements=["tenant_id", "sku"]).returning(RetailMaterial.id)
+    added = len((await db.execute(statement)).scalars().all())
+    await db.commit()
+    return {"added": added, "existing": len(rows) - added}
 
 
 @router.get("/staff")

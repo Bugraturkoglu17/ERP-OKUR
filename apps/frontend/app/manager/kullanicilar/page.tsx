@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Edit3, Eye, EyeOff, Info, KeyRound, Mail, MoreHorizontal, Phone, Plus, Search, ShieldCheck, Trash2, UserCheck, UserX, Users } from "lucide-react";
 import { InfoHint } from "@/components/ui/info-hint";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import { toUpperTr } from "@/lib/text";
 import { useAuth } from "@/contexts/auth-context";
 import { Alert, AlertDescription } from "@/components/shadcn/alert";
 import {
@@ -48,7 +49,7 @@ function uiRole(user: UserRow) {
 }
 
 function displayName(user: UserRow) {
-  return uiRole(user) === "ADMIN" ? "Geliştirici Admin" : user.full_name;
+  return toUpperTr(uiRole(user) === "ADMIN" ? "Geliştirici Admin" : user.full_name);
 }
 
 const initialsOf = (name: string) => name.split(" ").map((part) => part[0]).slice(0, 2).join("").toLocaleUpperCase("tr-TR");
@@ -140,7 +141,7 @@ export default function ManagerUsersPage() {
   const openEdit = (user: UserRow) => {
     const name = splitName(user.full_name);
     setEditing(user);
-    setForm({ ...emptyForm, ...name, email: user.email.endsWith("@sismik.local") ? "" : user.email, phone: user.phone ?? "", role: uiRole(user) === "MANAGER" ? "manager" : "user", is_active: user.is_active });
+    setForm({ ...emptyForm, first_name: toUpperTr(name.first_name), last_name: toUpperTr(name.last_name), email: user.email.endsWith("@sismik.local") ? "" : user.email, phone: user.phone ?? "", role: uiRole(user) === "MANAGER" ? "manager" : "user", is_active: user.is_active });
     setFormError("");
     setModalOpen(true);
   };
@@ -152,7 +153,7 @@ export default function ManagerUsersPage() {
     setSaving(true);
     setFormError("");
     try {
-      const payload = { full_name: `${form.first_name.trim()} ${form.last_name.trim()}`, phone: form.phone.trim(), roles: [form.role], is_active: form.is_active };
+      const payload = { full_name: toUpperTr(`${form.first_name.trim()} ${form.last_name.trim()}`), phone: form.phone.trim(), roles: [form.role], is_active: form.is_active };
       if (editing) await apiPatch(`/auth/users/${editing.id}`, currentUser?.role === "ADMIN" ? payload : { full_name: payload.full_name, phone: payload.phone, is_active: payload.is_active });
       else await apiPost("/auth/users", { ...payload, email: form.email.trim() || null, password: form.password, discipline: null, discipline_only: false });
       setModalOpen(false);
@@ -375,11 +376,11 @@ export default function ManagerUsersPage() {
           <FieldGroup className="grid gap-4 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="k-ad">Ad *</FieldLabel>
-              <Input id="k-ad" value={form.first_name} onChange={(event) => setForm({ ...form, first_name: event.target.value })} />
+              <Input id="k-ad" value={form.first_name} onChange={(event) => setForm({ ...form, first_name: toUpperTr(event.target.value) })} />
             </Field>
             <Field>
               <FieldLabel htmlFor="k-soyad">Soyad *</FieldLabel>
-              <Input id="k-soyad" value={form.last_name} onChange={(event) => setForm({ ...form, last_name: event.target.value })} />
+              <Input id="k-soyad" value={form.last_name} onChange={(event) => setForm({ ...form, last_name: toUpperTr(event.target.value) })} />
             </Field>
             <Field>
               <FieldLabel htmlFor="k-tel">Telefon *</FieldLabel>

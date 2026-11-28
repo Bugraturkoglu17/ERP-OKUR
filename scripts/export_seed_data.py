@@ -4,7 +4,7 @@
 bu dosyalardan veritabanı otomatik doldurulur:
 
 - data/okur-stores.json.gz   mağaza kartları: müşteri, bölge, şube, proje (+ firma kaydı)
-- data/okur-catalog.json     stok kartları: Excel fiyat listesinden (kod, ad, birim, marka, tip, fiyat)
+- apps/backend/app/services/okur-catalog.json     stok kartları: Excel fiyat listesinden (kod, ad, birim, marka, tip, fiyat)
 - data/okur-demo-stock.json  ana depo + deneme açılış stoğu (kod -> miktar)
 - data/STOK-VE-MAGAZA-LISTESI.xlsx   kaynak Excel (verilirse kopyalanır)
 
@@ -85,7 +85,7 @@ def main() -> None:
         items, stats = load_catalog_reader()(excel)
         catalog = [{**item, "unit_price": str(item["unit_price"]) if item["unit_price"] is not None else None} for item in items]
         catalog.sort(key=lambda item: (len(item["sku"]), item["sku"]))
-        write_json(DATA / "okur-catalog.json", catalog)
+        write_json(ROOT / "apps/backend/app/services/okur-catalog.json", catalog)
         print(f"catalog: {len(catalog)} stok kartı (işçilik atlanan: {stats['services']})")
     else:
         print("catalog: Excel bulunamadı, okur-catalog.json değişmedi")
@@ -112,7 +112,7 @@ def main() -> None:
         write_json(DATA / "okur-stores.json.gz", payload, gz=True)
         print("stores:", {table: len(payload[table]) for table in STORE_TABLES})
 
-        cursor.execute("SELECT id, name FROM retail_depots WHERE tenant_id = %s AND kind = 'main'", (tenant[0],))
+        cursor.execute("SELECT id, name FROM retail_depots WHERE tenant_id = %s AND kind = 'main' AND is_active", (tenant[0],))
         main = cursor.fetchone()
         if main:
             cursor.execute(

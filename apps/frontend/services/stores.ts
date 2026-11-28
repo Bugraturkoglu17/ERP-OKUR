@@ -6,7 +6,7 @@
  * olduğu için app/projects/import/page.tsx içinde kalır; o sihirbaz bu dosyadaki
  * createStore/updateStore fonksiyonlarını satır satır çağırır.
  */
-import { api, apiGet, apiPost, apiPatch } from "@/lib/api";
+import { api, apiDelete, apiGet, apiPost, apiPatch } from "@/lib/api";
 
 export type Store = {
   id: string;
@@ -138,4 +138,8 @@ export async function createStore(input: StoreCreateInput): Promise<Store> {
 
 export async function updateStore(id: string, input: Partial<StoreCreateInput>): Promise<Store> {
   return apiPatch<Store>(`/projects/${id}`, input);
+}
+
+export async function deleteStore(id: string): Promise<void> {
+  await apiDelete(`/projects/${id}`);
 }

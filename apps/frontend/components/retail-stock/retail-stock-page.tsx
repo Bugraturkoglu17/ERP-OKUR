@@ -7,7 +7,7 @@ import {
   AlertTriangle, ArrowDownToLine, List as ListIcon, ArrowRightLeft, Boxes, ClipboardList,
   Package, Plus, Search, Store, Truck, Warehouse,
 } from "lucide-react";
-import { apiGet, apiPatch, apiPost, getRequestErrorMessage } from "@/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost, getRequestErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/shadcn/alert";
 import { Badge } from "@/components/shadcn/badge";
@@ -117,6 +117,7 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
   const [page, setPage] = useState(1);
   const [action, setAction] = useState<Action | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [deleteTarget, setDeleteTarget] = useState<Depot | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -263,6 +264,36 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
     } finally { setBusy(false); }
   }
 
+  async function importCatalog() {
+    if (busy) return;
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      const result = await apiPost<{ added: number; existing: number }>("/retail-stock/catalog/import");
+      await loadAll();
+      await refreshStock(selectedDepotId);
+      setSuccess(`${result.added} kart eklendi. ${result.existing} kart zaten katalogdaydı.`);
+    } catch (err) {
+      setError(getRequestErrorMessage(err, "Malzeme kataloğu yüklenemedi."));
+    } finally { setBusy(false); }
+  }
+
+  function confirmDelete(depot: Depot) {
+    setError(""); setSuccess(""); setDeleteTarget(depot);
+  }
+
+  async function removeDepot() {
+    if (!deleteTarget || busy) return;
+    setBusy(true); setError("");
+    try {
+      await apiDelete(`/retail-stock/depots/${deleteTarget.id}`);
+      setSuccess(`${deleteTarget.name} depolardan kaldırıldı.`);
+      setDeleteTarget(null);
+      await loadAll();
+    } catch (err) {
+      setError(getRequestErrorMessage(err, "Depo silinemedi."));
+    } finally { setBusy(false); }
+  }
+
   const canTransfer = Boolean(mainDepot && vehicles.length);
   // Stok girişi penceresinde, malzemenin ana depodaki mevcut miktarı seçicide görünür.
   const mainStockHint = (materialId: string, unit: string) => {
@@ -284,13 +315,27 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
       </div>
       {manager && (
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" disabled={busy} onClick={() => void importCatalog()}>Hazır malzeme listesini yükle</Button>
           <Button variant="outline" onClick={() => openAction("material")}><Plus data-icon="inline-start" />Malzeme ekle</Button>
           <Button variant="outline" onClick={() => openAction("vehicle")}><Truck data-icon="inline-start" />Araç ekle</Button>
         </div>
       )}
     </header>
 
-    {error && !action && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+    <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !busy) { setDeleteTarget(null); setError(""); } }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{deleteTarget?.name} silinsin mi?</DialogTitle>
+          <DialogDescription>Depo listeden kaldırılır. Geçmiş stok hareketleri korunur.</DialogDescription>
+        </DialogHeader>
+        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+        <DialogFooter>
+          <Button variant="outline" disabled={busy} onClick={() => { setDeleteTarget(null); setError(""); }}>Vazgeç</Button>
+          <Button variant="destructive" disabled={busy} onClick={() => void removeDepot()}>Depoyu sil</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    {error && !action && !deleteTarget && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
     {success && <Alert className="border-emerald-200 bg-emerald-50 text-emerald-800"><AlertDescription>{success}</AlertDescription></Alert>}
 
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -322,6 +367,7 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
           <h2 className="font-semibold">Depo bakiyesi<InfoHint text="Miktarlar hareket kaydından güncellenir; eksi stok mümkün değildir." /></h2>
           <div className="flex flex-wrap gap-2">
             {manager && mainDepot && materials.length > 0 && <Button variant="outline" size="sm" onClick={() => openAction("opening")}>Stok girişi</Button>}
+            {manager && selectedDepot && <Button variant="outline" size="sm" onClick={() => confirmDelete(selectedDepot)}>Depoyu sil</Button>}
             {canTransfer && <Button size="sm" onClick={() => setTransferOpen(true)}><ArrowRightLeft data-icon="inline-start" />{manager ? "Aktarım" : "Ana depoya iade"}</Button>}
           </div>
         </div>
@@ -409,6 +455,7 @@ export function RetailStockPage({ manager }: { manager: boolean }) {
             subtitle={staff.find((person) => person.id === vehicle.assigned_user_id)?.name ?? (vehicle.assigned_user_id ? "Size atanmış araç" : "Çalışan atanmamış")}>
             <Button variant="outline" size="sm" className="bg-background" onClick={() => { setSelectedDepotId(vehicle.id); setTab("stock"); }}>Stoku gör</Button>
             {manager && <Button variant="ghost" size="sm" className="text-[#bd0063]" onClick={() => openAction("assign", vehicle)}>Çalışan ata</Button>}
+            {manager && <Button variant="ghost" size="sm" onClick={() => confirmDelete(vehicle)}>Sil</Button>}
           </DepotCard>
         ))}
       </div>}

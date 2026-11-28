@@ -43,6 +43,11 @@ async def locked_balances(db: AsyncSession, material_id: UUID, depot_ids: list[U
     # Insert-zero + deterministic lock order makes concurrent loads/use safe;
     # the unique PK prevents duplicate rows when two requests race.
     ordered = sorted(set(depot_ids), key=str)
+    active_ids = (await db.execute(select(RetailDepot.id).where(
+        RetailDepot.id.in_(ordered), RetailDepot.is_active.is_(True)
+    ).order_by(RetailDepot.id).with_for_update(read=True))).scalars().all()
+    if len(active_ids) != len(ordered):
+        raise HTTPException(409, "Stok işlemi yapılamadı. Seçilen depo artık aktif değil.")
     for depot_id in ordered:
         await db.execute(
             pg_insert(RetailBalance.__table__)
@@ -71,7 +76,7 @@ async def validate_work_order_depot(
 ) -> RetailDepot:
     """A work order draws stock from the assignee's own active cep depo — also when it belongs to an
     installation project (projects have no depot since 27.11.2026)."""
-    depot = await db.get(RetailDepot, depot_id)
+    depot = await db.get(RetailDepot, depot_id, with_for_update={"read": True}, populate_existing=True)
     if not depot or not depot.is_active or depot.kind != "vehicle":
         raise HTTPException(status_code=400, detail="Seçilen cep depo bulunamadı veya pasif.")
     if tenant_id and depot.tenant_id != tenant_id:

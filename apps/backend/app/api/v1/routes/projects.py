@@ -16,6 +16,7 @@ from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status, UploadFile, File
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database         import get_db
@@ -520,13 +521,34 @@ async def delete_project(
     user:       User         = Depends(require_role("admin")),
     db:         AsyncSession = Depends(get_db),
 ) -> None:
-    """Projeyi siler — sadece Yönetici."""
+    """Bağlı operasyon kaydı olmayan mağazayı kalıcı siler — sadece Yönetici."""
     project = await crud_project.get(db, project_id)
     if not project:
         raise NotFoundError(detail="Proje bulunamadı.")
     if _tenant_mismatch(user, project.tenant_id):
         raise HTTPException(status_code=403, detail="Bu proje üzerinde yetkiniz yok.")
-    await crud_project.delete(db, project)
+    # SQLModel ilişkileri bazı çocuk kayıtlarını silme sırasında NULL yapmayı
+    # deneyebilir. Önce bütün tanımlı FK'leri kontrol ederek geçmiş verileri koru.
+    for table in Project.__table__.metadata.tables.values():
+        if table is Project.__table__:
+            continue
+        for foreign_key in table.foreign_keys:
+            if foreign_key.column.table is not Project.__table__:
+                continue
+            linked = await db.execute(
+                select(1).select_from(table).where(foreign_key.parent == project.id).limit(1)
+            )
+            if linked.first():
+                raise HTTPException(
+                    status_code=409,
+                    detail="Bu mağazaya bağlı iş, dosya veya başka kayıtlar var. Önce ilgili kayıtları kaldırın.",
+                )
+    try:
+        await db.delete(project)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Bu mağazaya bağlı kayıtlar olduğu için silinemedi.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

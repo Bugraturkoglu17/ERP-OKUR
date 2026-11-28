@@ -5,12 +5,12 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   ChevronLeft, ChevronRight, Edit2, FileUp, FolderOpen, MapPin,
-  MoreVertical, Plus, Search, Store, Trash2,
+  MoreVertical, Plus, Power, Search, Store, Trash2,
 } from "lucide-react";
-import { apiGet } from "@/lib/api";
+import { apiGet, getRequestErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
-  getStores, updateStore,
+  deleteStore, getStores, updateStore,
   getStoresPage, getAllRegions, getCancelledStoreCount,
 } from "@/services/stores";
 import { StoreFormModal, defaultStoreForm, storeFormFrom } from "@/components/store/store-form-modal";
@@ -91,9 +91,9 @@ function isCancelled(s: string) { return s === "cancelled" || s === "CANCELLED";
 
 // ── Mağaza Kartı ───────────────────────────────────────────────────────────────
 
-function MagazaKart({ p, regionName, detailHrefBase, onEdit, onDeactivate, canManage }: {
+function MagazaKart({ p, regionName, detailHrefBase, onEdit, onDeactivate, onDelete, canManage }: {
   p: Project; regionName?: string; detailHrefBase: string;
-  onEdit: (p: Project) => void; onDeactivate: (p: Project) => void;
+  onEdit: (p: Project) => void; onDeactivate: (p: Project) => void; onDelete: (p: Project) => void;
   canManage: boolean;
 }) {
   const extra    = parseDesc(p.description);
@@ -119,7 +119,10 @@ function MagazaKart({ p, regionName, detailHrefBase, onEdit, onDeactivate, canMa
               <DropdownMenuGroup>
                 <DropdownMenuItem onSelect={() => onEdit(p)}><Edit2 />Düzenle</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => onDeactivate(p)} className={isCancl ? "text-emerald-700" : "text-destructive focus:text-destructive"}>
-                  <Trash2 />{isCancl ? "Aktife Al" : "Pasifleştir"}
+                  <Power />{isCancl ? "Aktife Al" : "Pasifleştir"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onDelete(p)} className="text-destructive focus:text-destructive">
+                  <Trash2 />Kalıcı Sil
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>
@@ -188,6 +191,41 @@ function DeactivateDialog({ project, onClose, onDone }: { project: Project; onCl
   );
 }
 
+function DeleteDialog({ project, onClose, onDone }: { project: Project; onClose: () => void; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleConfirm = async () => {
+    setBusy(true); setError("");
+    try {
+      await deleteStore(project.id);
+      onDone(); onClose();
+    } catch (reason) {
+      setError(getRequestErrorMessage(reason, "Mağaza silinemedi."));
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <AlertDialog open onOpenChange={(open) => { if (!open && !busy) onClose(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Mağaza kalıcı olarak silinsin mi?</AlertDialogTitle>
+          <AlertDialogDescription>
+            &quot;{project.name}&quot; mağaza kartı silinecek. Bu işlem geri alınamaz. Bağlı iş veya dosya varsa sistem silmeyi engeller.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>Vazgeç</AlertDialogCancel>
+          <Button variant="destructive" disabled={busy} onClick={() => void handleConfirm()}>
+            {busy && <Spinner data-icon="inline-start" />}Kalıcı Sil
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 // ── Ana Sayfa ──────────────────────────────────────────────────────────────────
 
 export default function MagazalarPage() {
@@ -218,6 +256,7 @@ export default function MagazalarPage() {
   const [createOpen,     setCreateOpen]     = useState(false);
   const [editProject,    setEditProject]    = useState<Project | null>(null);
   const [deactivateProj, setDeactivateProj] = useState<Project | null>(null);
+  const [deleteProj, setDeleteProj] = useState<Project | null>(null);
 
   // Referans veri (zincirler + bölgeler) sayfa açılışında BİR KEZ, arama/
   // sayfalama state'inden bağımsız yüklenir — her tuş vuruşunda tekrar
@@ -369,7 +408,7 @@ export default function MagazalarPage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {pageItems.map(p => (
               <MagazaKart key={p.id} p={p} regionName={regionMap[p.region_id ?? ""]} detailHrefBase={basePath}
-                onEdit={setEditProject} onDeactivate={setDeactivateProj} canManage={canManage} />
+                onEdit={setEditProject} onDeactivate={setDeactivateProj} onDelete={setDeleteProj} canManage={canManage} />
             ))}
           </div>
 
@@ -418,6 +457,12 @@ export default function MagazalarPage() {
       )}
       {canManage && deactivateProj && (
         <DeactivateDialog project={deactivateProj} onClose={() => setDeactivateProj(null)} onDone={loadStores} />
+      )}
+      {canManage && deleteProj && (
+        <DeleteDialog project={deleteProj} onClose={() => setDeleteProj(null)} onDone={() => {
+          if (page === 1) void loadStores(); else setPage(1);
+          void getCancelledStoreCount().then(setCancelledCount).catch(() => {});
+        }} />
       )}
     </div>
   );

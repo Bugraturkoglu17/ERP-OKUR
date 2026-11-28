@@ -111,7 +111,7 @@ def _load_catalog() -> tuple[list[dict] | None, str]:
                            "(Excel değişikliklerini işlemek için: pip install -r requirements.txt)")
         except Exception as error:  # noqa: BLE001
             logger.warning("Excel okunamadı (%s); data/okur-catalog.json kullanılıyor", error)
-    catalog = _read_json("okur-catalog.json")
+    catalog = json.loads(Path(__file__).with_name("okur-catalog.json").read_text(encoding="utf-8"))
     return catalog, "JSON"
 
 
