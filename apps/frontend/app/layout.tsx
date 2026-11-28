@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/auth-context";
 import { AppShell } from "@/components/layout/app-shell";
 import { UpdateAvailableBanner } from "@/components/pwa/UpdateAvailableBanner";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ServiceWorkerManager } from "@/components/pwa/ServiceWorkerManager";
 import { EdgeSwipeGuard } from "@/components/pwa/EdgeSwipeGuard";
 import { BrandFavicon } from "@/components/brand/brand-favicon";
@@ -90,6 +91,7 @@ export default function RootLayout({
         <ServiceWorkerManager />
         <EdgeSwipeGuard />
         <UpdateAvailableBanner />
+        <InstallPrompt />
         <BrandFavicon />
         <Suspense fallback={null}><NavTracker /></Suspense>
       </body>
